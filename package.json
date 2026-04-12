@@ -13,6 +13,8 @@
     "app:dev": "concurrently -k \"npm run dev\" \"npm run electron\""
   },
   "dependencies": {
+    "@qeeclaw/core-sdk": "file:../../../../private/tmp/qeeclaw-sdk/QeeClaw-SDK/qeeclaw-core-sdk",
+    "@qeeclaw/product-sdk": "file:../../../../private/tmp/qeeclaw-sdk/QeeClaw-SDK/qeeclaw-product-sdk",
     "@tailwindcss/vite": "^4.2.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",

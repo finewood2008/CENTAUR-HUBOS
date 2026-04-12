@@ -10,6 +10,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
+import { checkConnection } from './services/qeeclaw';
+import { useQeeClawAgent } from './hooks/useQeeClaw';
+
 const COLORS = {
   bg: '#0F111A',
   panel: '#1A1D27',
@@ -72,6 +75,19 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // QeeClaw Agent Hook
+  const { invokeModel, loading: isInvoking } = useQeeClawAgent('system-builder');
+
+  // 初始化检查 QeeClaw 连接
+  useEffect(() => {
+    checkConnection().then(res => {
+      console.log('QeeClaw Connection:', res);
+      if (res.connected) {
+         setMessages(prev => [...prev, { role: 'ai', content: `[系统] 已成功连接至本地 Hermes Agent C/S 端点。可用模型数量: ${res.models?.length || 0}。现在可以开始真实的 LLM 意图生成。` }]);
+      }
+    });
+  }, []);
   
   const [buildTree, setBuildTree] = useState<FileNode[]>([
     { name: 'SOUL.md', type: 'file', desc: '核心人设与边界', tag: 'IDENTITY', status: 'pending' },
@@ -134,35 +150,43 @@ export default function App() {
       }));
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || isTyping || buildStep >= 4) return;
+    if (!chatInput.trim() || isTyping || isInvoking || buildStep >= 4) return;
     
     const newMsg = chatInput;
-    setMessages(prev => [...prev, { role: 'user', content: newMsg }]);
+    const currentMessages = [...messages, { role: 'user' as const, content: newMsg }];
+    setMessages(currentMessages);
     setChatInput('');
     setIsTyping(true);
 
-    if (buildStep === 0) {
+    try {
+      // 通过 QeeClaw SDK 真实调用 Hermes (为了界面演示，在步骤 0 时我们演示真实请求)
+      if (buildStep === 0) {
         updateTreeStatus('SOUL.md', 'generating');
-        setTimeout(() => {
-            updateTreeStatus('SOUL.md', 'done');
-            setMessages(prev => [...prev, { role: 'ai', content: '收到！我已经为你生成了核心人设 (SOUL.md)。\n\n接下来，我们需要明确他的**日常工作任务**。他每天具体需要处理哪几类事情？（例如：1. 撰写产品说明书 2. 回复客户退款请求）' }]);
-            setIsTyping(false);
-            setBuildStep(1);
-        }, 2000);
-    } else if (buildStep === 1) {
+        
+        // 构建提示词
+        const prompt = `用户输入: "${newMsg}"\n请根据用户输入，设计一个数字员工的系统角色设定(SOUL.md)。要求简短，不要超过50字。`;
+        
+        // 真实请求 LLM
+        const response = await invokeModel(prompt, messages);
+        // @ts-ignore
+        const aiReply = response?.message?.content || response?.content || response?.text || "LLM 返回成功，但内容解析有误。请检查接口结构。";
+
+        updateTreeStatus('SOUL.md', 'done');
+        setMessages(prev => [...prev, { role: 'ai', content: `[真实模型回复]\n\n${aiReply}\n\n---\n\n接下来，我们需要明确他的**日常工作任务**。他每天具体需要处理哪几类事情？` }]);
+        setBuildStep(1);
+      } else if (buildStep === 1) {
         updateTreeStatus('workflows', 'generating');
         setTimeout(() => {
             updateTreeStatus('workflows', 'done', [
                 { name: 'task-1.md', type: 'file', status: 'done' },
                 { name: 'task-2.md', type: 'file', status: 'done' }
             ]);
-            setMessages(prev => [...prev, { role: 'ai', content: '好的，工作流规则 (workflows) 已经编织完成。\n\n最后，为了防止他犯错，他有什么**绝对不能触碰的底线**或必须遵守的死板格式？（例如：决不能承诺赔偿、必须用JSON格式输出、语气必须极度谦卑等）' }]);
-            setIsTyping(false);
+            setMessages(prev => [...prev, { role: 'ai', content: '好的，工作流规则 (workflows) 已经编织完成。\n\n最后，为了防止他犯错，他有什么**绝对不能触碰的底线**或必须遵守的死板格式？' }]);
             setBuildStep(2);
-        }, 2500);
-    } else if (buildStep === 2) {
+        }, 1000);
+      } else if (buildStep === 2) {
         updateTreeStatus('standards', 'generating');
         setTimeout(() => {
             updateTreeStatus('standards', 'done', [
@@ -172,19 +196,22 @@ export default function App() {
             setTimeout(() => {
                  updateTreeStatus('self-check.md', 'done');
                  setMessages(prev => [...prev, { role: 'ai', content: '太棒了！防错清单和强制规范已全部挂载完毕。\n\n该数字员工的底层架构已**完整生成**。你可以在右侧检视最终结构，然后点击“确认并入职”将他部署到系统中。' }]);
-                 setIsTyping(false);
                  setBuildStep(4); 
                  setPreviewAgent({
-                    id: 'custom_' + Date.now(),
-                    name: '新晋数字员工',
-                    role: '定制岗位',
-                    avatar: '🤖',
-                    model: 'DeepSeek-V3',
-                    port: 3000 + roster.length + 1,
-                    summary: '架构生成完毕，随时可以入职。',
-                 });
-            }, 1500);
-        }, 2000);
+                     id: 'custom_' + Date.now(),
+                     name: '定制角色',
+                     role: '客服',
+                     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Custom',
+                     model: 'DeepSeek-V3',
+                     summary: '架构生成完毕，随时可以入职。'
+                  });
+            }, 1000);
+        }, 1000);
+      }
+    } catch (e) {
+      setMessages(prev => [...prev, { role: 'ai', content: '[系统错误] 连接本地 Agent 失败，请检查 Hermes 终端是否已在 21737 端口启动。' }]);
+    } finally {
+      setIsTyping(false);
     }
   };
 
@@ -320,11 +347,11 @@ export default function App() {
                            value={chatInput} onChange={e => setChatInput(e.target.value)}
                            onKeyDown={e => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}
                            placeholder={buildStep >= 4 ? "架构已完成，请在右侧确认入职。" : "回复架构师的提问，按回车发送..."}
-                           disabled={isTyping || buildStep >= 4}
+                           disabled={isTyping || isInvoking || buildStep >= 4}
                            className="w-full bg-[#1A1D27] border border-[#2E3245] rounded-2xl py-5 pl-6 pr-16 text-base text-white resize-none focus:outline-none focus:border-[#FF5E00] transition-colors shadow-inner disabled:opacity-50"
                            rows={3}
                         />
-                        <button type="submit" disabled={!chatInput.trim() || isTyping || buildStep >= 4} className="absolute right-4 bottom-4 p-3 rounded-xl bg-[#FF5E00] text-black disabled:opacity-50 disabled:grayscale transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_#FF5E0060]">
+                        <button type="submit" disabled={!chatInput.trim() || isTyping || isInvoking || buildStep >= 4} className="absolute right-4 bottom-4 p-3 rounded-xl bg-[#FF5E00] text-black disabled:opacity-50 disabled:grayscale transition-all hover:scale-105 active:scale-95 shadow-[0_0_15px_#FF5E0060]">
                            <Send size={20} className="ml-0.5" />
                         </button>
                      </div>
