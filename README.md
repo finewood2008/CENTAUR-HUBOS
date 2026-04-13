@@ -43,3 +43,7 @@ npm run electron
 ## 🤝 对于 AI 助手的交接指南 (For AI Agents)
 
 如果你是接手此项目的其他 AI，请首先阅读项目根目录下的 **[PRD.md](./PRD.md)** 文件。它包含了当前的产品状态、开发进度、未完成的功能列表以及系统架构的详细说明，这是保证你能够无缝接手开发的关键文档。
+
+## 📋 跨部门对接板块
+
+请参阅 [docs/integration/README.md](docs/integration/README.md) 获取云端计费、内部网关、事件总线的对接规范。
