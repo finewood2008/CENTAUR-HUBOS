@@ -1,49 +1,111 @@
-# 半人马 AI 人事部 (Centaur AI HR Hub)
+# Hub OS
 
-## 📖 项目简介 (Project Overview)
+> 半人马 AI 数字员工操作系统 — 让每一家中小企业都拥有自己的 AI 团队
 
-**半人马 AI 人事部 (Centaur AI HR Hub)** 是一台面向中国中小企业的**“数字员工入职与管理硬件平台”**。
+Hub OS 是一个本地部署的 AI Agent 管理平台。它把大模型 Agent 包装成"数字员工"的概念，让企业老板像管理真实团队一样管理 AI —— 招聘、分配任务、查看工作汇报、控制权限和预算。
 
-在底层，它是一个强大的 AI Agent Builder 基础设施（集成 Hermes Agent、向量数据库、模型路由器等）；在业务层，我们将其核心概念从传统的“技术/部署/开发”转换为“人事/面试/入职”。通过“架构师面谈区”（Chat-First 交互），没有技术背景的中小企业老板也能像面试真实员工一样，对话生成并管理专属于自己企业的 AI 数字员工（如：旗舰级预装员工——CMO 兼品牌设计专家“火花 Spark”）。
+## 核心理念
 
-## 🎨 UI & 架构设计 (UI & Architecture)
+**不是又一个 AI 聊天工具，而是一个 AI 人事系统。**
 
-项目采用 **Chat-First（对话优先）** 的双/三面板架构，核心视觉为现代企业级磨砂玻璃质感（Glassmorphism），品牌主题色为亮橙色 (`#FF6B35`)。
+- 每个 Agent 是一名"员工"，有档案、岗位、技能、权限
+- 通过"架构师面谈"对话式创建新员工，不需要写代码
+- Dashboard 是"公司早报"，一眼掌握全局
+- 知识库是"公司资料室"，按权限分配给不同员工
 
-*   **左侧：花名册 (Roster)** - 管理与查看已“入职”的数字员工列表。
-*   **中间：面谈区 (Chat/Interview)** - 核心交互区。用于“岗位生成”（构建新 Agent）以及与已有员工进行业务对话。
-*   **右侧：工作区预览 (Workspace Preview)** - 动态展示生成的品牌资产、业务文件或 RAG 知识库内容。
+## 功能模块
 
-## 🛠️ 技术栈 (Tech Stack)
+### 控制台 (Dashboard)
+公司早报风格的全局概览：
+- 在线员工状态 / 今日任务完成数 / 算力消耗 / 安全告警
+- 每位员工的今日工作汇报
+- 近 7 日算力消耗趋势图
+- 异常告警（配额耗尽、越权访问、API 故障）
 
-*   **前端**：React, Tailwind CSS, Vite
-*   **客户端打包**：Electron (桌面端硬件系统级应用适配)
-*   **Agent 引擎**：基于 Hermes Agent 方案
-*   **语言**：TypeScript
+### 员工管理 (Agents)
+三个子视图：
+- **员工市场** — 预配置的岗位模板（销售、客服、财务、法务等），一键入职
+- **花名册** — 在册员工列表 + 详细档案卡（能力标签、工具权限、数据权限、算力预算）
+- **架构师面谈** — 对话式 Agent Builder，通过自然语言定义岗位、选模型、配权限
 
-## 📂 核心机制 (Core Mechanisms)
+### 通讯中心 (Channels)
+管理数字员工的对外沟通渠道：
+- 企业微信 / 邮件 / 飞书 / 钉钉集成
+- 消息路由 — 自动将外部消息分配给对应员工处理
+- 会话记录查看
 
-*   **Harness 加载机制**：后端通过 `SparkAgent.ts` 和 `HarnessLoader.ts` 动态加载 `harness/` 目录下的配置文件（`context-map.md`, `workflows/`, `standards/` 等），实现数字员工行为的定义与约束。
-*   **AI 协同与交接**：依赖 `PRD.md` 和 `SOUL.md` 进行 AI 之间的上下文无缝交接（AI-to-AI handoffs）。
-*   **自我进化**：通过 `harness/errors/log.md` 记录错误和用户反馈，实现系统自我优化。
+### 知识库 (Knowledge)
+数字员工的知识来源管理：
+- 多个独立知识库（品牌资料库、员工档案库、产品文档等）
+- 按员工分配数据权限
+- 文件索引和存储用量统计
 
-## 🚀 快速开始 (Getting Started)
+## 技术栈
+
+- **前端**: React 19 + TypeScript + Tailwind CSS v4
+- **桌面**: Electron 22（macOS / Windows / Linux）
+- **动效**: Framer Motion
+- **图标**: Lucide React
+- **构建**: Vite 8
+
+## 快速开始
 
 ```bash
-# 1. 安装依赖
+# 安装依赖
 npm install
 
-# 2. 启动前端开发服务器 (Vite)
+# 浏览器开发模式
 npm run dev
 
-# 3. 启动 Electron 桌面客户端
-npm run electron
+# Electron 桌面应用开发模式
+npm run app:dev
 ```
 
-## 🤝 对于 AI 助手的交接指南 (For AI Agents)
+## 项目结构
 
-如果你是接手此项目的其他 AI，请首先阅读项目根目录下的 **[PRD.md](./PRD.md)** 文件。它包含了当前的产品状态、开发进度、未完成的功能列表以及系统架构的详细说明，这是保证你能够无缝接手开发的关键文档。
+```
+src/
+├── App.tsx                         # 主应用入口 + 路由
+├── main.tsx                        # React 挂载点
+├── index.css                       # 全局样式
+├── types/
+│   └── index.ts                    # TypeScript 类型定义
+├── data/
+│   └── mock.ts                     # Mock 数据（员工/模板/告警/用量）
+└── components/
+    ├── layout/
+    │   └── Sidebar.tsx             # 侧边导航栏
+    ├── dashboard/
+    │   └── Dashboard.tsx           # 控制台首页
+    ├── agents/
+    │   └── AgentManagement.tsx     # 员工管理（市场+花名册+面谈+档案）
+    ├── channels/
+    │   └── Channels.tsx            # 通讯中心
+    └── knowledge/
+        └── Knowledge.tsx           # 知识库
+```
 
-## 📋 跨部门对接板块
+## 当前状态
 
-请参阅 [docs/integration/README.md](docs/integration/README.md) 获取云端计费、内部网关、事件总线的对接规范。
+🟢 **原型阶段** — Dashboard 和员工管理为高保真 Mock 原型，通讯中心和知识库为框架占位。
+
+### 已完成
+- [x] 组件化架构重构
+- [x] 侧边导航（4 模块 + 设置）
+- [x] Dashboard 公司早报（指标卡 + 汇报 + 趋势图 + 告警）
+- [x] 员工市场（App Store 风格模板浏览）
+- [x] 花名册 + 员工档案卡
+- [x] 架构师面谈（对话式 Agent Builder）
+- [x] 通讯中心框架
+- [x] 知识库框架
+
+### 下一步
+- [ ] 接入 QeeClaw SDK 实现真实 Agent 管理
+- [ ] 员工入职流程打通后端
+- [ ] 知识库文件上传 + 向量索引
+- [ ] 通讯渠道真实对接（企微/飞书）
+- [ ] Agent 间协作工作流
+
+## 许可
+
+MIT
