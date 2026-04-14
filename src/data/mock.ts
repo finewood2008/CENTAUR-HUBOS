@@ -19,6 +19,7 @@ export const AGENTS: Agent[] = [
     hireDate: '2026-03-15',
     todayTasks: 12,
     todaySummary: '完成 3 篇公众号排版，生成 2 组小红书配图，修改 Logo 方案 V3',
+    channel: { type: 'wecom', name: '企业微信 - 主体', status: 'active' },
   },
   {
     id: 'linda',
@@ -37,6 +38,7 @@ export const AGENTS: Agent[] = [
     hireDate: '2026-04-01',
     todayTasks: 7,
     todaySummary: '筛选 15 份简历，安排 3 场面试，处理 2 个入职申请',
+    channel: { type: 'feishu', name: '飞书 - 半人马工作区', status: 'active' },
   },
   {
     id: 'helen',

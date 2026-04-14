@@ -26,7 +26,7 @@ export default function App() {
         {tab === 'agents' && (
           <AgentManagement agents={AGENTS} templates={TEMPLATES} />
         )}
-        {tab === 'channels' && <Channels />}
+        {tab === 'channels' && <Channels agents={AGENTS} />}
         {tab === 'knowledge' && <Knowledge />}
       </main>
     </div>

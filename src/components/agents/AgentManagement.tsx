@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Store, UserCircle, MessageSquarePlus, Search, Download, ChevronRight,
-  Shield, Database, Wrench, Zap, Send, Bot, X, ArrowLeft,
+  Shield, Database, Wrench, Zap, Send, Bot, X, ArrowLeft, Radio, Plus, Check, AlertCircle,
 } from 'lucide-react';
 import type { Agent, Template, ChatMessage } from '../../types';
 
@@ -175,10 +175,24 @@ function Roster({ agents, onSelect }: { agents: Agent[]; onSelect: (a: Agent) =>
   );
 }
 
+// 渠道类型元数据
+const CHANNEL_TYPES: Record<string, { icon: string; label: string }> = {
+  wecom: { icon: '💬', label: '企业微信' },
+  feishu: { icon: '🐦', label: '飞书' },
+  telegram: { icon: '✈️', label: 'Telegram' },
+  dingtalk: { icon: '🔵', label: '钉钉' },
+  email: { icon: '📧', label: '邮件' },
+  whatsapp: { icon: '📱', label: 'WhatsApp' },
+  slack: { icon: '🟣', label: 'Slack' },
+  webhook: { icon: '🔗', label: 'Webhook' },
+};
+
 // ─── 子视图：员工详情档案卡 ───
 function AgentDetail({ agent }: { agent: Agent }) {
   const quotaRatio = agent.budgetUsed / agent.budgetPercent;
   const quotaColor = quotaRatio > 0.9 ? 'bg-red-500' : quotaRatio > 0.7 ? 'bg-amber-500' : 'bg-green-500';
+  const ch = agent.channel;
+  const chMeta = ch ? CHANNEL_TYPES[ch.type] : null;
 
   return (
     <div className="max-w-2xl">
@@ -199,6 +213,56 @@ function AgentDetail({ agent }: { agent: Agent }) {
 
       {/* 信息卡片网格 */}
       <div className="grid grid-cols-2 gap-4 mb-6">
+        {/* 通讯渠道 */}
+        <InfoCard icon={<Radio size={16} />} title="通讯渠道" color="text-orange-400">
+          {ch && chMeta ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{chMeta.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-white font-medium">{ch.name}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
+                      ch.status === 'active' ? 'bg-green-500/15 text-green-400' :
+                      ch.status === 'error' ? 'bg-red-500/15 text-red-400' :
+                      'bg-gray-500/15 text-gray-400'
+                    }`}>
+                      {ch.status === 'active' ? '在线' : ch.status === 'error' ? '异常' : '未启用'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-gray-600">{chMeta.label}</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button className="flex-1 text-[10px] py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+                  配置
+                </button>
+                <button className="flex-1 text-[10px] py-1.5 rounded-lg bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+                  测试连接
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-[11px] text-gray-600">该员工尚未接入通讯渠道</p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {Object.entries(CHANNEL_TYPES).slice(0, 4).map(([type, meta]) => (
+                  <button
+                    key={type}
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg border border-dashed border-white/10 hover:border-orange-500/30 hover:bg-white/[0.03] transition-all"
+                  >
+                    <span className="text-base">{meta.icon}</span>
+                    <span className="text-[9px] text-gray-500">{meta.label}</span>
+                  </button>
+                ))}
+              </div>
+              <button className="w-full flex items-center justify-center gap-1 text-[10px] py-1.5 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-colors border border-orange-500/20">
+                <Plus size={10} /> 接入渠道
+              </button>
+            </div>
+          )}
+        </InfoCard>
+
         {/* 能力标签 */}
         <InfoCard icon={<Bot size={16} />} title="能力标签" color="text-blue-400">
           <div className="flex flex-wrap gap-1.5">
@@ -227,7 +291,7 @@ function AgentDetail({ agent }: { agent: Agent }) {
         </InfoCard>
 
         {/* 算力预算 */}
-        <InfoCard icon={<Zap size={16} />} title="算力预算" color="text-orange-400">
+        <InfoCard icon={<Zap size={16} />} title="算力预算" color="text-amber-400">
           <div className="mt-1">
             <div className="flex justify-between text-xs mb-1.5">
               <span className="text-gray-400">已使用 {agent.budgetUsed}%</span>
