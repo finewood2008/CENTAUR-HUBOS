@@ -60,11 +60,11 @@ centaur-hr/
 *   **核心能力**：理解品牌战略，执行视觉设计 (Logo, 海报等)，确保品牌一致性。
 *   **工作流参考**：它依赖 `SOUL.md` 进行人格定义，依赖 `BRAND.md` 作为企业上下文，工作时会在右侧 Workspace 动态展示设计草图或品牌档案。
 
-### 技术栈升级规划 (v2.0)：Letta 集成
-为了让 Spark 及其他数字员工真正拥有“长期记忆”和“自我进化”能力，我们计划在后端引入开源的 **Letta (formerly MemGPT)** 框架，替代传统的无状态 LLM API 调用。
-* **Letta Human Block**：存储企业的品牌档案 (BRAND.md 核心内容)、老板偏好、业务背景。
-* **Letta Persona Block**：存储员工的性格、职业操守和工作流 (SOUL.md 核心内容)。
-* 员工的日常沟通细节和纠错反馈，将通过 Letta 的记忆子智能体自动固化，实现“越用越懂公司”的真正 AI 员工体验。
+### 技术栈后端：QeeClaw SDK
+后端使用公司 CTO 自研的 **QeeClaw SDK**（AI PaaS 平台），仓库：git@github.com:longxipinglq5/qeeclaw-sdk.git
+* **Monorepo 结构**：core / product / runtime-sidecar / firmware / hermes-bridge
+* QeeClaw SDK 提供 Agent 运行时、记忆管理、工具编排等核心能力
+* 前端通过 `src/services/qeeclaw.ts` 和 `src/hooks/useQeeClaw.ts` 与后端对接
 
 ---
 
@@ -86,10 +86,10 @@ centaur-hr/
     *   [x] 实现右侧工作区的占位符（例如：选中 Spark 时，右侧显示虚拟的 `SOUL.md` 内容预览或品牌设计稿占位图）。
 3.  **Harness 目录结构建立**：
     *   [x] 在项目根目录创建 `harness/` 目录结构及占位文件，以便后续 Agent 逻辑接入。
-4.  **Letta 框架集成调研与实施 (新加入)**：
-    *   [ ] 在本地或服务器环境中搭建 Letta Server (Mocked in next steps for local run)。
-    *   [x] 使用 Letta API 编写 Agent 封装层 (TypeScript Frontend Client)。
-    *   [x] 将现有的 `SOUL.md` 和 `BRAND.md` 转换为 Letta 的 Persona 和 Human Block 格式并入库。
+4.  **QeeClaw SDK 集成**：
+    *   [x] 编写 QeeClaw SDK 前端封装层 (`src/services/qeeclaw.ts`)。
+    *   [x] 编写 React Hook (`src/hooks/useQeeClaw.ts`)。
+    *   [ ] 与 CTO 后端联调，替换 mock 数据为真实 Agent 交互。
 
 ### 交接指令：
-**接手的 AI，请在阅读完毕后，优先完成前端 UI 框架搭建与交互模拟。待基础外壳稳定后，开始进入第 4 步 Letta 的集成与联调工作。每次完成阶段性任务，请更新本文件中的完成状态。**
+**接手的 AI，请在阅读完毕后，优先完成前端 UI 框架搭建与交互模拟。待基础外壳稳定后，开始进入第 4 步 QeeClaw SDK 的联调工作。每次完成阶段性任务，请更新本文件中的完成状态。**

@@ -17,7 +17,7 @@ interface SidebarProps {
 
 export default function Sidebar({ active, onNav }: SidebarProps) {
   return (
-    <div className="w-[68px] h-full bg-gray-950 flex flex-col items-center py-5 gap-1 border-r border-white/5">
+    <div className="w-[68px] h-full bg-gray-950 flex flex-col items-center pt-10 pb-5 gap-1 border-r border-white/5" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
       {/* Logo */}
       <div className="mb-6 flex flex-col items-center">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-lg font-bold text-white shadow-lg shadow-orange-500/20">
@@ -35,6 +35,7 @@ export default function Sidebar({ active, onNav }: SidebarProps) {
             key={item.key}
             onClick={() => onNav(item.key)}
             className="relative w-12 h-12 flex flex-col items-center justify-center rounded-xl transition-colors group"
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
             {isActive && (
               <motion.div
@@ -58,9 +59,25 @@ export default function Sidebar({ active, onNav }: SidebarProps) {
 
       {/* 底部设置 */}
       <div className="mt-auto">
-        <button className="w-12 h-12 flex flex-col items-center justify-center rounded-xl group">
-          <Settings size={18} className="text-gray-600 group-hover:text-gray-400" />
-          <span className="text-[9px] mt-0.5 text-gray-700 group-hover:text-gray-500">设置</span>
+        <button
+          onClick={() => onNav('settings')}
+          className="relative w-12 h-12 flex flex-col items-center justify-center rounded-xl transition-colors group"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        >
+          {active === 'settings' && (
+            <motion.div
+              layoutId="nav-pill"
+              className="absolute inset-0 bg-orange-500/15 rounded-xl border border-orange-500/20"
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            />
+          )}
+          <Settings
+            size={18}
+            className={active === 'settings' ? 'text-orange-400 relative z-10' : 'text-gray-600 group-hover:text-gray-400 relative z-10'}
+          />
+          <span className={`text-[9px] mt-0.5 relative z-10 ${active === 'settings' ? 'text-orange-400' : 'text-gray-700 group-hover:text-gray-500'}`}>
+            设置
+          </span>
         </button>
       </div>
     </div>

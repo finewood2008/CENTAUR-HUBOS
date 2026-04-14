@@ -1,15 +1,23 @@
 // Hub OS - Dashboard 控制台首页（公司早报风格）
 import { motion } from 'framer-motion';
 import {
-  Zap, TrendingUp, AlertTriangle, ShieldAlert, Plus, CreditCard,
+  Zap, TrendingUp, AlertTriangle, ShieldAlert, Plus, CreditCard, Wallet,
   ArrowUpRight, ArrowDownRight, Activity, Clock, CheckCircle2, XCircle,
 } from 'lucide-react';
 import type { Agent, Alert, UsageStat } from '../../types';
+
+interface WalletData {
+  balance: number;
+  currency: string;
+  currentMonthSpent: number;
+  totalSpent: number;
+}
 
 interface DashboardProps {
   agents: Agent[];
   alerts: Alert[];
   usage: UsageStat[];
+  wallet: WalletData | null;
   onGoAgents: () => void;
 }
 
@@ -25,7 +33,7 @@ const statusLabel: Record<string, string> = {
   error: '异常',
 };
 
-export default function Dashboard({ agents, alerts, usage, onGoAgents }: DashboardProps) {
+export default function Dashboard({ agents, alerts, usage, wallet, onGoAgents }: DashboardProps) {
   const totalTasks = agents.reduce((s, a) => s + a.todayTasks, 0);
   const runningCount = agents.filter((a) => a.status === 'running').length;
   const todayUsage = usage[usage.length - 1];
@@ -178,11 +186,49 @@ export default function Dashboard({ agents, alerts, usage, onGoAgents }: Dashboa
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-gray-500">预计剩余天数</span>
-              <span className="text-orange-400 font-medium">约 18 天</span>
+              <span className="text-orange-400 font-medium">
+                {(() => {
+                  const dailyAvg = usage.reduce((s, u) => s + u.cost, 0) / usage.length;
+                  if (wallet && dailyAvg > 0) {
+                    return `约 ${Math.floor(wallet.balance / dailyAvg)} 天`;
+                  }
+                  return '—';
+                })()}
+              </span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* 钱包余额 */}
+      {wallet && (
+        <div className="bg-white/[0.03] rounded-xl border border-white/5 p-5">
+          <h2 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+            <Wallet size={16} className="text-emerald-400" />
+            账户钱包
+          </h2>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <div className="text-[10px] text-gray-500 mb-1">当前余额</div>
+              <div className="text-xl font-semibold text-emerald-400">
+                {wallet.currency === 'CNY' ? '¥' : '$'}{wallet.balance.toFixed(2)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-gray-500 mb-1">本月已花费</div>
+              <div className="text-xl font-semibold text-white">
+                {wallet.currency === 'CNY' ? '¥' : '$'}{wallet.currentMonthSpent.toFixed(2)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-gray-500 mb-1">累计花费</div>
+              <div className="text-xl font-semibold text-gray-400">
+                {wallet.currency === 'CNY' ? '¥' : '$'}{wallet.totalSpent.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 异常告警 */}
       {alerts.length > 0 && (

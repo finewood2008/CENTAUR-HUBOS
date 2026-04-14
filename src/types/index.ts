@@ -62,4 +62,4 @@ export interface ChatMessage {
   content: string;
 }
 
-export type NavTab = 'dashboard' | 'agents' | 'channels' | 'knowledge';
+export type NavTab = 'dashboard' | 'agents' | 'channels' | 'knowledge' | 'settings';

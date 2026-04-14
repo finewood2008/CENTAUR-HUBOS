@@ -5,8 +5,9 @@ function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    titleBarStyle: 'default',
-    backgroundColor: '#f3f4f6',
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 16 },
+    backgroundColor: '#030712',
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,

@@ -1,17 +1,57 @@
-// Hub OS - 知识库（占位页面）
-import { Database, FolderOpen, FileText, Upload, Search, Plus, HardDrive } from 'lucide-react';
+// Hub OS - 知识库（接入 SDK knowledge API）
+import { Database, FolderOpen, FileText, Upload, Search, Plus, HardDrive, RefreshCw, User, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
+import type { KnowledgeData } from '../../hooks/useQeeClaw';
 
-const knowledgeBases = [
-  { name: '品牌资料库', icon: '🎨', files: 128, size: '2.3 GB', agent: '火花 Spark', updated: '今天 14:30' },
-  { name: '员工档案库', icon: '👥', files: 45, size: '890 MB', agent: 'Linda', updated: '今天 09:15' },
-  { name: '产品文档库', icon: '📦', files: 312, size: '5.1 GB', agent: '全员可用', updated: '昨天 18:00' },
-  { name: '销售数据库', icon: '📊', files: 89, size: '1.7 GB', agent: '老张', updated: '今天 11:45' },
-  { name: '制度手册', icon: '📋', files: 23, size: '156 MB', agent: 'Linda', updated: '3 天前' },
-  { name: '媒体素材库', icon: '📸', files: 567, size: '12.8 GB', agent: 'Helen', updated: '昨天 15:20' },
-];
+// 知识库图标映射（按关键词匹配）
+function getKbIcon(name: string): string {
+  if (name.includes('品牌') || name.includes('设计')) return '🎨';
+  if (name.includes('员工') || name.includes('档案') || name.includes('人事')) return '👥';
+  if (name.includes('产品') || name.includes('文档') || name.includes('技术')) return '📦';
+  if (name.includes('销售') || name.includes('客户') || name.includes('数据')) return '📊';
+  if (name.includes('制度') || name.includes('手册') || name.includes('规范')) return '📋';
+  if (name.includes('媒体') || name.includes('素材') || name.includes('图片')) return '📸';
+  return '📁';
+}
 
-export default function Knowledge() {
+// 格式化文件大小
+function formatSize(bytes: number): string {
+  if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)} GB`;
+  if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(0)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${bytes} B`;
+}
+
+// 格式化时间
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffH = Math.floor(diffMs / 3600000);
+  const diffD = Math.floor(diffMs / 86400000);
+
+  if (diffH < 1) return '刚刚';
+  if (diffH < 24) return `${diffH} 小时前`;
+  if (diffD === 1) return '昨天';
+  if (diffD < 7) return `${diffD} 天前`;
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+interface KnowledgeProps {
+  knowledgeData: KnowledgeData;
+  knowledgeLoading: boolean;
+  onRefresh?: () => void;
+}
+
+export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }: KnowledgeProps) {
+  const { bases, stats } = knowledgeData;
+  const hasData = bases.length > 0;
+
+  // 计算统计（如果 API stats 没有就从 bases 汇总）
+  const totalBases = stats?.total_bases ?? bases.length;
+  const totalFiles = stats?.total_files ?? bases.reduce((s, k) => s + k.file_count, 0);
+  const totalSize = stats?.total_size ?? bases.reduce((s, k) => s + k.total_size, 0);
+
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       {/* 标题 */}
@@ -31,6 +71,15 @@ export default function Knowledge() {
               className="pl-8 pr-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/30 w-48"
             />
           </div>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={knowledgeLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-gray-400 text-xs rounded-lg hover:bg-white/10 transition-colors border border-white/10 disabled:opacity-40"
+            >
+              <RefreshCw size={12} className={knowledgeLoading ? 'animate-spin' : ''} />
+            </button>
+          )}
           <button className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 text-orange-400 text-xs rounded-lg hover:bg-orange-500/20 transition-colors border border-orange-500/20">
             <Plus size={14} /> 新建知识库
           </button>
@@ -46,7 +95,7 @@ export default function Knowledge() {
             </div>
             <span className="text-xs text-gray-500">知识库</span>
           </div>
-          <div className="text-2xl font-semibold text-white">{knowledgeBases.length}</div>
+          <div className="text-2xl font-semibold text-white">{totalBases}</div>
           <div className="text-[11px] text-gray-500 mt-1">个独立知识库</div>
         </div>
         <div className="bg-white/[0.03] rounded-xl border border-white/5 p-4">
@@ -56,7 +105,7 @@ export default function Knowledge() {
             </div>
             <span className="text-xs text-gray-500">文件总数</span>
           </div>
-          <div className="text-2xl font-semibold text-white">{knowledgeBases.reduce((s, k) => s + k.files, 0)}</div>
+          <div className="text-2xl font-semibold text-white">{totalFiles.toLocaleString()}</div>
           <div className="text-[11px] text-gray-500 mt-1">份文档已索引</div>
         </div>
         <div className="bg-white/[0.03] rounded-xl border border-white/5 p-4">
@@ -66,7 +115,7 @@ export default function Knowledge() {
             </div>
             <span className="text-xs text-gray-500">存储用量</span>
           </div>
-          <div className="text-2xl font-semibold text-white">23.0 GB</div>
+          <div className="text-2xl font-semibold text-white">{formatSize(totalSize)}</div>
           <div className="text-[11px] text-gray-500 mt-1">/ 50 GB 配额</div>
         </div>
       </div>
@@ -74,33 +123,66 @@ export default function Knowledge() {
       {/* 知识库列表 */}
       <div className="bg-white/[0.03] rounded-xl border border-white/5 p-5">
         <h2 className="text-sm font-medium text-white mb-4">所有知识库</h2>
-        <div className="space-y-2">
-          {knowledgeBases.map((kb, i) => (
-            <motion.div
-              key={kb.name}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/[0.03] transition-colors cursor-pointer group"
-            >
-              <span className="text-xl">{kb.icon}</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm text-white font-medium">{kb.name}</div>
-                <div className="text-[10px] text-gray-600 mt-0.5">{kb.files} 份文件 · {kb.size}</div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className="text-[10px] text-gray-500">授权给：{kb.agent}</div>
-                <div className="text-[10px] text-gray-600 mt-0.5">更新于 {kb.updated}</div>
-              </div>
-              <Upload size={14} className="text-gray-700 group-hover:text-orange-400 transition-colors shrink-0" />
-            </motion.div>
-          ))}
-        </div>
+        {knowledgeLoading && !hasData ? (
+          <div className="text-center py-8 text-gray-600 text-xs">加载中...</div>
+        ) : (
+          <div className="space-y-2">
+            {bases.map((kb, i) => (
+              <motion.div
+                key={kb.id}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/[0.03] transition-colors cursor-pointer group"
+              >
+                <span className="text-xl">{getKbIcon(kb.name)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-white font-medium">{kb.name}</div>
+                  <div className="text-[10px] text-gray-600 mt-0.5">
+                    {kb.description && <span className="mr-2">{kb.description}</span>}
+                  </div>
+                  <div className="text-[10px] text-gray-600 mt-0.5">
+                    {kb.file_count} 份文件 · {formatSize(kb.total_size)}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-[10px] text-gray-500 flex items-center gap-1 justify-end">
+                    {kb.agent_code ? (
+                      <>
+                        <User size={10} />
+                        <span>授权给：{kb.agent_code}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Globe size={10} />
+                        <span>全员可用</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-gray-600 mt-0.5">
+                    更新于 {formatTime(kb.updated_time)}
+                  </div>
+                </div>
+                <Upload size={14} className="text-gray-700 group-hover:text-orange-400 transition-colors shrink-0" />
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* 提示 */}
-      <div className="text-center py-8 text-gray-600 text-xs">
-        🚧 知识库完整功能正在开发中 — 文件上传、向量索引、权限管理即将上线
+      {/* 存储用量条 */}
+      <div className="bg-white/[0.03] rounded-xl border border-white/5 p-5">
+        <h2 className="text-sm font-medium text-white mb-3">存储用量</h2>
+        <div className="w-full bg-white/5 rounded-full h-2 mb-2">
+          <div
+            className="bg-gradient-to-r from-orange-500 to-amber-400 h-2 rounded-full transition-all"
+            style={{ width: `${Math.min((totalSize / (50 * 1073741824)) * 100, 100)}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-[11px] text-gray-500">
+          <span>已用 {formatSize(totalSize)}</span>
+          <span>配额 50 GB</span>
+        </div>
       </div>
     </div>
   );
