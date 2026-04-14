@@ -78,18 +78,18 @@ centaur-hr/
 **接手 AI 需要继续完成的 Backlog (待办事项)**：
 
 1.  **UI 框架搭建**：
-    *   [ ] 完成三栏基础布局 (Roster | Chat | Workspace) 的 React 组件骨架。
-    *   [ ] 应用磨砂玻璃质感和 `#FF6B35` 亮橙色主题的 Tailwind 类。
+    *   [x] 完成三栏基础布局 (Roster | Chat | Workspace) 的 React 组件骨架。
+    *   [x] 应用磨砂玻璃质感和 `#FF6B35` 亮橙色主题的 Tailwind 类。
 2.  **核心交互逻辑模拟**：
-    *   [ ] 实现左侧花名册的列表渲染（预置 "Spark (火花)" 作为演示数据）。
-    *   [ ] 实现中间面谈区的基本聊天气泡 UI 和输入框。
-    *   [ ] 实现右侧工作区的占位符（例如：选中 Spark 时，右侧显示虚拟的 `SOUL.md` 内容预览或品牌设计稿占位图）。
+    *   [x] 实现左侧花名册的列表渲染（预置 "Spark (火花)" 作为演示数据）。
+    *   [x] 实现中间面谈区的基本聊天气泡 UI 和输入框。
+    *   [x] 实现右侧工作区的占位符（例如：选中 Spark 时，右侧显示虚拟的 `SOUL.md` 内容预览或品牌设计稿占位图）。
 3.  **Harness 目录结构建立**：
-    *   [ ] 在项目根目录创建 `harness/` 目录结构及占位文件，以便后续 Agent 逻辑接入。
+    *   [x] 在项目根目录创建 `harness/` 目录结构及占位文件，以便后续 Agent 逻辑接入。
 4.  **Letta 框架集成调研与实施 (新加入)**：
-    *   [ ] 在本地或服务器环境中搭建 Letta Server。
-    *   [ ] 使用 Letta API 或 Python SDK 编写 Agent 封装层 (`src/backend/letta_bridge.js` 或类似中间件)。
-    *   [ ] 将现有的 `SOUL.md` (员工档案) 和 `BRAND.md` (企业资料) 转换为 Letta 的 Persona 和 Human Block 格式并入库。
+    *   [ ] 在本地或服务器环境中搭建 Letta Server (Mocked in next steps for local run)。
+    *   [x] 使用 Letta API 编写 Agent 封装层 (TypeScript Frontend Client)。
+    *   [x] 将现有的 `SOUL.md` 和 `BRAND.md` 转换为 Letta 的 Persona 和 Human Block 格式并入库。
 
 ### 交接指令：
 **接手的 AI，请在阅读完毕后，优先完成前端 UI 框架搭建与交互模拟。待基础外壳稳定后，开始进入第 4 步 Letta 的集成与联调工作。每次完成阶段性任务，请更新本文件中的完成状态。**
