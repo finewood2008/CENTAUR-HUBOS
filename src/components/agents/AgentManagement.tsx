@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Store, UserCircle, MessageSquarePlus, Search, Download, ChevronRight,
-  Shield, Database, Wrench, Zap, Send, Bot, X, ArrowLeft, Radio, Plus, Check, AlertCircle,
+  Shield, Database, Wrench, Zap, Bot, ArrowLeft, Radio, Plus, Check, AlertCircle,
 } from 'lucide-react';
-import { getModelsModule, getAgentModule } from '../../services/qeeclaw';
-import type { Agent, Template, ChatMessage } from '../../types';
+import { getAgentModule } from '../../services/qeeclaw';
+import type { Agent, Template } from '../../types';
+import AgentBuilder from './AgentBuilder';
 
 type SubView = 'market' | 'roster' | 'builder' | 'detail';
 
@@ -85,7 +86,7 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
           )}
           {subView === 'builder' && (
             <motion.div key="builder" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <Builder isConnected={isConnected} />
+              <AgentBuilder isConnected={isConnected} />
             </motion.div>
           )}
           {subView === 'detail' && selectedAgent && (
@@ -451,123 +452,7 @@ function AgentDetail({ agent }: { agent: Agent }) {
   );
 }
 
-// ─── 子视图：架构师面谈 (Agent Builder) ───
-const ARCHITECT_SYSTEM = `你是半人马架构师，负责帮助用户创建新的数字员工（AI Agent）。
-
-你的工作流程：
-1. 了解用户想要什么样的员工（职责、技能）
-2. 推荐合适的大模型（Claude、GPT-4o、Gemini 等）
-3. 配置工具权限和数据权限
-4. 生成岗位说明书，确认后"入职"
-
-风格：专业但亲切，用人话沟通，不堆砌术语。回复简洁，每次聚焦一个问题。`;
-
-function Builder({ isConnected }: { isConnected: boolean }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'ai',
-      content: '你好！我是半人马架构师。\n\n请告诉我你想招一个什么样的数字员工？比如他/她负责什么工作、需要什么技能？\n\n你可以随便说，我会帮你整理成岗位说明书。',
-    },
-  ]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const send = async () => {
-    if (!input.trim() || loading) return;
-    const userMsg = input.trim();
-    setMessages((prev) => [...prev, { role: 'user', content: userMsg }]);
-    setInput('');
-    setLoading(true);
-
-    try {
-      if (!isConnected) throw new Error('offline');
-
-      // 构建对话历史作为 prompt
-      const history = [...messages, { role: 'user' as const, content: userMsg }]
-        .map((m) => `${m.role === 'user' ? '用户' : '架构师'}：${m.content}`)
-        .join('\n\n');
-      const prompt = `${ARCHITECT_SYSTEM}\n\n--- 对话历史 ---\n${history}\n\n架构师：`;
-
-      const result = await getModelsModule().invoke({ prompt });
-      const reply = typeof result === 'string' ? result
-        : (result as Record<string, unknown>)?.content
-        || (result as Record<string, unknown>)?.text
-        || (result as Record<string, unknown>)?.message
-        || JSON.stringify(result);
-      setMessages((prev) => [...prev, { role: 'ai', content: String(reply) }]);
-    } catch {
-      // SDK 离线或调用失败，用本地模拟兜底
-      const fallback = [
-        '明白了！让我整理一下你的需求...\n\n你希望这个员工使用什么大模型？比如 Claude、GPT-4o、Gemini？',
-        '好的，那我来帮你配置工具权限。这个员工需要以下哪些工具？\n\n1. 📧 邮件发送\n2. 📊 数据库查询\n3. 🔍 网页搜索\n4. 📁 文件管理',
-        '完美！岗位说明书已整理好。确认后就可以"入职"了！',
-      ];
-      const idx = Math.min(messages.length - 1, fallback.length - 1);
-      setMessages((prev) => [...prev, { role: 'ai', content: fallback[idx >= 0 ? idx : 0] }]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto flex flex-col h-full">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-white">架构师面谈</h2>
-        <p className="text-xs text-gray-500 mt-0.5">通过对话创建新的数字员工，无需写任何代码</p>
-      </div>
-
-      {/* 消息区 */}
-      <div className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-[300px]">
-        {messages.map((msg, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                msg.role === 'user'
-                  ? 'bg-orange-500/15 text-orange-100 rounded-br-md'
-                  : 'bg-white/[0.05] text-gray-300 rounded-bl-md'
-              }`}
-            >
-              {msg.content}
-            </div>
-          </motion.div>
-        ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-white/[0.05] text-gray-400 text-sm flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 输入框 */}
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !loading && send()}
-          placeholder={loading ? '架构师思考中...' : '描述你想招什么样的员工...'}
-          disabled={loading}
-          className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/30 disabled:opacity-50"
-        />
-        <button
-          onClick={send}
-          disabled={loading}
-          className="px-4 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Send size={16} />
-        </button>
-      </div>
-    </div>
-  );
-}
+// Builder 已提取到 AgentBuilder.tsx
 
 // ─── 通用小组件 ───
 function StatusBadge({ status }: { status: string }) {

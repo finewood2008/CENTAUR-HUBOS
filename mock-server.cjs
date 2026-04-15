@@ -611,6 +611,30 @@ async function route(method, pathname, query, body) {
     return proxyToBridge('GET', '/health', null, false);
   }
 
+  // ── Provider 管理 (Mock) ─────────────────────
+  if (method === 'POST' && pathname === '/api/platform/providers/test') {
+    // 模拟测试连接：有 key 就返回成功
+    const { apiKey, provider: providerName } = body || {};
+    if (!apiKey) {
+      return { status: 200, body: errorResponse(400, 'API Key 不能为空') };
+    }
+    // 模拟延迟 + 成功
+    return {
+      status: 200,
+      body: envelope({
+        provider: providerName,
+        status: 'active',
+        latency_ms: Math.floor(Math.random() * 200) + 50,
+        models_available: true,
+      }),
+    };
+  }
+
+  if (method === 'GET' && pathname === '/api/platform/providers') {
+    // 返回存储的 provider 列表（实际存在前端 localStorage，这里返回空）
+    return { status: 200, body: envelope([]) };
+  }
+
   // ── Fallback ────────────────────────────────
   return { status: 404, body: errorResponse(404, `Not found: ${method} ${pathname}`) };
 }
