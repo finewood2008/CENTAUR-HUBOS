@@ -4,12 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Store, UserCircle, MessageSquarePlus, Search, Download, ChevronRight,
   Shield, Database, Wrench, Zap, Bot, ArrowLeft, Radio, Plus, Check, AlertCircle,
+  Sparkles, Bell,
 } from 'lucide-react';
 import { getAgentModule } from '../../services/qeeclaw';
 import type { Agent, Template } from '../../types';
 import AgentBuilder from './AgentBuilder';
 
-type SubView = 'market' | 'roster' | 'builder' | 'detail';
+type SubView = 'builder' | 'market' | 'roster' | 'detail';
 
 interface AgentManagementProps {
   agents: Agent[];
@@ -18,7 +19,7 @@ interface AgentManagementProps {
 }
 
 export default function AgentManagement({ agents, templates, isConnected }: AgentManagementProps) {
-  const [subView, setSubView] = useState<SubView>('market');
+  const [subView, setSubView] = useState<SubView>('builder');
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   // 入职弹窗状态
@@ -64,9 +65,9 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
           </button>
         ) : (
           <>
-            <TabBtn active={subView === 'market'} onClick={() => setSubView('market')} icon={<Store size={14} />} label="员工市场" />
+            <TabBtn active={subView === 'builder'} onClick={() => setSubView('builder')} icon={<Sparkles size={14} />} label="打造员工" />
+            <TabBtn active={subView === 'market'} onClick={() => setSubView('market')} icon={<Store size={14} />} label="AI 人力市场" />
             <TabBtn active={subView === 'roster'} onClick={() => setSubView('roster')} icon={<UserCircle size={14} />} label="花名册" count={agents.length} />
-            <TabBtn active={subView === 'builder'} onClick={() => setSubView('builder')} icon={<MessageSquarePlus size={14} />} label="架构师面谈" />
           </>
         )}
       </div>
@@ -199,7 +200,7 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
   );
 }
 
-// ─── 子视图：员工市场 ───
+// ─── 子视图：员工市场（分层展示） ───
 function Market({
   templates, searchTerm, setSearchTerm, onHire,
 }: {
@@ -212,12 +213,18 @@ function Market({
     (t) => t.name.includes(searchTerm) || t.desc.includes(searchTerm) || t.category.includes(searchTerm),
   );
 
+  const live = filtered.filter((t) => t.status === 'live');
+  const coming = filtered.filter((t) => t.status === 'coming');
+  const planned = filtered.filter((t) => t.status === 'planned');
+
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-lg font-semibold text-white">员工市场</h2>
-          <p className="text-xs text-gray-500 mt-0.5">选择预配置的数字员工，一键入职</p>
+          <h2 className="text-lg font-semibold text-white">AI 人力市场</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {templates.length} 个岗位 · {live.length} 个已上线 · {coming.length} 个即将上线
+          </p>
         </div>
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -229,40 +236,131 @@ function Market({
           />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        {filtered.map((tpl, i) => (
-          <motion.div
-            key={tpl.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="bg-white/[0.03] rounded-xl border border-white/5 p-5 hover:border-white/10 transition-all group"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tpl.color} flex items-center justify-center text-2xl shadow-lg`}>
-                {tpl.avatar}
-              </div>
-              <span className="text-[10px] px-2 py-0.5 bg-white/5 text-gray-400 rounded-full">{tpl.category}</span>
-            </div>
-            <h3 className="text-sm font-medium text-white mb-1">{tpl.name}</h3>
-            <p className="text-xs text-gray-500 leading-relaxed mb-3">{tpl.desc}</p>
-            <div className="flex flex-wrap gap-1 mb-4">
-              {tpl.skills.slice(0, 3).map((s) => (
-                <span key={s} className="text-[10px] px-1.5 py-0.5 bg-white/5 text-gray-400 rounded">{s}</span>
-              ))}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-gray-600">模型：{tpl.model.split('/').pop()?.split('-').slice(0, 2).join('-')}</span>
-              <button
-                onClick={() => onHire(tpl)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-orange-500/10 text-orange-400 text-xs rounded-lg hover:bg-orange-500/20 transition-colors border border-orange-500/20 opacity-0 group-hover:opacity-100"
+
+      {/* ── 已上线 ── */}
+      {live.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2 h-2 bg-green-400 rounded-full shadow-sm shadow-green-400/50" />
+            <span className="text-xs font-medium text-green-400">已上线</span>
+            <span className="text-[10px] text-gray-600">一键入职，即刻上岗</span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {live.map((tpl, i) => (
+              <motion.div
+                key={tpl.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-white/[0.03] rounded-xl border border-green-500/15 p-5 hover:border-green-500/30 transition-all group relative overflow-hidden"
               >
-                <Download size={12} /> 入职
-              </button>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+                {/* 已上线标签 */}
+                <div className="absolute top-3 right-3">
+                  <span className="text-[10px] px-2 py-0.5 bg-green-500/15 text-green-400 rounded-full border border-green-500/20">
+                    {tpl.statusLabel || '已上线'}
+                  </span>
+                </div>
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tpl.color} flex items-center justify-center text-2xl shadow-lg mb-3`}>
+                  {tpl.avatar}
+                </div>
+                <h3 className="text-sm font-medium text-white mb-1">{tpl.name}</h3>
+                <p className="text-xs text-gray-400 leading-relaxed mb-3">{tpl.desc}</p>
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {tpl.skills.map((s) => (
+                    <span key={s} className="text-[10px] px-1.5 py-0.5 bg-white/5 text-gray-400 rounded">{s}</span>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-gray-600">{tpl.category} · {tpl.model.split('/').pop()?.split('-').slice(0, 2).join('-')}</span>
+                  <button
+                    onClick={() => onHire(tpl)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-orange-500/10 text-orange-400 text-xs rounded-lg hover:bg-orange-500/20 transition-colors border border-orange-500/20 opacity-0 group-hover:opacity-100"
+                  >
+                    <Download size={12} /> 入职
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 即将上线 ── */}
+      {coming.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2 h-2 bg-amber-400 rounded-full" />
+            <span className="text-xs font-medium text-amber-400">即将上线</span>
+            <span className="text-[10px] text-gray-600">内测中，敬请期待</span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {coming.map((tpl, i) => (
+              <motion.div
+                key={tpl.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-white/[0.03] rounded-xl border border-white/5 p-5 hover:border-amber-500/20 transition-all relative"
+              >
+                <div className="absolute top-3 right-3">
+                  <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/15">
+                    {tpl.statusLabel || '即将上线'}
+                  </span>
+                </div>
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tpl.color} flex items-center justify-center text-2xl shadow-lg mb-3 opacity-80`}>
+                  {tpl.avatar}
+                </div>
+                <h3 className="text-sm font-medium text-white mb-1">{tpl.name}</h3>
+                <p className="text-xs text-gray-500 leading-relaxed mb-3">{tpl.desc}</p>
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {tpl.skills.slice(0, 3).map((s) => (
+                    <span key={s} className="text-[10px] px-1.5 py-0.5 bg-white/5 text-gray-400 rounded">{s}</span>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-gray-600">{tpl.category}</span>
+                  <button className="flex items-center gap-1 px-3 py-1.5 bg-white/5 text-gray-500 text-xs rounded-lg border border-white/5 cursor-default">
+                    <Bell size={12} /> 关注上线
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 规划中 ── */}
+      {planned.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2 h-2 bg-gray-600 rounded-full" />
+            <span className="text-xs font-medium text-gray-500">规划中</span>
+            <span className="text-[10px] text-gray-700">更多 AI 员工正在路上</span>
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            {planned.map((tpl, i) => (
+              <motion.div
+                key={tpl.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="bg-white/[0.02] rounded-xl border border-white/5 p-4 opacity-60 hover:opacity-80 transition-all"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${tpl.color} flex items-center justify-center text-lg opacity-60`}>
+                    {tpl.avatar}
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-medium text-gray-300">{tpl.name}</h3>
+                    <span className="text-[10px] text-gray-600">{tpl.category}</span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-600 leading-relaxed line-clamp-2">{tpl.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

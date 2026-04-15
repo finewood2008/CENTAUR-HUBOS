@@ -114,8 +114,8 @@ export default function AgentBuilder({ isConnected }: Props) {
       const reply =
         typeof result === 'string'
           ? result
-          : (result as Record<string, unknown>)?.content ||
-            (result as Record<string, unknown>)?.text ||
+          : (result as unknown as Record<string, unknown>)?.content ||
+            (result as unknown as Record<string, unknown>)?.text ||
             JSON.stringify(result);
 
       const { displayText, schema } = extractSchema(String(reply));
@@ -178,31 +178,37 @@ export default function AgentBuilder({ isConnected }: Props) {
         <div>
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
             <Sparkles size={18} className="text-orange-400" />
-            架构师面谈
+            打造员工
+            <span className="text-[10px] px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/15 font-normal ml-1">
+              概念演示 · 未来功能
+            </span>
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            描述你想要的应用，AI 架构师帮你生成 Mini App
+            用自然语言描述需求，AI 架构师帮你打造专属员工工作台
           </p>
         </div>
-        {latestSchema && (
-          <div className="flex items-center gap-1.5">
-            <ActionBtn icon={<Eye size={13} />} label="预览" onClick={() => setShowPreview(true)} primary />
-            <ActionBtn
-              icon={<Code2 size={13} />}
-              label={showCode ? '隐藏' : 'Schema'}
-              onClick={() => setShowCode((s) => !s)}
-              active={showCode}
-            />
-            <ActionBtn icon={<Download size={13} />} label="导出" onClick={exportSchema} />
+        <div className="flex items-center gap-1.5">
+          {latestSchema && (
+            <>
+              <ActionBtn
+                icon={<Code2 size={13} />}
+                label={showCode ? '隐藏' : 'Schema'}
+                onClick={() => setShowCode((s) => !s)}
+                active={showCode}
+              />
+              <ActionBtn icon={<Download size={13} />} label="导出" onClick={exportSchema} />
+            </>
+          )}
+          {messages.length > 1 && (
             <ActionBtn icon={<RotateCcw size={13} />} label="重置" onClick={reset} danger />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* 主区域 */}
+      {/* 主区域：左对话 + 右实时预览 */}
       <div className="flex-1 flex gap-4 overflow-hidden min-h-0">
-        {/* 聊天区 */}
-        <div className={`flex flex-col min-h-0 ${showCode ? 'flex-1' : 'flex-1 max-w-2xl mx-auto'}`}>
+        {/* 左侧：对话区 */}
+        <div className={`flex flex-col min-h-0 ${latestSchema && !showCode ? 'w-[45%] shrink-0' : showCode ? 'flex-1' : 'flex-1 max-w-2xl mx-auto'}`}>
           <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
             {messages.map((msg, i) => (
               <MessageBubble
@@ -211,7 +217,6 @@ export default function AgentBuilder({ isConnected }: Props) {
                 onPreview={() => {
                   if (msg.schema) {
                     setLatestSchema(msg.schema);
-                    setShowPreview(true);
                   }
                 }}
                 onCopy={copySchema}
@@ -227,7 +232,7 @@ export default function AgentBuilder({ isConnected }: Props) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && !loading && send()}
-              placeholder={loading ? '架构师思考中...' : '描述你想要的应用...'}
+              placeholder={loading ? '架构师思考中...' : '描述你想要的 AI 员工...'}
               disabled={loading}
               className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/30 disabled:opacity-50"
             />
@@ -240,6 +245,49 @@ export default function AgentBuilder({ isConnected }: Props) {
             </button>
           </div>
         </div>
+
+        {/* 右侧：实时预览区（有 schema 时常驻显示） */}
+        <AnimatePresence>
+          {latestSchema && !showCode && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.25 }}
+              className="flex-1 flex flex-col min-h-0 border-l border-white/5 pl-4"
+            >
+              {/* 预览头部 */}
+              <div className="flex items-center justify-between mb-3 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${latestSchema.meta.color || 'from-orange-500 to-amber-500'} flex items-center justify-center text-sm shadow-lg`}>
+                    {latestSchema.meta.icon || '✨'}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-white">{latestSchema.meta.name}</h3>
+                    <p className="text-[10px] text-gray-500">{latestSchema.layout.type} · {latestSchema.panels.reduce((s, p) => s + p.children.length, 0)} 组件</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPreview(true)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded-lg bg-orange-500/15 text-orange-400 border border-orange-500/20 hover:bg-orange-500/25 transition-colors"
+                >
+                  <Eye size={12} /> 全屏预览
+                </button>
+              </div>
+              {/* 内嵌预览 */}
+              <div className="flex-1 bg-gray-950/60 rounded-xl border border-white/5 overflow-hidden relative">
+                <div className="absolute inset-0 overflow-auto">
+                  <MiniAppRuntime
+                    schema={latestSchema}
+                    onClose={() => {}}
+                    isConnected={isConnected}
+                    embedded
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Schema 代码面板 */}
         <AnimatePresence>
@@ -269,7 +317,7 @@ export default function AgentBuilder({ isConnected }: Props) {
         </AnimatePresence>
       </div>
 
-      {/* 预览弹窗 */}
+      {/* 全屏预览弹窗 */}
       {showPreview && latestSchema && (
         <MiniAppRuntime
           schema={latestSchema}

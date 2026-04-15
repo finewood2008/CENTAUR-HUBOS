@@ -79,6 +79,33 @@ export const AGENTS: Agent[] = [
 ];
 
 export const TEMPLATES: Template[] = [
+  // ─── 已上线 (live) ───
+  {
+    id: 'tpl-spark',
+    name: '品牌设计师',
+    avatar: '🔥',
+    desc: '企业品牌全案设计——Logo、VI、海报、社媒内容一站式交付',
+    category: '品牌',
+    model: 'claude-sonnet-4-20250514',
+    skills: ['Logo 设计', 'VI 系统', '海报制作', '社媒排版'],
+    color: 'from-orange-500 to-amber-500',
+    status: 'live',
+    statusLabel: '已上线 · 可体验',
+  },
+  {
+    id: 'tpl-hr',
+    name: 'HR 助理',
+    avatar: '👩‍💼',
+    desc: '智能招聘筛选、面试安排、入职流程自动化',
+    category: '人事',
+    model: 'gemini-2.5-flash',
+    skills: ['简历解析', '面试排期', '入职办理', '考勤统计'],
+    color: 'from-pink-500 to-rose-500',
+    status: 'live',
+    statusLabel: '已上线 · 可体验',
+  },
+
+  // ─── 即将上线 (coming) ───
   {
     id: 'tpl-sales',
     name: '销售顾问',
@@ -88,7 +115,35 @@ export const TEMPLATES: Template[] = [
     model: 'claude-sonnet-4-20250514',
     skills: ['客户跟进', '话术生成', '成交分析', 'CRM 管理'],
     color: 'from-amber-500 to-orange-500',
+    status: 'coming',
+    statusLabel: '内测中 · 即将上线',
   },
+  {
+    id: 'tpl-cs',
+    name: '客服专员',
+    avatar: '🎧',
+    desc: '7×24 智能客服，自动回复常见问题，复杂问题转人工',
+    category: '客服',
+    model: 'gemini-2.5-flash',
+    skills: ['智能问答', '工单处理', '满意度调查', '知识检索'],
+    color: 'from-green-500 to-emerald-500',
+    status: 'coming',
+    statusLabel: '内测中 · Q2 上线',
+  },
+  {
+    id: 'tpl-content',
+    name: '内容运营',
+    avatar: '✍️',
+    desc: '自媒体内容创作、排期管理、数据复盘、热点追踪',
+    category: '运营',
+    model: 'gemini-2.5-flash',
+    skills: ['内容创作', '排期管理', '数据分析', '热点追踪'],
+    color: 'from-teal-500 to-cyan-500',
+    status: 'coming',
+    statusLabel: '开发中 · Q2 上线',
+  },
+
+  // ─── 规划中 (planned) ───
   {
     id: 'tpl-dev',
     name: '全栈工程师',
@@ -98,16 +153,7 @@ export const TEMPLATES: Template[] = [
     model: 'claude-sonnet-4-20250514',
     skills: ['代码编写', 'Bug 修复', 'Code Review', '技术文档'],
     color: 'from-blue-500 to-cyan-500',
-  },
-  {
-    id: 'tpl-cs',
-    name: '客服专员',
-    avatar: '🎧',
-    desc: '7x24 在线客服，自动回复常见问题，复杂问题转人工',
-    category: '客服',
-    model: 'gemini-2.5-flash',
-    skills: ['智能问答', '工单处理', '满意度调查', '知识检索'],
-    color: 'from-green-500 to-emerald-500',
+    status: 'planned',
   },
   {
     id: 'tpl-finance',
@@ -118,6 +164,7 @@ export const TEMPLATES: Template[] = [
     model: 'gpt-4o',
     skills: ['发票识别', '费用审核', '报表生成', '税务计算'],
     color: 'from-purple-500 to-violet-500',
+    status: 'planned',
   },
   {
     id: 'tpl-legal',
@@ -128,16 +175,18 @@ export const TEMPLATES: Template[] = [
     model: 'claude-sonnet-4-20250514',
     skills: ['合同审核', '风险识别', '法规查询', '文书起草'],
     color: 'from-rose-500 to-pink-500',
+    status: 'planned',
   },
   {
-    id: 'tpl-content',
-    name: '内容运营',
-    avatar: '✍️',
-    desc: '自媒体内容创作、排期管理、数据复盘',
-    category: '运营',
-    model: 'gemini-2.5-flash',
-    skills: ['内容创作', '排期管理', '数据分析', '热点追踪'],
-    color: 'from-teal-500 to-cyan-500',
+    id: 'tpl-data',
+    name: '数据分析师',
+    avatar: '📊',
+    desc: '数据清洗、报表可视化、趋势预测、BI 看板',
+    category: '数据',
+    model: 'deepseek-v3',
+    skills: ['SQL 查询', '数据可视化', '趋势分析', '报表生成'],
+    color: 'from-indigo-500 to-blue-500',
+    status: 'planned',
   },
 ];
 
@@ -171,12 +220,13 @@ export const ALERTS: Alert[] = [
   },
 ];
 
+// Dashboard 用量数据：讲一个"增长"的故事
 export const USAGE_7DAYS: UsageStat[] = [
-  { date: '04/08', tokens: 125000, cost: 12.5 },
-  { date: '04/09', tokens: 189000, cost: 18.9 },
+  { date: '04/08', tokens: 82000,  cost: 8.2 },
+  { date: '04/09', tokens: 125000, cost: 12.5 },
   { date: '04/10', tokens: 156000, cost: 15.6 },
-  { date: '04/11', tokens: 210000, cost: 21.0 },
-  { date: '04/12', tokens: 178000, cost: 17.8 },
-  { date: '04/13', tokens: 195000, cost: 19.5 },
-  { date: '04/14', tokens: 87000, cost: 8.7 },
+  { date: '04/11', tokens: 178000, cost: 17.8 },
+  { date: '04/12', tokens: 210000, cost: 21.0 },
+  { date: '04/13', tokens: 245000, cost: 24.5 },
+  { date: '04/14', tokens: 268000, cost: 26.8 },
 ];

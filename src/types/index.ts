@@ -30,6 +30,8 @@ export interface Agent {
   channel?: AgentChannel;
 }
 
+export type TemplateStatus = 'live' | 'coming' | 'planned';
+
 export interface Template {
   id: string;
   name: string;
@@ -39,6 +41,8 @@ export interface Template {
   model: string;
   skills: string[];
   color: string;
+  status: TemplateStatus;
+  statusLabel?: string;  // 自定义状态文案
 }
 
 export interface Alert {

@@ -29,9 +29,9 @@ export default function DataList({ config, data }: Props) {
             <div className="bg-white/[0.03] rounded-xl border border-white/5 p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-white">{String(item[titleKey] ?? '')}</span>
-                {item.time && <span className="text-[10px] text-gray-600">{String(item.time)}</span>}
+                {item.time != null && <span className="text-[10px] text-gray-600">{String(item.time)}</span>}
               </div>
-              {item[subtitleKey] && (
+              {item[subtitleKey] != null && (
                 <p className="text-xs text-gray-500">{String(item[subtitleKey])}</p>
               )}
             </div>
@@ -47,10 +47,10 @@ export default function DataList({ config, data }: Props) {
         {data.map((item, i) => (
           <div key={i} className="bg-white/[0.03] rounded-xl border border-white/5 p-4 hover:border-white/10 transition-colors">
             <div className="flex items-center gap-3 mb-2">
-              {item[avatarKey] && <span className="text-xl">{String(item[avatarKey])}</span>}
+              {item[avatarKey] != null && <span className="text-xl">{String(item[avatarKey])}</span>}
               <span className="text-sm font-medium text-white">{String(item[titleKey] ?? '')}</span>
             </div>
-            {item[subtitleKey] && (
+            {item[subtitleKey] != null && (
               <p className="text-xs text-gray-500 leading-relaxed">{String(item[subtitleKey])}</p>
             )}
           </div>
@@ -67,14 +67,14 @@ export default function DataList({ config, data }: Props) {
           key={i}
           className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors"
         >
-          {item[avatarKey] && <span className="text-lg">{String(item[avatarKey])}</span>}
+          {item[avatarKey] != null && <span className="text-lg">{String(item[avatarKey])}</span>}
           <div className="flex-1 min-w-0">
             <span className="text-sm text-white">{String(item[titleKey] ?? '')}</span>
-            {item[subtitleKey] && (
+            {item[subtitleKey] != null && (
               <p className="text-xs text-gray-500 mt-0.5 truncate">{String(item[subtitleKey])}</p>
             )}
           </div>
-          {item.time && <span className="text-[10px] text-gray-600 shrink-0">{String(item.time)}</span>}
+          {item.time != null && <span className="text-[10px] text-gray-600 shrink-0">{String(item.time)}</span>}
         </div>
       ))}
     </div>

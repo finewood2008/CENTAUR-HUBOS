@@ -10,9 +10,10 @@ interface Props {
   schema: MiniAppSchema;
   onClose: () => void;
   isConnected: boolean;
+  embedded?: boolean;
 }
 
-export default function MiniAppRuntime({ schema, onClose, isConnected }: Props) {
+export default function MiniAppRuntime({ schema, onClose, isConnected, embedded }: Props) {
   const [dataStore, setDataStore] = useState<Record<string, unknown>>(() => {
     const init: Record<string, unknown> = {};
     schema.dataSources.forEach((ds) => {
@@ -54,13 +55,12 @@ ${history}
       const result = await getModelsModule().invoke({
         prompt,
         model: schema.agent.model,
-        temperature: schema.agent.temperature,
-        maxTokens: schema.agent.maxTokens,
-      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
 
       const reply = typeof result === 'string' ? result
-        : (result as Record<string, unknown>)?.content
-        || (result as Record<string, unknown>)?.text
+        : (result as unknown as Record<string, unknown>)?.content
+        || (result as unknown as Record<string, unknown>)?.text
         || JSON.stringify(result);
 
       // 尝试从回复中提取数据更新指令
@@ -115,6 +115,18 @@ ${history}
     isLoading,
   };
 
+  // ─── 内嵌模式：只渲染内容区，不带弹窗外壳 ───
+  if (embedded) {
+    return (
+      <div className="w-full h-full flex flex-col">
+        <div className="flex-1 overflow-hidden">
+          {renderLayout(schema, dataStore, handleAction, chatProps)}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── 弹窗模式 ───
   const containerClass = isMaximized
     ? 'fixed inset-0 z-50'
     : 'fixed inset-4 z-50';

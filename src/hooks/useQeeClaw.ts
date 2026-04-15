@@ -75,6 +75,7 @@ function sdkTemplateToHubTemplate(tpl: AgentTemplate): Template {
     model: 'gpt-4o',
     skills: tpl.allowedTools,
     color: 'from-blue-500 to-cyan-500',
+    status: 'live' as const,
   };
 }
 

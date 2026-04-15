@@ -55,6 +55,9 @@ export default function Dashboard({ agents, alerts, usage, wallet, onGoAgents }:
           <p className="text-sm text-gray-500 mt-0.5">
             {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })} · 今日公司早报
           </p>
+          <p className="text-xs text-gray-600 mt-1">
+            你的 {agents.length} 名 AI 员工已累计完成 {totalTasks} 项任务，节省约 {Math.round(totalTasks * 0.5)} 小时人力
+          </p>
         </div>
         <div className="flex gap-2">
           <button
