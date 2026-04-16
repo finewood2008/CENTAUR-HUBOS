@@ -1,18 +1,356 @@
 @import "tailwindcss";
 
+/* ══════════════════════════════════════════════════════
+   CENTAUR Hub OS — Claude / Anthropic Design System
+   ══════════════════════════════════════════════════════ */
+
+/* ── Tailwind v4 Theme Tokens ── */
+@theme inline {
+  /* Surfaces */
+  --color-parchment: #f5f4ed;
+  --color-ivory: #faf9f5;
+  --color-warm-sand: #e8e6dc;
+  --color-dark-surface: #30302e;
+  --color-deep-dark: #141413;
+
+  /* Brand */
+  --color-terracotta: #c96442;
+  --color-coral: #d97757;
+
+  /* Text */
+  --color-near-black: #141413;
+  --color-charcoal-warm: #4d4c48;
+  --color-dark-warm: #3d3d3a;
+  --color-olive-gray: #5e5d59;
+  --color-stone-gray: #87867f;
+  --color-warm-silver: #b0aea5;
+
+  /* Borders */
+  --color-border-cream: #f0eee6;
+  --color-border-warm: #e8e6dc;
+  --color-border-dark: #30302e;
+
+  /* Rings */
+  --color-ring-warm: #d1cfc5;
+  --color-ring-subtle: #dedc01;
+  --color-ring-deep: #c2c0b6;
+
+  /* Semantic */
+  --color-error-crimson: #b53333;
+  --color-focus-blue: #3898ec;
+  --color-success-green: #4a7c59;
+
+  /* Fonts */
+  --font-serif: Georgia, 'Noto Serif SC', serif;
+  --font-sans: system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Noto Sans Mono', monospace;
+}
+
+/* ── CSS Custom Properties ── */
+:root {
+  --ring-shadow: 0px 0px 0px 1px;
+  --shadow-whisper: rgba(0,0,0,0.05) 0px 4px 24px;
+  --shadow-ring-warm: #e8e6dc 0px 0px 0px 0px, #d1cfc5 0px 0px 0px 1px;
+  --shadow-ring-deep: #e8e6dc 0px 0px 0px 0px, #c2c0b6 0px 0px 0px 1px;
+  --shadow-ring-terracotta: #c96442 0px 0px 0px 0px, #c96442 0px 0px 0px 1px;
+  --shadow-ring-dark: #30302e 0px 0px 0px 0px, #30302e 0px 0px 0px 1px;
+
+  /* Radius scale */
+  --radius-subtle: 6px;
+  --radius-standard: 8px;
+  --radius-generous: 12px;
+  --radius-featured: 16px;
+  --radius-hero: 32px;
+
+  /* Line heights */
+  --lh-tight: 1.10;
+  --lh-snug: 1.20;
+  --lh-normal: 1.30;
+  --lh-body: 1.60;
+}
+
+/* ── Base Styles ── */
 html, body, #root {
   margin: 0;
   padding: 0;
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: #030712;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: #f5f4ed;
+  color: #141413;
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  line-height: 1.60;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 滚动条 */
+/* ── Typography Classes ── */
+
+/* Serif headings - the Claude signature */
+.heading-display {
+  font-family: Georgia, 'Noto Serif SC', serif;
+  font-weight: 500;
+  line-height: var(--lh-tight);
+  color: #141413;
+}
+
+.heading-section {
+  font-family: Georgia, 'Noto Serif SC', serif;
+  font-weight: 500;
+  font-size: 1.3rem;
+  line-height: var(--lh-snug);
+  color: #141413;
+}
+
+.heading-card {
+  font-family: Georgia, 'Noto Serif SC', serif;
+  font-weight: 500;
+  font-size: 1.06rem;
+  line-height: var(--lh-snug);
+  color: #141413;
+}
+
+.text-body {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.94rem;
+  line-height: var(--lh-body);
+  color: #5e5d59;
+}
+
+.text-caption {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.8rem;
+  line-height: 1.43;
+  color: #87867f;
+}
+
+.text-label {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0.12px;
+  color: #87867f;
+}
+
+.text-overline {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1.60;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #87867f;
+}
+
+/* ── Button Variants ── */
+
+/* Warm Sand - the workhorse secondary */
+.btn-sand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 8px;
+  background: #e8e6dc;
+  color: #4d4c48;
+  border: none;
+  border-radius: var(--radius-standard);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-ring-warm);
+}
+.btn-sand:hover {
+  background: #dedbcf;
+  box-shadow: var(--shadow-ring-deep);
+}
+.btn-sand:active {
+  box-shadow: inset 0px 0px 0px 1px rgba(0,0,0,0.08);
+}
+.btn-sand:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Terracotta - the primary CTA */
+.btn-terracotta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 8px 12px;
+  background: #c96442;
+  color: #faf9f5;
+  border: none;
+  border-radius: var(--radius-generous);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-ring-terracotta);
+}
+.btn-terracotta:hover {
+  background: #d97757;
+}
+.btn-terracotta:active {
+  box-shadow: inset 0px 0px 0px 1px rgba(0,0,0,0.12);
+}
+
+/* Dark Charcoal */
+.btn-dark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 8px;
+  background: #30302e;
+  color: #faf9f5;
+  border: none;
+  border-radius: var(--radius-standard);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-ring-dark);
+}
+.btn-dark:hover {
+  background: #3d3d3a;
+}
+
+/* Ghost - minimal */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  color: #5e5d59;
+  border: none;
+  border-radius: var(--radius-standard);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-ghost:hover {
+  background: #f0eee6;
+  color: #141413;
+}
+
+/* ── Card Component ── */
+.card {
+  background: #faf9f5;
+  border: 1px solid #f0eee6;
+  border-radius: var(--radius-standard);
+  padding: 20px 24px;
+  transition: box-shadow 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-whisper);
+}
+
+.card-featured {
+  background: #faf9f5;
+  border: 1px solid #f0eee6;
+  border-radius: var(--radius-featured);
+  padding: 24px 28px;
+  box-shadow: var(--shadow-whisper);
+}
+
+.card-dark {
+  background: #30302e;
+  border: 1px solid #30302e;
+  border-radius: var(--radius-standard);
+  padding: 20px 24px;
+  color: #faf9f5;
+}
+
+/* ── Input ── */
+.input-warm {
+  width: 100%;
+  background: #f5f4ed;
+  border: 1px solid #e8e6dc;
+  border-radius: var(--radius-generous);
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  color: #141413;
+  transition: border-color 0.15s ease;
+  outline: none;
+}
+.input-warm::placeholder {
+  color: #87867f;
+}
+.input-warm:focus {
+  border-color: #3898ec;
+  box-shadow: 0 0 0 2px rgba(56, 152, 236, 0.15);
+}
+
+/* ── Badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #f0eee6;
+  color: #5e5d59;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.badge-terracotta {
+  background: rgba(201, 100, 66, 0.12);
+  color: #c96442;
+}
+
+.badge-success {
+  background: rgba(74, 124, 89, 0.12);
+  color: #4a7c59;
+}
+
+.badge-error {
+  background: rgba(181, 51, 51, 0.12);
+  color: #b53333;
+}
+
+/* ── Divider ── */
+.divider {
+  height: 1px;
+  background: #f0eee6;
+  border: none;
+  margin: 0;
+}
+
+/* ── Status Dot ── */
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot-active {
+  background: #4a7c59;
+  box-shadow: 0 0 0 2px rgba(74, 124, 89, 0.2);
+}
+.status-dot-idle {
+  background: #87867f;
+}
+.status-dot-error {
+  background: #b53333;
+  box-shadow: 0 0 0 2px rgba(181, 51, 51, 0.2);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Scrollbar — warm toned ── */
 ::-webkit-scrollbar {
   width: 4px;
 }
@@ -20,9 +358,115 @@ html, body, #root {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(78, 76, 72, 0.12);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(78, 76, 72, 0.22);
+}
+
+/* ── Page Content Area ── */
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+  background: #faf9f5;
+}
+
+.page-header {
+  margin-bottom: 28px;
+}
+
+.page-title {
+  font-family: Georgia, 'Noto Serif SC', serif;
+  font-weight: 500;
+  font-size: 1.4rem;
+  line-height: var(--lh-snug);
+  color: #141413;
+}
+
+.page-subtitle {
+  font-size: 0.875rem;
+  color: #87867f;
+  margin-top: 4px;
+}
+
+/* ── Stat Card ── */
+.stat-card {
+  background: #faf9f5;
+  border: 1px solid #f0eee6;
+  border-radius: var(--radius-standard);
+  padding: 16px 20px;
+}
+.stat-label {
+  font-size: 0.75rem;
+  color: #87867f;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.stat-value {
+  font-family: Georgia, 'Noto Serif SC', serif;
+  font-weight: 500;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: #141413;
+}
+.stat-change {
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+
+/* ── Tab Navigation ── */
+.tab-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: #f0eee6;
+  border-radius: var(--radius-standard);
+}
+.tab-item {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #87867f;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+  background: transparent;
+}
+.tab-item:hover {
+  color: #5e5d59;
+}
+.tab-item-active {
+  background: #faf9f5;
+  color: #141413;
+  box-shadow: var(--shadow-ring-warm);
+}
+
+/* ── Ring-based interactive states ── */
+.ring-interactive {
+  transition: box-shadow 0.15s ease;
+}
+.ring-interactive:hover {
+  box-shadow: 0px 0px 0px 1px #d1cfc5;
+}
+.ring-interactive:active {
+  box-shadow: inset 0px 0px 0px 1px rgba(0,0,0,0.06);
+}
+
+/* ── Sidebar Nav Pill (active indicator) ── */
+.nav-pill-active {
+  background: rgba(201, 100, 66, 0.12);
+  box-shadow: 0px 0px 0px 1px rgba(201, 100, 66, 0.2);
+  border-radius: var(--radius-generous);
+}
+
+/* ── Section spacing (editorial pacing) ── */
+.section-gap {
+  margin-top: 32px;
+}
+.section-gap-lg {
+  margin-top: 48px;
 }

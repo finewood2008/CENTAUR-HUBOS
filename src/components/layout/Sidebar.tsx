@@ -1,4 +1,4 @@
-// Hub OS - 侧边导航栏
+// CENTAUR - 侧边导航栏 (Warm Anthropic Style)
 import { LayoutDashboard, Users, Radio, Database, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { NavTab } from '../../types';
@@ -17,13 +17,21 @@ interface SidebarProps {
 
 export default function Sidebar({ active, onNav }: SidebarProps) {
   return (
-    <div className="w-[68px] h-full bg-gray-950 flex flex-col items-center pt-10 pb-5 gap-1 border-r border-white/5" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+    <div
+      className="w-[68px] h-full flex flex-col items-center pt-10 pb-5 gap-1 bg-deep-dark border-r border-border-dark"
+      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+    >
       {/* Logo */}
       <div className="mb-6 flex flex-col items-center">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-lg font-bold text-white shadow-lg shadow-orange-500/20">
-          H
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold bg-terracotta text-ivory"
+          style={{ boxShadow: 'var(--shadow-ring-terracotta)' }}
+        >
+          C
         </div>
-        <span className="text-[9px] text-gray-500 mt-1 tracking-widest">HUB OS</span>
+        <span className="text-[9px] mt-1 tracking-widest text-stone-gray">
+          CENTAUR
+        </span>
       </div>
 
       {/* Nav */}
@@ -40,16 +48,24 @@ export default function Sidebar({ active, onNav }: SidebarProps) {
             {isActive && (
               <motion.div
                 layoutId="nav-pill"
-                className="absolute inset-0 bg-orange-500/15 rounded-xl border border-orange-500/20"
+                className="absolute inset-0 nav-pill-active"
                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               />
             )}
             <Icon
               size={20}
-              className={isActive ? 'text-orange-400 relative z-10' : 'text-gray-500 group-hover:text-gray-300 relative z-10'}
+              className={`relative z-10 transition-colors ${
+                isActive
+                  ? 'text-coral'
+                  : 'text-stone-gray group-hover:text-warm-silver'
+              }`}
             />
             <span
-              className={`text-[9px] mt-0.5 relative z-10 ${isActive ? 'text-orange-400' : 'text-gray-600 group-hover:text-gray-400'}`}
+              className={`text-[9px] mt-0.5 relative z-10 transition-colors ${
+                isActive
+                  ? 'text-coral'
+                  : 'text-stone-gray group-hover:text-warm-silver'
+              }`}
             >
               {item.label}
             </span>
@@ -67,15 +83,25 @@ export default function Sidebar({ active, onNav }: SidebarProps) {
           {active === 'settings' && (
             <motion.div
               layoutId="nav-pill"
-              className="absolute inset-0 bg-orange-500/15 rounded-xl border border-orange-500/20"
+              className="absolute inset-0 nav-pill-active"
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             />
           )}
           <Settings
             size={18}
-            className={active === 'settings' ? 'text-orange-400 relative z-10' : 'text-gray-600 group-hover:text-gray-400 relative z-10'}
+            className={`relative z-10 transition-colors ${
+              active === 'settings'
+                ? 'text-coral'
+                : 'text-stone-gray group-hover:text-warm-silver'
+            }`}
           />
-          <span className={`text-[9px] mt-0.5 relative z-10 ${active === 'settings' ? 'text-orange-400' : 'text-gray-700 group-hover:text-gray-500'}`}>
+          <span
+            className={`text-[9px] mt-0.5 relative z-10 transition-colors ${
+              active === 'settings'
+                ? 'text-coral'
+                : 'text-stone-gray group-hover:text-warm-silver'
+            }`}
+          >
             设置
           </span>
         </button>

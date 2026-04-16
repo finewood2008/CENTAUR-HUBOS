@@ -21,13 +21,13 @@ export default function App() {
   const { data: knowledgeData, loading: knowledgeLoading, refresh: refreshKnowledge } = useKnowledgeData(connected);
 
   return (
-    <div className="h-screen w-screen bg-gray-950 text-white flex overflow-hidden">
+    <div className="h-screen w-screen bg-parchment text-near-black flex overflow-hidden">
       <Sidebar active={tab} onNav={setTab} />
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden bg-ivory">
         {/* 连接状态指示 */}
         {!checking && (
-          <div className={`px-4 py-1 text-[10px] flex items-center gap-1.5 border-b border-white/5 ${connected ? 'text-green-500' : 'text-yellow-500'}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-yellow-400'}`} />
+          <div className={`px-4 py-1 text-[10px] flex items-center gap-1.5 border-b border-border-cream ${connected ? 'text-success-green' : 'text-yellow-600'}`}>
+            <span className={`status-dot ${connected ? 'status-dot-active' : 'bg-yellow-500'}`} />
             {connected ? 'SDK 已连接 · 控制面在线' : 'SDK 离线 · 使用演示数据'}
           </div>
         )}

@@ -53,34 +53,36 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
   const totalSize = stats?.total_size ?? bases.reduce((s, k) => s + k.total_size, 0);
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+    <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-ivory">
       {/* 标题 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white flex items-center gap-2">
-            <Database size={20} className="text-orange-400" />
+          <h1 className="text-xl font-semibold flex items-center gap-2 text-near-black font-serif">
+            <Database size={20} className="text-terracotta" />
             知识库
           </h1>
-          <p className="text-sm text-gray-500 mt-0.5">管理数字员工的知识来源和数据权限</p>
+          <p className="text-sm mt-0.5 text-stone-gray">管理数字员工的知识来源和数据权限</p>
         </div>
         <div className="flex gap-2">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-gray" />
             <input
               placeholder="搜索知识库..."
-              className="pl-8 pr-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white placeholder-gray-600 focus:outline-none focus:border-orange-500/30 w-48"
+              className="pl-8 pr-3 py-1.5 rounded-lg text-xs focus:outline-none w-48 bg-border-cream border border-border-warm text-near-black placeholder:text-stone-gray"
             />
           </div>
           {onRefresh && (
             <button
               onClick={onRefresh}
               disabled={knowledgeLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-gray-400 text-xs rounded-lg hover:bg-white/10 transition-colors border border-white/10 disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors disabled:opacity-40 bg-border-cream text-olive-gray border border-border-warm"
             >
               <RefreshCw size={12} className={knowledgeLoading ? 'animate-spin' : ''} />
             </button>
           )}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/10 text-orange-400 text-xs rounded-lg hover:bg-orange-500/20 transition-colors border border-orange-500/20">
+          <button
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors bg-terracotta/10 text-terracotta border border-terracotta/20"
+          >
             <Plus size={14} /> 新建知识库
           </button>
         </div>
@@ -88,43 +90,43 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
 
       {/* 总览 */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white/[0.03] rounded-xl border border-white/5 p-4">
+        <div className="rounded-xl p-4 bg-ivory border border-border-cream">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(74, 124, 148, 0.1)', color: '#4a7c94' }}>
               <FolderOpen size={18} />
             </div>
-            <span className="text-xs text-gray-500">知识库</span>
+            <span className="text-xs text-stone-gray">知识库</span>
           </div>
-          <div className="text-2xl font-semibold text-white">{totalBases}</div>
-          <div className="text-[11px] text-gray-500 mt-1">个独立知识库</div>
+          <div className="text-2xl font-semibold text-near-black">{totalBases}</div>
+          <div className="text-[11px] mt-1 text-stone-gray">个独立知识库</div>
         </div>
-        <div className="bg-white/[0.03] rounded-xl border border-white/5 p-4">
+        <div className="rounded-xl p-4 bg-ivory border border-border-cream">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(90, 138, 94, 0.1)', color: '#5a8a5e' }}>
               <FileText size={18} />
             </div>
-            <span className="text-xs text-gray-500">文件总数</span>
+            <span className="text-xs text-stone-gray">文件总数</span>
           </div>
-          <div className="text-2xl font-semibold text-white">{totalFiles.toLocaleString()}</div>
-          <div className="text-[11px] text-gray-500 mt-1">份文档已索引</div>
+          <div className="text-2xl font-semibold text-near-black">{totalFiles.toLocaleString()}</div>
+          <div className="text-[11px] mt-1 text-stone-gray">份文档已索引</div>
         </div>
-        <div className="bg-white/[0.03] rounded-xl border border-white/5 p-4">
+        <div className="rounded-xl p-4 bg-ivory border border-border-cream">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(140, 100, 160, 0.1)', color: '#8c64a0' }}>
               <HardDrive size={18} />
             </div>
-            <span className="text-xs text-gray-500">存储用量</span>
+            <span className="text-xs text-stone-gray">存储用量</span>
           </div>
-          <div className="text-2xl font-semibold text-white">{formatSize(totalSize)}</div>
-          <div className="text-[11px] text-gray-500 mt-1">/ 50 GB 配额</div>
+          <div className="text-2xl font-semibold text-near-black">{formatSize(totalSize)}</div>
+          <div className="text-[11px] mt-1 text-stone-gray">/ 50 GB 配额</div>
         </div>
       </div>
 
       {/* 知识库列表 */}
-      <div className="bg-white/[0.03] rounded-xl border border-white/5 p-5">
-        <h2 className="text-sm font-medium text-white mb-4">所有知识库</h2>
+      <div className="rounded-xl p-5 bg-ivory border border-border-cream">
+        <h2 className="text-sm font-medium mb-4 text-near-black font-serif">所有知识库</h2>
         {knowledgeLoading && !hasData ? (
-          <div className="text-center py-8 text-gray-600 text-xs">加载中...</div>
+          <div className="text-center py-8 text-xs text-stone-gray">加载中...</div>
         ) : (
           <div className="space-y-2">
             {bases.map((kb, i) => (
@@ -133,20 +135,22 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
-                className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/[0.03] transition-colors cursor-pointer group"
+                className="flex items-center gap-4 p-3 rounded-lg transition-colors cursor-pointer group"
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f0eee6')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
                 <span className="text-xl">{getKbIcon(kb.name)}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-white font-medium">{kb.name}</div>
-                  <div className="text-[10px] text-gray-600 mt-0.5">
+                  <div className="text-sm font-medium text-near-black">{kb.name}</div>
+                  <div className="text-[10px] mt-0.5 text-stone-gray">
                     {kb.description && <span className="mr-2">{kb.description}</span>}
                   </div>
-                  <div className="text-[10px] text-gray-600 mt-0.5">
+                  <div className="text-[10px] mt-0.5 text-stone-gray">
                     {kb.file_count} 份文件 · {formatSize(kb.total_size)}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-[10px] text-gray-500 flex items-center gap-1 justify-end">
+                  <div className="text-[10px] flex items-center gap-1 justify-end text-stone-gray">
                     {kb.agent_code ? (
                       <>
                         <User size={10} />
@@ -159,11 +163,11 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
                       </>
                     )}
                   </div>
-                  <div className="text-[10px] text-gray-600 mt-0.5">
+                  <div className="text-[10px] mt-0.5 text-stone-gray">
                     更新于 {formatTime(kb.updated_time)}
                   </div>
                 </div>
-                <Upload size={14} className="text-gray-700 group-hover:text-orange-400 transition-colors shrink-0" />
+                <Upload size={14} className="shrink-0 transition-colors text-stone-gray" />
               </motion.div>
             ))}
           </div>
@@ -171,15 +175,18 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
       </div>
 
       {/* 存储用量条 */}
-      <div className="bg-white/[0.03] rounded-xl border border-white/5 p-5">
-        <h2 className="text-sm font-medium text-white mb-3">存储用量</h2>
-        <div className="w-full bg-white/5 rounded-full h-2 mb-2">
+      <div className="rounded-xl p-5 bg-ivory border border-border-cream">
+        <h2 className="text-sm font-medium mb-3 text-near-black font-serif">存储用量</h2>
+        <div className="w-full rounded-full h-2 mb-2 bg-warm-sand">
           <div
-            className="bg-gradient-to-r from-orange-500 to-amber-400 h-2 rounded-full transition-all"
-            style={{ width: `${Math.min((totalSize / (50 * 1073741824)) * 100, 100)}%` }}
+            className="h-2 rounded-full transition-all"
+            style={{
+              background: 'linear-gradient(to right, var(--color-terracotta), var(--color-coral))',
+              width: `${Math.min((totalSize / (50 * 1073741824)) * 100, 100)}%`
+            }}
           />
         </div>
-        <div className="flex justify-between text-[11px] text-gray-500">
+        <div className="flex justify-between text-[11px] text-stone-gray">
           <span>已用 {formatSize(totalSize)}</span>
           <span>配额 50 GB</span>
         </div>
