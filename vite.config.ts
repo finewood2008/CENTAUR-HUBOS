@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: "/CENTAUR-HR/",
+  base: "/CENTAUR-HUBOS/",
   plugins: [
     react(),
     tailwindcss(),

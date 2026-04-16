@@ -23,7 +23,7 @@
 
 #### 新增：GitHub Pages 自动部署
 - 添加 `.github/workflows/deploy.yml`
-- push main 自动构建并部署到 https://finewood2008.github.io/CENTAUR-HR/
+- push main 自动构建并部署到 https://finewood2008.github.io/CENTAUR-HUBOS/
 
 ## [0.4.0] - 2026-04-17
 

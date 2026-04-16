@@ -2,7 +2,7 @@
 
 > 半人马 AI 数字员工操作系统 — 让每一家中小企业都拥有自己的 AI 团队
 
-**[▶ 在线预览](https://finewood2008.github.io/CENTAUR-HR/)**
+**[▶ 在线预览](https://finewood2008.github.io/CENTAUR-HUBOS/)**
 
 Hub OS 把大模型 Agent 包装成"数字员工"，让企业老板像管理真实团队一样管理 AI —— 招聘、分配任务、查看工作汇报、控制权限和预算。
 
