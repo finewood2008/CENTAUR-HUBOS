@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.5.0] - 2026-04-17
+
+### 🧹 全站精简 & GitHub Pages 部署
+
+#### 重写：设置页 (Settings)
+- 重新设计为简洁的 API Key + 偏好设置页
+- 支持 Anthropic / OpenAI / Google AI / DeepSeek 四平台密钥管理
+- 每个平台附带"获取 Key"直达链接
+- 偏好设置：界面语言 / 任务通知 / 自动保存
+- 保存即时反馈 toast
+
+#### 精简：全站内容
+- Dashboard 标题"控制台"改为"信息流"
+- Sidebar 标签"控制台"改为"信息流"
+- 移除多余的 filter / action 按钮
+- 修复 framer-motion ease 类型错误（string → cubic-bezier 数组）
+
+#### 新增：文档拆分
+- README 重写为简洁的项目介绍 + 在线预览链接
+- 后端对接技术规范独立到 HANDOVER.md（含完整 API 路径和数据格式）
+
+#### 新增：GitHub Pages 自动部署
+- 添加 `.github/workflows/deploy.yml`
+- push main 自动构建并部署到 https://finewood2008.github.io/CENTAUR-HR/
+
 ## [0.4.0] - 2026-04-17
 
 ### 🏢 数字团队 & 财务中心 — 员工板块全面升级

@@ -1,6 +1,6 @@
 // Team 数字团队 — 员工卡片 + 详情面板 + 激活入口
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
   Users, Sparkles, ArrowLeft, ChevronRight, Zap, Brain,
   Shield, Wrench, BarChart3, Clock, Star, Play, Lock,
@@ -10,11 +10,11 @@ import type { DigitalEmployee, ActivationStatus } from '../../types';
 import { DIGITAL_EMPLOYEES } from '../../data/digital-employees';
 
 // ── animations ──
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 18 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.07, duration: 0.4, ease: 'easeOut' },
+    transition: { delay: i * 0.07, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] },
   }),
 };
 
@@ -112,7 +112,7 @@ function DetailPanel({ emp, onBack }: { emp: DigitalEmployee; onBack: () => void
       initial={{ opacity: 0, x: 40 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 40 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
+      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
     >
       <div className="px-8 pt-6 pb-8 space-y-6 max-w-3xl">
         {/* back */}

@@ -36,7 +36,6 @@ export default function App() {
           <Dashboard
             agents={dashData.agents}
             activities={dashData.activities}
-            onGoAgents={() => setTab('team')}
           />
         )}
         {tab === 'team' && <Team />}

@@ -1,6 +1,6 @@
 // Finance 财务中心 - API Key 管理 & 用量统计
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import {
   Key, Plus, Eye, EyeOff, Trash2,
   DollarSign, TrendingUp, BarChart3, Shield,
@@ -8,12 +8,12 @@ import {
 import type { ApiKey, FinanceOverview, EmployeeUsage } from '../../types';
 import { FINANCE_DATA } from '../../data/digital-employees';
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 18 },
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.08, duration: 0.45, ease: 'easeOut' },
+    transition: { delay: i * 0.08, duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] },
   }),
 };
 
@@ -128,7 +128,7 @@ export default function Finance() {
                   }`}
                   initial={{ width: 0 }}
                   animate={{ width: `${spentPercent}%` }}
-                  transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
+                  transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.3 }}
                 />
               </div>
             </div>
@@ -322,7 +322,7 @@ export default function Finance() {
                             transition={{
                               duration: 0.5,
                               delay: 0.4 + di * 0.06,
-                              ease: 'easeOut',
+                              ease: [0.25, 0.46, 0.45, 0.94],
                             }}
                           >
                             {/* Tooltip */}

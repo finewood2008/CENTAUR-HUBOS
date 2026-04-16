@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import type { NavTab } from '../../types';
 
 const navItems: { key: NavTab; icon: typeof LayoutDashboard; label: string }[] = [
-  { key: 'dashboard', icon: LayoutDashboard, label: '控制台' },
+  { key: 'dashboard', icon: LayoutDashboard, label: '信息流' },
   { key: 'team', icon: Users, label: '团队' },
   { key: 'channels', icon: Radio, label: '通讯' },
   { key: 'knowledge', icon: Database, label: '知识库' },

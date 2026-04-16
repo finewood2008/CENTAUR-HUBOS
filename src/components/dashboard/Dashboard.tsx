@@ -2,16 +2,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Plus, CheckCircle2, FileText, Users, Mail, BarChart3,
+  CheckCircle2, FileText, Users, Mail, BarChart3,
   AlertTriangle, Lightbulb, MessageSquare, ChevronRight,
-  Clock, Sparkles, Filter,
+  Clock, Sparkles,
 } from 'lucide-react';
 import type { Agent, ActivityItem } from '../../types';
 
 interface DashboardProps {
   agents: Agent[];
   activities: ActivityItem[];
-  onGoAgents: () => void;
 }
 
 // 动态类型 → 图标 & 色彩映射
@@ -36,7 +35,7 @@ const priorityBar: Record<string, string> = {
 
 type FilterKey = 'all' | 'needs_action' | 'updates';
 
-export default function Dashboard({ agents, activities, onGoAgents }: DashboardProps) {
+export default function Dashboard({ agents, activities }: DashboardProps) {
   const [filter, setFilter] = useState<FilterKey>('all');
 
   const totalTasks = agents.reduce((s, a) => s + a.todayTasks, 0);
@@ -67,12 +66,6 @@ export default function Dashboard({ agents, activities, onGoAgents }: DashboardP
               {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
             </p>
           </div>
-          <button
-            onClick={onGoAgents}
-            className="btn-terracotta gap-1.5 text-xs"
-          >
-            <Plus size={14} /> 安装新员工
-          </button>
         </div>
 
         {/* 一句话总结条 */}
