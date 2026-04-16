@@ -9,8 +9,8 @@ import {
   getChannelsModule,
   getKnowledgeModule,
 } from '../services/qeeclaw';
-import { AGENTS, TEMPLATES, ALERTS, USAGE_7DAYS } from '../data/mock';
-import type { Agent, Template, Alert, UsageStat } from '../types';
+import { AGENTS, TEMPLATES, ALERTS, USAGE_7DAYS, ACTIVITY_FEED } from '../data/mock';
+import type { Agent, Template, Alert, UsageStat, ActivityItem } from '../types';
 import type { MyAgent, AgentTemplate } from '@qeeclaw/core-sdk';
 
 // ── 连接状态 hook ─────────────────────────────────
@@ -84,6 +84,7 @@ export interface DashboardData {
   agents: Agent[];
   alerts: Alert[];
   usage: UsageStat[];
+  activities: ActivityItem[];
   wallet: {
     balance: number;
     currency: string;
@@ -97,6 +98,7 @@ export function useDashboardData(isConnected: boolean) {
     agents: AGENTS,
     alerts: ALERTS,
     usage: USAGE_7DAYS,
+    activities: ACTIVITY_FEED,
     wallet: null,
   });
   const [loading, setLoading] = useState(true);
@@ -109,7 +111,7 @@ export function useDashboardData(isConnected: boolean) {
     (async () => {
       if (!isConnected) {
         // 用 mock
-        setData({ agents: AGENTS, alerts: ALERTS, usage: USAGE_7DAYS, wallet: null });
+        setData({ agents: AGENTS, alerts: ALERTS, usage: USAGE_7DAYS, activities: ACTIVITY_FEED, wallet: null });
         setLoading(false);
         return;
       }
@@ -132,6 +134,7 @@ export function useDashboardData(isConnected: boolean) {
           agents: agents.length > 0 ? agents : AGENTS,
           alerts: ALERTS, // alerts 暂无 SDK 接口，用 mock
           usage: USAGE_7DAYS, // usage 暂用 mock，后续接 billing.listRecords
+          activities: ACTIVITY_FEED, // activities 暂用 mock
           wallet: wallet
             ? {
                 balance: wallet.balance,
@@ -144,7 +147,7 @@ export function useDashboardData(isConnected: boolean) {
       } catch {
         // SDK 调用失败，fallback mock
         if (!cancelled) {
-          setData({ agents: AGENTS, alerts: ALERTS, usage: USAGE_7DAYS, wallet: null });
+          setData({ agents: AGENTS, alerts: ALERTS, usage: USAGE_7DAYS, activities: ACTIVITY_FEED, wallet: null });
         }
       } finally {
         if (!cancelled) setLoading(false);

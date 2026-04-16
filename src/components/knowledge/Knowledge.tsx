@@ -53,7 +53,7 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
   const totalSize = stats?.total_size ?? bases.reduce((s, k) => s + k.total_size, 0);
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-ivory">
+    <div className="flex-1 overflow-y-auto p-6 space-y-6">
       {/* 标题 */}
       <div className="flex items-center justify-between">
         <div>
@@ -90,9 +90,9 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
 
       {/* 总览 */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-xl p-4 bg-ivory border border-border-cream">
+        <div className="card-glass p-4">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(74, 124, 148, 0.1)', color: '#4a7c94' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-teal/10 text-teal">
               <FolderOpen size={18} />
             </div>
             <span className="text-xs text-stone-gray">知识库</span>
@@ -100,9 +100,9 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
           <div className="text-2xl font-semibold text-near-black">{totalBases}</div>
           <div className="text-[11px] mt-1 text-stone-gray">个独立知识库</div>
         </div>
-        <div className="rounded-xl p-4 bg-ivory border border-border-cream">
+        <div className="card-glass p-4">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(90, 138, 94, 0.1)', color: '#5a8a5e' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-sage-green/10 text-sage-green">
               <FileText size={18} />
             </div>
             <span className="text-xs text-stone-gray">文件总数</span>
@@ -110,9 +110,9 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
           <div className="text-2xl font-semibold text-near-black">{totalFiles.toLocaleString()}</div>
           <div className="text-[11px] mt-1 text-stone-gray">份文档已索引</div>
         </div>
-        <div className="rounded-xl p-4 bg-ivory border border-border-cream">
+        <div className="card-glass p-4">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(140, 100, 160, 0.1)', color: '#8c64a0' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple/10 text-purple">
               <HardDrive size={18} />
             </div>
             <span className="text-xs text-stone-gray">存储用量</span>
@@ -123,7 +123,7 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
       </div>
 
       {/* 知识库列表 */}
-      <div className="rounded-xl p-5 bg-ivory border border-border-cream">
+      <div className="card-glass p-5">
         <h2 className="text-sm font-medium mb-4 text-near-black font-serif">所有知识库</h2>
         {knowledgeLoading && !hasData ? (
           <div className="text-center py-8 text-xs text-stone-gray">加载中...</div>
@@ -175,7 +175,7 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
       </div>
 
       {/* 存储用量条 */}
-      <div className="rounded-xl p-5 bg-ivory border border-border-cream">
+      <div className="card-glass p-5">
         <h2 className="text-sm font-medium mb-3 text-near-black font-serif">存储用量</h2>
         <div className="w-full rounded-full h-2 mb-2 bg-warm-sand">
           <div

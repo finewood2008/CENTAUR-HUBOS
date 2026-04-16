@@ -176,14 +176,14 @@ export default function AgentBuilder({ isConnected }: Props) {
       {/* 顶栏 */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold text-[#141413] flex items-center gap-2">
-            <Sparkles size={18} className="text-[#c96442]" />
+          <h2 className="text-lg font-semibold text-near-black flex items-center gap-2">
+            <Sparkles size={18} className="text-terracotta" />
             打造员工
             <span className="text-[10px] px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/15 font-normal ml-1">
               概念演示 · 未来功能
             </span>
           </h2>
-          <p className="text-xs text-[#87867f] mt-0.5">
+          <p className="text-xs text-stone-gray mt-0.5">
             用自然语言描述需求，AI 架构师帮你打造专属员工工作台
           </p>
         </div>
@@ -234,12 +234,12 @@ export default function AgentBuilder({ isConnected }: Props) {
               onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && !loading && send()}
               placeholder={loading ? '架构师思考中...' : '描述你想要的 AI 员工...'}
               disabled={loading}
-              className="flex-1 px-4 py-2.5 bg-[#f5f4ed] border border-[#e8e6dc] rounded-xl text-sm text-[#141413] placeholder-[#87867f] focus:outline-none focus:border-[#c96442]/25 disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 bg-parchment border border-border-warm rounded-xl text-sm text-near-black placeholder-stone-gray focus:outline-none focus:border-terracotta/25 disabled:opacity-50"
             />
             <button
               onClick={send}
               disabled={loading || !input.trim()}
-              className="px-4 py-2.5 bg-[#c96442] text-[#141413] rounded-xl hover:bg-[#d97757] transition-colors disabled:opacity-50"
+              className="px-4 py-2.5 bg-terracotta text-near-black rounded-xl hover:bg-coral transition-colors disabled:opacity-50"
             >
               <Send size={16} />
             </button>
@@ -254,28 +254,28 @@ export default function AgentBuilder({ isConnected }: Props) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.25 }}
-              className="flex-1 flex flex-col min-h-0 border-l border-[#f0eee6] pl-4"
+              className="flex-1 flex flex-col min-h-0 border-l border-border-cream pl-4"
             >
               {/* 预览头部 */}
               <div className="flex items-center justify-between mb-3 shrink-0">
                 <div className="flex items-center gap-2">
-                  <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${latestSchema.meta.color || 'from-[#c96442] to-[#d97757]'} flex items-center justify-center text-sm shadow-lg`}>
+                  <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${latestSchema.meta.color || 'from-terracotta to-coral'} flex items-center justify-center text-sm shadow-lg`}>
                     {latestSchema.meta.icon || '✨'}
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-[#141413]">{latestSchema.meta.name}</h3>
-                    <p className="text-[10px] text-[#87867f]">{latestSchema.layout.type} · {latestSchema.panels.reduce((s, p) => s + p.children.length, 0)} 组件</p>
+                    <h3 className="text-sm font-medium text-near-black">{latestSchema.meta.name}</h3>
+                    <p className="text-[10px] text-stone-gray">{latestSchema.layout.type} · {latestSchema.panels.reduce((s, p) => s + p.children.length, 0)} 组件</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowPreview(true)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded-lg bg-[#c96442]/10 text-[#c96442] border border-[#c96442]/20 hover:bg-[#c96442]/20 transition-colors"
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] rounded-lg bg-terracotta/10 text-terracotta border border-terracotta/20 hover:bg-terracotta/20 transition-colors"
                 >
                   <Eye size={12} /> 全屏预览
                 </button>
               </div>
               {/* 内嵌预览 */}
-              <div className="flex-1 bg-[#f5f4ed]/60 rounded-xl border border-[#f0eee6] overflow-hidden relative">
+              <div className="flex-1 card-glass overflow-hidden relative">
                 <div className="absolute inset-0 overflow-auto">
                   <MiniAppRuntime
                     schema={latestSchema}
@@ -297,19 +297,19 @@ export default function AgentBuilder({ isConnected }: Props) {
               animate={{ width: 400, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="shrink-0 flex flex-col min-h-0 border-l border-[#f0eee6] pl-4 overflow-hidden"
+              className="shrink-0 flex flex-col min-h-0 border-l border-border-cream pl-4 overflow-hidden"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-[#5e5d59] font-medium">Mini App Schema</span>
+                <span className="text-xs text-olive-gray font-medium">Mini App Schema</span>
                 <button
                   onClick={copySchema}
-                  className="flex items-center gap-1 text-[10px] text-[#87867f] hover:text-[#141413] transition-colors"
+                  className="flex items-center gap-1 text-[10px] text-stone-gray hover:text-near-black transition-colors"
                 >
                   {copied ? <Check size={10} className="text-green-400" /> : <Copy size={10} />}
                   {copied ? '已复制' : '复制'}
                 </button>
               </div>
-              <pre className="flex-1 overflow-auto bg-[#faf9f5] rounded-xl border border-[#f0eee6] p-4 text-[11px] text-[#5e5d59] font-mono leading-relaxed select-all">
+              <pre className="flex-1 overflow-auto card-glass p-4 text-[11px] text-olive-gray font-mono leading-relaxed select-all">
                 {JSON.stringify(latestSchema, null, 2)}
               </pre>
             </motion.div>
@@ -387,8 +387,8 @@ function MessageBubble({
         <div
           className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
             isUser
-              ? 'bg-[#c96442]/10 text-[#c96442] rounded-br-md'
-              : 'bg-[#e8e6dc] text-[#5e5d59] rounded-bl-md'
+              ? 'bg-terracotta/10 text-terracotta rounded-br-md'
+              : 'bg-warm-sand text-olive-gray rounded-bl-md'
           }`}
         >
           {msg.content}
@@ -418,31 +418,31 @@ function SchemaCard({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-gradient-to-br from-[#c96442]/10 to-[#d97757]/5 border border-[#c96442]/20 rounded-xl p-4"
+      className="bg-gradient-to-br from-terracotta/10 to-coral/5 border border-terracotta/20 rounded-xl p-4"
     >
       <div className="flex items-start gap-3 mb-3">
         <div
           className={`w-10 h-10 rounded-lg bg-gradient-to-br ${
-            schema.meta.color || 'from-[#c96442] to-[#d97757]'
+            schema.meta.color || 'from-terracotta to-coral'
           } flex items-center justify-center text-lg shadow-lg`}
         >
           {schema.meta.icon || '✨'}
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-[#141413]">{schema.meta.name}</h4>
-          <p className="text-[11px] text-[#5e5d59] mt-0.5 line-clamp-2">{schema.meta.description}</p>
+          <h4 className="text-sm font-medium text-near-black">{schema.meta.name}</h4>
+          <p className="text-[11px] text-olive-gray mt-0.5 line-clamp-2">{schema.meta.description}</p>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-3 text-[10px]">
-        <span className="px-2 py-0.5 bg-[#f5f4ed] text-[#5e5d59] rounded-full flex items-center gap-1">
+        <span className="px-2 py-0.5 bg-parchment text-olive-gray rounded-full flex items-center gap-1">
           <Layers size={9} /> {schema.layout.type}
         </span>
-        <span className="px-2 py-0.5 bg-[#f5f4ed] text-[#5e5d59] rounded-full">
+        <span className="px-2 py-0.5 bg-parchment text-olive-gray rounded-full">
           {schema.panels.length} 面板
         </span>
-        <span className="px-2 py-0.5 bg-[#f5f4ed] text-[#5e5d59] rounded-full">{widgetCount} 组件</span>
-        <span className="px-2 py-0.5 bg-[#f5f4ed] text-[#5e5d59] rounded-full flex items-center gap-1">
+        <span className="px-2 py-0.5 bg-parchment text-olive-gray rounded-full">{widgetCount} 组件</span>
+        <span className="px-2 py-0.5 bg-parchment text-olive-gray rounded-full flex items-center gap-1">
           <MessageSquare size={9} /> {schema.agent.model}
         </span>
       </div>
@@ -450,7 +450,7 @@ function SchemaCard({
       <div className="flex gap-2">
         <button
           onClick={onPreview}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#c96442]/15 text-[#d97757] text-xs rounded-lg hover:bg-[#c96442]/25 transition-colors border border-[#c96442]/20"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-terracotta/15 text-coral text-xs rounded-lg hover:bg-terracotta/25 transition-colors border border-terracotta/20"
         >
           <Eye size={12} /> 预览应用
         </button>
@@ -463,7 +463,7 @@ function SchemaCard({
         </button>
         <button
           onClick={onCopy}
-          className="px-3 py-2 bg-[#f5f4ed] text-[#5e5d59] text-xs rounded-lg hover:bg-[#e8e6dc] transition-colors"
+          className="px-3 py-2 bg-parchment text-olive-gray text-xs rounded-lg hover:bg-warm-sand transition-colors"
           title="复制 Schema"
         >
           <Copy size={12} />
@@ -477,10 +477,10 @@ function SchemaCard({
 function TypingIndicator() {
   return (
     <div className="flex justify-start">
-      <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-[#e8e6dc] text-[#5e5d59] text-sm flex items-center gap-1.5">
-        <span className="w-1.5 h-1.5 bg-[#c96442] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-        <span className="w-1.5 h-1.5 bg-[#c96442] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-        <span className="w-1.5 h-1.5 bg-[#c96442] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+      <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-warm-sand text-olive-gray text-sm flex items-center gap-1.5">
+        <span className="w-1.5 h-1.5 bg-terracotta rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+        <span className="w-1.5 h-1.5 bg-terracotta rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+        <span className="w-1.5 h-1.5 bg-terracotta rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
       </div>
     </div>
   );
@@ -503,12 +503,12 @@ function ActionBtn({
   danger?: boolean;
 }) {
   const variant = primary
-    ? 'bg-[#c96442]/10 text-[#c96442] border-[#c96442]/20 hover:bg-[#c96442]/20'
+    ? 'bg-terracotta/10 text-terracotta border-terracotta/20 hover:bg-terracotta/20'
     : danger
-      ? 'bg-[#f5f4ed] text-[#5e5d59] border-[#f0eee6] hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20'
+      ? 'bg-parchment text-olive-gray border-border-cream hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20'
       : active
         ? 'bg-blue-500/15 text-blue-400 border-blue-500/20'
-        : 'bg-[#f5f4ed] text-[#5e5d59] border-[#f0eee6] hover:bg-[#e8e6dc] hover:text-[#5e5d59]';
+        : 'bg-parchment text-olive-gray border-border-cream hover:bg-warm-sand hover:text-olive-gray';
 
   return (
     <button

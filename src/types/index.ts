@@ -66,4 +66,31 @@ export interface ChatMessage {
   content: string;
 }
 
+// 员工动态流 — 时间线首页核心数据
+export type ActivityType =
+  | 'task_done'      // 完成任务
+  | 'content_published' // 发布内容
+  | 'lead_captured'  // 捕获线索
+  | 'email_sent'     // 发送邮件
+  | 'report_ready'   // 报告生成
+  | 'alert'          // 异常/告警
+  | 'approval_needed' // 需要审批
+  | 'customer_reply' // 客户回复
+  | 'insight';       // 洞察/建议
+
+export interface ActivityItem {
+  id: string;
+  agentId: string;
+  agentName: string;
+  agentAvatar: string;
+  type: ActivityType;
+  title: string;
+  detail?: string;
+  time: string;         // 相对时间："3 分钟前"
+  timestamp: number;    // 排序用
+  actionLabel?: string; // 按钮文案："查看详情"、"去审批"
+  actionType?: 'view' | 'approve' | 'reply' | 'dismiss';
+  priority?: 'normal' | 'high' | 'urgent';
+}
+
 export type NavTab = 'dashboard' | 'agents' | 'channels' | 'knowledge' | 'settings';

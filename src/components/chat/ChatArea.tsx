@@ -5,14 +5,14 @@ export default function ChatArea() {
   const [input, setInput] = useState('');
 
   return (
-    <div className="w-full h-full bg-ivory flex flex-col relative overflow-hidden">
+    <div className="w-full h-full flex flex-col relative overflow-hidden">
       {/* 柔和背景光晕 */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-terracotta/5 blur-[100px]"></div>
       </div>
 
       {/* Header */}
-      <div className="h-16 border-b border-border-cream flex items-center px-6 bg-ivory/80 backdrop-blur-md z-10">
+      <div className="h-16 border-b border-border-cream flex items-center px-6 bg-ivory/60 backdrop-blur-md z-10">
         <div>
           <h2 className="text-near-black font-medium font-serif">架构师面谈区</h2>
           <p className="text-xs text-stone-gray">正在与 Spark (火花) 对话</p>

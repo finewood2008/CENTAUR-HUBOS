@@ -55,11 +55,11 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* 顶部 Tab */}
-      <div className="px-6 pt-5 pb-3 flex items-center gap-1 border-b border-[#f0eee6]">
+      <div className="px-6 pt-5 pb-3 flex items-center gap-1 border-b border-border-cream">
         {subView === 'detail' && selectedAgent ? (
           <button
             onClick={() => setSubView('roster')}
-            className="flex items-center gap-1 text-sm text-[#5e5d59] hover:text-[#141413] transition-colors mr-3"
+            className="flex items-center gap-1 text-sm text-olive-gray hover:text-near-black transition-colors mr-3"
           >
             <ArrowLeft size={16} /> 返回
           </button>
@@ -113,7 +113,7 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-[#f5f4ed] border border-[#e8e6dc] rounded-2xl p-6 w-[400px] shadow-2xl"
+              className="card-glass p-6 w-[400px] shadow-2xl !rounded-2xl"
             >
               {hireResult ? (
                 /* 结果反馈 */
@@ -128,7 +128,7 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
                       setHireResult(null);
                       if (hireResult.ok) setSubView('roster');
                     }}
-                    className="px-5 py-2 bg-[#e8e6dc] text-[#141413] text-sm rounded-xl hover:bg-white/15 transition-colors"
+                    className="px-5 py-2 bg-warm-sand text-near-black text-sm rounded-xl hover:bg-white/15 transition-colors"
                   >
                     {hireResult.ok ? '查看花名册' : '关闭'}
                   </button>
@@ -141,25 +141,25 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
                       {hireTarget.avatar}
                     </div>
                     <div>
-                      <h3 className="text-base font-semibold text-[#141413]">{hireTarget.name}</h3>
-                      <p className="text-xs text-[#5e5d59] mt-1">{hireTarget.desc}</p>
+                      <h3 className="text-base font-semibold text-near-black">{hireTarget.name}</h3>
+                      <p className="text-xs text-olive-gray mt-1">{hireTarget.desc}</p>
                     </div>
                   </div>
 
-                  <div className="bg-[#faf9f5] rounded-xl p-3 mb-5 space-y-2 text-xs">
+                  <div className="card-glass p-3 mb-5 space-y-2 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-[#87867f]">模型</span>
-                      <span className="text-[#5e5d59]">{hireTarget.model}</span>
+                      <span className="text-stone-gray">模型</span>
+                      <span className="text-olive-gray">{hireTarget.model}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#87867f]">分类</span>
-                      <span className="text-[#5e5d59]">{hireTarget.category}</span>
+                      <span className="text-stone-gray">分类</span>
+                      <span className="text-olive-gray">{hireTarget.category}</span>
                     </div>
                     <div className="flex justify-between items-start">
-                      <span className="text-[#87867f] shrink-0">技能</span>
+                      <span className="text-stone-gray shrink-0">技能</span>
                       <div className="flex flex-wrap gap-1 justify-end">
                         {hireTarget.skills.map((s) => (
-                          <span key={s} className="px-1.5 py-0.5 bg-[#f5f4ed] text-[#5e5d59] rounded text-[10px]">{s}</span>
+                          <span key={s} className="px-1.5 py-0.5 bg-parchment text-olive-gray rounded text-[10px]">{s}</span>
                         ))}
                       </div>
                     </div>
@@ -169,18 +169,18 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
                     <button
                       onClick={() => { setHireTarget(null); setHireResult(null); }}
                       disabled={hiring}
-                      className="flex-1 py-2.5 text-sm text-[#5e5d59] bg-[#f5f4ed] rounded-xl hover:bg-[#e8e6dc] transition-colors disabled:opacity-50"
+                      className="flex-1 py-2.5 text-sm text-olive-gray bg-parchment rounded-xl hover:bg-warm-sand transition-colors disabled:opacity-50"
                     >
                       取消
                     </button>
                     <button
                       onClick={() => handleHire(hireTarget)}
                       disabled={hiring}
-                      className="flex-1 py-2.5 text-sm text-[#141413] bg-[#c96442] rounded-xl hover:bg-[#d97757] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      className="flex-1 py-2.5 text-sm text-near-black bg-terracotta rounded-xl hover:bg-coral transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                     >
                       {hiring ? (
                         <>
-                          <span className="w-3 h-3 border-2 border-[#e8e6dc] border-t-white rounded-full animate-spin" />
+                          <span className="w-3 h-3 border-2 border-border-warm border-t-white rounded-full animate-spin" />
                           入职中...
                         </>
                       ) : (
@@ -221,18 +221,18 @@ function Market({
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-lg font-semibold text-[#141413]">AI 人力市场</h2>
-          <p className="text-xs text-[#87867f] mt-0.5">
+          <h2 className="text-lg font-semibold text-near-black">AI 人力市场</h2>
+          <p className="text-xs text-stone-gray mt-0.5">
             {templates.length} 个岗位 · {live.length} 个已上线 · {coming.length} 个即将上线
           </p>
         </div>
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#87867f]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-gray" />
           <input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="搜索岗位..."
-            className="pl-8 pr-3 py-1.5 bg-[#f5f4ed] border border-[#e8e6dc] rounded-lg text-xs text-[#141413] placeholder-[#87867f] focus:outline-none focus:border-[#c96442]/25 w-48"
+            className="pl-8 pr-3 py-1.5 bg-parchment border border-border-warm rounded-lg text-xs text-near-black placeholder-stone-gray focus:outline-none focus:border-terracotta/25 w-48"
           />
         </div>
       </div>
@@ -243,7 +243,7 @@ function Market({
           <div className="flex items-center gap-2 mb-3">
             <span className="w-2 h-2 bg-green-400 rounded-full shadow-sm shadow-green-400/50" />
             <span className="text-xs font-medium text-green-400">已上线</span>
-            <span className="text-[10px] text-[#87867f]">一键入职，即刻上岗</span>
+            <span className="text-[10px] text-stone-gray">一键入职，即刻上岗</span>
           </div>
           <div className="grid grid-cols-3 gap-4">
             {live.map((tpl, i) => (
@@ -252,7 +252,7 @@ function Market({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="bg-[#faf9f5] rounded-xl border border-green-500/15 p-5 hover:border-green-500/30 transition-all group relative overflow-hidden"
+                className="card-glass-success p-5 group relative overflow-hidden"
               >
                 {/* 已上线标签 */}
                 <div className="absolute top-3 right-3">
@@ -263,18 +263,18 @@ function Market({
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tpl.color} flex items-center justify-center text-2xl shadow-lg mb-3`}>
                   {tpl.avatar}
                 </div>
-                <h3 className="text-sm font-medium text-[#141413] mb-1">{tpl.name}</h3>
-                <p className="text-xs text-[#5e5d59] leading-relaxed mb-3">{tpl.desc}</p>
+                <h3 className="text-sm font-medium text-near-black mb-1">{tpl.name}</h3>
+                <p className="text-xs text-olive-gray leading-relaxed mb-3">{tpl.desc}</p>
                 <div className="flex flex-wrap gap-1 mb-4">
                   {tpl.skills.map((s) => (
-                    <span key={s} className="text-[10px] px-1.5 py-0.5 bg-[#f5f4ed] text-[#5e5d59] rounded">{s}</span>
+                    <span key={s} className="text-[10px] px-1.5 py-0.5 bg-parchment text-olive-gray rounded">{s}</span>
                   ))}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-[#87867f]">{tpl.category} · {tpl.model.split('/').pop()?.split('-').slice(0, 2).join('-')}</span>
+                  <span className="text-[10px] text-stone-gray">{tpl.category} · {tpl.model.split('/').pop()?.split('-').slice(0, 2).join('-')}</span>
                   <button
                     onClick={() => onHire(tpl)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-[#c96442]/10 text-[#c96442] text-xs rounded-lg hover:bg-[#c96442]/20 transition-colors border border-[#c96442]/20 opacity-0 group-hover:opacity-100"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-terracotta/10 text-terracotta text-xs rounded-lg hover:bg-terracotta/20 transition-colors border border-terracotta/20 opacity-0 group-hover:opacity-100"
                   >
                     <Download size={12} /> 入职
                   </button>
@@ -291,7 +291,7 @@ function Market({
           <div className="flex items-center gap-2 mb-3">
             <span className="w-2 h-2 bg-amber-400 rounded-full" />
             <span className="text-xs font-medium text-amber-400">即将上线</span>
-            <span className="text-[10px] text-[#87867f]">内测中，敬请期待</span>
+            <span className="text-[10px] text-stone-gray">内测中，敬请期待</span>
           </div>
           <div className="grid grid-cols-3 gap-4">
             {coming.map((tpl, i) => (
@@ -300,7 +300,7 @@ function Market({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="bg-[#faf9f5] rounded-xl border border-[#f0eee6] p-5 hover:border-amber-500/20 transition-all relative"
+                className="card-glass-warm p-5 relative"
               >
                 <div className="absolute top-3 right-3">
                   <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/15">
@@ -310,16 +310,16 @@ function Market({
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${tpl.color} flex items-center justify-center text-2xl shadow-lg mb-3 opacity-80`}>
                   {tpl.avatar}
                 </div>
-                <h3 className="text-sm font-medium text-[#141413] mb-1">{tpl.name}</h3>
-                <p className="text-xs text-[#87867f] leading-relaxed mb-3">{tpl.desc}</p>
+                <h3 className="text-sm font-medium text-near-black mb-1">{tpl.name}</h3>
+                <p className="text-xs text-stone-gray leading-relaxed mb-3">{tpl.desc}</p>
                 <div className="flex flex-wrap gap-1 mb-4">
                   {tpl.skills.slice(0, 3).map((s) => (
-                    <span key={s} className="text-[10px] px-1.5 py-0.5 bg-[#f5f4ed] text-[#5e5d59] rounded">{s}</span>
+                    <span key={s} className="text-[10px] px-1.5 py-0.5 bg-parchment text-olive-gray rounded">{s}</span>
                   ))}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-[#87867f]">{tpl.category}</span>
-                  <button className="flex items-center gap-1 px-3 py-1.5 bg-[#f5f4ed] text-[#87867f] text-xs rounded-lg border border-[#f0eee6] cursor-default">
+                  <span className="text-[10px] text-stone-gray">{tpl.category}</span>
+                  <button className="flex items-center gap-1 px-3 py-1.5 bg-parchment text-stone-gray text-xs rounded-lg border border-border-cream cursor-default">
                     <Bell size={12} /> 关注上线
                   </button>
                 </div>
@@ -334,7 +334,7 @@ function Market({
         <div>
           <div className="flex items-center gap-2 mb-3">
             <span className="w-2 h-2 bg-gray-600 rounded-full" />
-            <span className="text-xs font-medium text-[#87867f]">规划中</span>
+            <span className="text-xs font-medium text-stone-gray">规划中</span>
             <span className="text-[10px] text-gray-700">更多 AI 员工正在路上</span>
           </div>
           <div className="grid grid-cols-4 gap-3">
@@ -344,18 +344,18 @@ function Market({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
-                className="bg-[#f5f4ed] rounded-xl border border-[#f0eee6] p-4 opacity-60 hover:opacity-80 transition-all"
+                className="card-glass p-4 opacity-60 hover:opacity-80"
               >
                 <div className="flex items-center gap-3 mb-2">
                   <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${tpl.color} flex items-center justify-center text-lg opacity-60`}>
                     {tpl.avatar}
                   </div>
                   <div>
-                    <h3 className="text-xs font-medium text-[#5e5d59]">{tpl.name}</h3>
-                    <span className="text-[10px] text-[#87867f]">{tpl.category}</span>
+                    <h3 className="text-xs font-medium text-olive-gray">{tpl.name}</h3>
+                    <span className="text-[10px] text-stone-gray">{tpl.category}</span>
                   </div>
                 </div>
-                <p className="text-[11px] text-[#87867f] leading-relaxed line-clamp-2">{tpl.desc}</p>
+                <p className="text-[11px] text-stone-gray leading-relaxed line-clamp-2">{tpl.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -370,8 +370,8 @@ function Roster({ agents, onSelect }: { agents: Agent[]; onSelect: (a: Agent) =>
   return (
     <div>
       <div className="mb-5">
-        <h2 className="text-lg font-semibold text-[#141413]">员工花名册</h2>
-        <p className="text-xs text-[#87867f] mt-0.5">共 {agents.length} 名数字员工在册</p>
+        <h2 className="text-lg font-semibold text-near-black">员工花名册</h2>
+        <p className="text-xs text-stone-gray mt-0.5">共 {agents.length} 名数字员工在册</p>
       </div>
       <div className="space-y-3">
         {agents.map((agent, i) => (
@@ -381,21 +381,21 @@ function Roster({ agents, onSelect }: { agents: Agent[]; onSelect: (a: Agent) =>
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.06 }}
             onClick={() => onSelect(agent)}
-            className="flex items-center gap-4 p-4 bg-[#faf9f5] rounded-xl border border-[#f0eee6] hover:border-[#c96442]/20 transition-all cursor-pointer group"
+            className="flex items-center gap-4 p-4 card-glass cursor-pointer group"
           >
             <span className="text-2xl">{agent.avatar}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-[#141413]">{agent.name}</span>
+                <span className="text-sm font-medium text-near-black">{agent.name}</span>
                 <StatusBadge status={agent.status} />
               </div>
-              <p className="text-xs text-[#87867f] mt-0.5">{agent.role} · {agent.model}</p>
+              <p className="text-xs text-stone-gray mt-0.5">{agent.role} · {agent.model}</p>
             </div>
             <div className="text-right mr-2">
-              <div className="text-xs text-[#5e5d59]">今日 {agent.todayTasks} 个任务</div>
-              <div className="text-[10px] text-[#87867f] mt-0.5">配额 {agent.budgetUsed}/{agent.budgetPercent}%</div>
+              <div className="text-xs text-olive-gray">今日 {agent.todayTasks} 个任务</div>
+              <div className="text-[10px] text-stone-gray mt-0.5">配额 {agent.budgetUsed}/{agent.budgetPercent}%</div>
             </div>
-            <ChevronRight size={16} className="text-gray-700 group-hover:text-[#c96442] transition-colors" />
+            <ChevronRight size={16} className="text-gray-700 group-hover:text-terracotta transition-colors" />
           </motion.div>
         ))}
       </div>
@@ -426,65 +426,65 @@ function AgentDetail({ agent }: { agent: Agent }) {
     <div className="max-w-2xl">
       {/* 头部 */}
       <div className="flex items-start gap-4 mb-6">
-        <div className="w-16 h-16 rounded-2xl bg-[#f5f4ed] flex items-center justify-center text-3xl border border-[#e8e6dc]">
+        <div className="w-16 h-16 rounded-2xl bg-parchment flex items-center justify-center text-3xl border border-border-warm">
           {agent.avatar}
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold text-[#141413]">{agent.name}</h2>
+            <h2 className="text-xl font-semibold text-near-black">{agent.name}</h2>
             <StatusBadge status={agent.status} />
           </div>
-          <p className="text-sm text-[#5e5d59] mt-0.5">{agent.role}</p>
-          <p className="text-xs text-[#87867f] mt-1">模型：{agent.model} · 端口：{agent.port} · 入职日期：{agent.hireDate}</p>
+          <p className="text-sm text-olive-gray mt-0.5">{agent.role}</p>
+          <p className="text-xs text-stone-gray mt-1">模型：{agent.model} · 端口：{agent.port} · 入职日期：{agent.hireDate}</p>
         </div>
       </div>
 
       {/* 信息卡片网格 */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         {/* 通讯渠道 */}
-        <InfoCard icon={<Radio size={16} />} title="通讯渠道" color="text-[#c96442]">
+        <InfoCard icon={<Radio size={16} />} title="通讯渠道" color="text-terracotta">
           {ch && chMeta ? (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <span className="text-xl">{chMeta.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-[#141413] font-medium">{ch.name}</span>
+                    <span className="text-xs text-near-black font-medium">{ch.name}</span>
                     <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${
                       ch.status === 'active' ? 'bg-green-500/15 text-green-400' :
                       ch.status === 'error' ? 'bg-red-500/15 text-red-400' :
-                      'bg-gray-500/15 text-[#5e5d59]'
+                      'bg-gray-500/15 text-olive-gray'
                     }`}>
                       {ch.status === 'active' ? '在线' : ch.status === 'error' ? '异常' : '未启用'}
                     </span>
                   </div>
-                  <span className="text-[10px] text-[#87867f]">{chMeta.label}</span>
+                  <span className="text-[10px] text-stone-gray">{chMeta.label}</span>
                 </div>
               </div>
               <div className="flex gap-2">
-                <button className="flex-1 text-[10px] py-1.5 rounded-lg bg-[#f5f4ed] text-[#5e5d59] hover:text-[#141413] hover:bg-[#e8e6dc] transition-colors">
+                <button className="flex-1 text-[10px] py-1.5 rounded-lg bg-parchment text-olive-gray hover:text-near-black hover:bg-warm-sand transition-colors">
                   配置
                 </button>
-                <button className="flex-1 text-[10px] py-1.5 rounded-lg bg-[#f5f4ed] text-[#5e5d59] hover:text-[#141413] hover:bg-[#e8e6dc] transition-colors">
+                <button className="flex-1 text-[10px] py-1.5 rounded-lg bg-parchment text-olive-gray hover:text-near-black hover:bg-warm-sand transition-colors">
                   测试连接
                 </button>
               </div>
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-[11px] text-[#87867f]">该员工尚未接入通讯渠道</p>
+              <p className="text-[11px] text-stone-gray">该员工尚未接入通讯渠道</p>
               <div className="grid grid-cols-4 gap-1.5">
                 {Object.entries(CHANNEL_TYPES).slice(0, 4).map(([type, meta]) => (
                   <button
                     key={type}
-                    className="flex flex-col items-center gap-1 p-2 rounded-lg border border-dashed border-[#e8e6dc] hover:border-[#c96442]/25 hover:bg-[#faf9f5] transition-all"
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg border border-dashed border-border-warm hover:border-terracotta/25 hover:bg-ivory/60 transition-all"
                   >
                     <span className="text-base">{meta.icon}</span>
-                    <span className="text-[9px] text-[#87867f]">{meta.label}</span>
+                    <span className="text-[9px] text-stone-gray">{meta.label}</span>
                   </button>
                 ))}
               </div>
-              <button className="w-full flex items-center justify-center gap-1 text-[10px] py-1.5 rounded-lg bg-[#c96442]/10 text-[#c96442] hover:bg-[#c96442]/20 transition-colors border border-[#c96442]/20">
+              <button className="w-full flex items-center justify-center gap-1 text-[10px] py-1.5 rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20 transition-colors border border-terracotta/20">
                 <Plus size={10} /> 接入渠道
               </button>
             </div>
@@ -522,10 +522,10 @@ function AgentDetail({ agent }: { agent: Agent }) {
         <InfoCard icon={<Zap size={16} />} title="算力预算" color="text-amber-400">
           <div className="mt-1">
             <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-[#5e5d59]">已使用 {agent.budgetUsed}%</span>
-              <span className="text-[#87867f]">总配额 {agent.budgetPercent}%</span>
+              <span className="text-olive-gray">已使用 {agent.budgetUsed}%</span>
+              <span className="text-stone-gray">总配额 {agent.budgetPercent}%</span>
             </div>
-            <div className="h-2 bg-[#f5f4ed] rounded-full overflow-hidden">
+            <div className="h-2 bg-parchment rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${(agent.budgetUsed / agent.budgetPercent) * 100}%` }}
@@ -538,13 +538,13 @@ function AgentDetail({ agent }: { agent: Agent }) {
       </div>
 
       {/* 今日工作 */}
-      <div className="bg-[#faf9f5] rounded-xl border border-[#f0eee6] p-4">
-        <h3 className="text-sm font-medium text-[#141413] mb-2 flex items-center gap-2">
-          <Shield size={14} className="text-[#c96442]" />
+      <div className="card-glass p-4">
+        <h3 className="text-sm font-medium text-near-black mb-2 flex items-center gap-2">
+          <Shield size={14} className="text-terracotta" />
           今日工作汇报
         </h3>
-        <p className="text-sm text-[#5e5d59] leading-relaxed">{agent.todaySummary}</p>
-        <p className="text-[10px] text-[#87867f] mt-2">完成任务数：{agent.todayTasks}</p>
+        <p className="text-sm text-olive-gray leading-relaxed">{agent.todaySummary}</p>
+        <p className="text-[10px] text-stone-gray mt-2">完成任务数：{agent.todayTasks}</p>
       </div>
     </div>
   );
@@ -556,7 +556,7 @@ function AgentDetail({ agent }: { agent: Agent }) {
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, { bg: string; text: string; label: string }> = {
     running: { bg: 'bg-green-500/15', text: 'text-green-400', label: '工作中' },
-    idle: { bg: 'bg-gray-500/15', text: 'text-[#5e5d59]', label: '待命' },
+    idle: { bg: 'bg-gray-500/15', text: 'text-olive-gray', label: '待命' },
     error: { bg: 'bg-red-500/15', text: 'text-red-400', label: '异常' },
   };
   const c = cfg[status] || cfg.idle;
@@ -574,7 +574,7 @@ function InfoCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-[#faf9f5] rounded-xl border border-[#f0eee6] p-4">
+    <div className="card-glass p-4">
       <h3 className={`text-xs font-medium ${color} mb-3 flex items-center gap-1.5`}>
         {icon} {title}
       </h3>
@@ -596,13 +596,13 @@ function TabBtn({
     <button
       onClick={onClick}
       className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs transition-colors ${
-        active ? 'bg-[#c96442]/10 text-[#c96442] border border-[#c96442]/20' : 'text-[#87867f] hover:text-[#5e5d59] hover:bg-[#f5f4ed]'
+        active ? 'bg-terracotta/10 text-terracotta border border-terracotta/20' : 'text-stone-gray hover:text-olive-gray hover:bg-parchment'
       }`}
     >
       {icon}
       {label}
       {count !== undefined && (
-        <span className={`text-[10px] px-1 rounded ${active ? 'bg-[#c96442]/20 text-[#c96442]' : 'bg-[#f5f4ed] text-[#87867f]'}`}>
+        <span className={`text-[10px] px-1 rounded ${active ? 'bg-terracotta/20 text-terracotta' : 'bg-parchment text-stone-gray'}`}>
           {count}
         </span>
       )}

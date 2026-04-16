@@ -37,7 +37,7 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
   const fallbackUnlinked = agents.length - withChannel.length;
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-ivory">
+    <div className="flex-1 overflow-y-auto p-6 space-y-6">
       {/* 标题 */}
       <div className="flex items-center justify-between">
         <div>
@@ -62,22 +62,22 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
       {/* 统计条 */}
       {hasApiData ? (
         <div className="grid grid-cols-3 gap-4">
-          <StatCard label="支持渠道" value={channelsData.supportedCount} color="#141413" />
-          <StatCard label="已配置" value={channelsData.configuredCount} color="#4a7c94" icon={<Settings size={14} />} />
-          <StatCard label="已启用" value={channelsData.activeCount} color="#5a8a5e" icon={<Wifi size={14} />} />
+          <StatCard label="支持渠道" value={channelsData.supportedCount} colorClass="text-near-black" />
+          <StatCard label="已配置" value={channelsData.configuredCount} colorClass="text-teal" icon={<Settings size={14} />} />
+          <StatCard label="已启用" value={channelsData.activeCount} colorClass="text-sage-green" icon={<Wifi size={14} />} />
         </div>
       ) : (
         <div className="grid grid-cols-4 gap-4">
-          <StatCard label="员工总数" value={agents.length} color="#141413" />
-          <StatCard label="渠道在线" value={fallbackActive} color="#5a8a5e" icon={<CheckCircle size={14} />} />
-          <StatCard label="渠道异常" value={fallbackError} color="#c96442" icon={<AlertCircle size={14} />} />
-          <StatCard label="未接入" value={fallbackUnlinked} color="#87867f" icon={<MinusCircle size={14} />} />
+          <StatCard label="员工总数" value={agents.length} colorClass="text-near-black" />
+          <StatCard label="渠道在线" value={fallbackActive} colorClass="text-sage-green" icon={<CheckCircle size={14} />} />
+          <StatCard label="渠道异常" value={fallbackError} colorClass="text-terracotta" icon={<AlertCircle size={14} />} />
+          <StatCard label="未接入" value={fallbackUnlinked} colorClass="text-stone-gray" icon={<MinusCircle size={14} />} />
         </div>
       )}
 
       {/* API 渠道列表（优先展示） */}
       {hasApiData && channelsData.items.length > 0 && (
-        <div className="rounded-xl bg-ivory border border-border-cream">
+        <div className="card-glass">
           <div className="px-5 py-3 border-b border-border-cream">
             <h2 className="text-sm font-medium text-near-black font-serif">渠道列表</h2>
           </div>
@@ -99,9 +99,7 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
-                className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr] items-center px-5 py-3.5 last:border-0 transition-colors border-b border-border-cream"
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f3eb')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr] items-center px-5 py-3.5 last:border-0 transition-colors border-b border-border-cream hover:bg-parchment-hover"
               >
                 {/* 渠道 */}
                 <div className="flex items-center gap-3">
@@ -121,11 +119,7 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
 
                 {/* 配置状态 */}
                 <div>
-                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full`}
-                    style={{
-                      backgroundColor: ch.configured ? 'rgba(74, 124, 148, 0.12)' : 'rgba(135, 134, 127, 0.12)',
-                      color: ch.configured ? '#4a7c94' : '#87867f'
-                    }}>
+                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${ch.configured ? 'bg-teal/12 text-teal' : 'bg-stone-gray/12 text-stone-gray'}`}>
                     {ch.configured ? <CheckCircle size={10} /> : <MinusCircle size={10} />}
                     {ch.configured ? '已配置' : '未配置'}
                   </span>
@@ -133,11 +127,7 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
 
                 {/* 启用状态 */}
                 <div>
-                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full`}
-                    style={{
-                      backgroundColor: ch.enabled ? 'rgba(90, 138, 94, 0.12)' : 'rgba(135, 134, 127, 0.12)',
-                      color: ch.enabled ? '#5a8a5e' : '#87867f'
-                    }}>
+                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${ch.enabled ? 'bg-sage-green/12 text-sage-green' : 'bg-stone-gray/12 text-stone-gray'}`}>
                     {ch.enabled ? <Wifi size={10} /> : <WifiOff size={10} />}
                     {ch.enabled ? '已启用' : '未启用'}
                   </span>
@@ -145,13 +135,10 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
 
                 {/* 风险等级 */}
                 <div>
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full`}
-                    style={{
-                      backgroundColor: ch.riskLevel === 'low' ? 'rgba(90, 138, 94, 0.1)' :
-                        ch.riskLevel === 'medium' ? 'rgba(180, 140, 60, 0.1)' : 'rgba(201, 100, 66, 0.1)',
-                      color: ch.riskLevel === 'low' ? '#5a8a5e' :
-                        ch.riskLevel === 'medium' ? '#b48c3c' : '#c96442'
-                    }}>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full ${
+                    ch.riskLevel === 'low' ? 'bg-sage-green/10 text-sage-green' :
+                    ch.riskLevel === 'medium' ? 'bg-amber/10 text-amber' : 'bg-terracotta/10 text-terracotta'
+                  }`}>
                     {ch.riskLevel === 'low' ? '低风险' : ch.riskLevel === 'medium' ? '中风险' : '高风险'}
                   </span>
                 </div>
@@ -162,7 +149,7 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
       )}
 
       {/* 员工渠道绑定表 */}
-      <div className="rounded-xl bg-ivory border border-border-cream">
+      <div className="card-glass">
         <div className="px-5 py-3 border-b border-border-cream">
           <h2 className="text-sm font-medium text-near-black font-serif">员工渠道绑定</h2>
         </div>
@@ -185,9 +172,7 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              className="grid grid-cols-[2fr_1.5fr_1fr_1fr] items-center px-5 py-3.5 last:border-0 transition-colors border-b border-border-cream"
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f3eb')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              className="grid grid-cols-[2fr_1.5fr_1fr_1fr] items-center px-5 py-3.5 last:border-0 transition-colors border-b border-border-cream hover:bg-parchment-hover"
             >
               {/* 员工 */}
               <div className="flex items-center gap-3">
@@ -213,13 +198,10 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
               {/* 渠道状态 */}
               <div>
                 {ch ? (
-                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full`}
-                    style={{
-                      backgroundColor: ch.status === 'active' ? 'rgba(90, 138, 94, 0.12)' :
-                        ch.status === 'error' ? 'rgba(201, 100, 66, 0.12)' : 'rgba(135, 134, 127, 0.12)',
-                      color: ch.status === 'active' ? '#5a8a5e' :
-                        ch.status === 'error' ? '#c96442' : '#87867f'
-                    }}>
+                  <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${
+                    ch.status === 'active' ? 'bg-sage-green/12 text-sage-green' :
+                    ch.status === 'error' ? 'bg-terracotta/12 text-terracotta' : 'bg-stone-gray/12 text-stone-gray'
+                  }`}>
                     {ch.status === 'active' ? <CheckCircle size={10} /> :
                      ch.status === 'error' ? <XCircle size={10} /> :
                      <MinusCircle size={10} />}
@@ -232,13 +214,10 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
 
               {/* 员工状态 */}
               <div>
-                <span className={`text-[11px] px-2 py-0.5 rounded-full`}
-                  style={{
-                    backgroundColor: agent.status === 'running' ? 'rgba(90, 138, 94, 0.12)' :
-                      agent.status === 'error' ? 'rgba(201, 100, 66, 0.12)' : 'rgba(135, 134, 127, 0.12)',
-                    color: agent.status === 'running' ? '#5a8a5e' :
-                      agent.status === 'error' ? '#c96442' : '#87867f'
-                  }}>
+                <span className={`text-[11px] px-2 py-0.5 rounded-full ${
+                  agent.status === 'running' ? 'bg-sage-green/12 text-sage-green' :
+                  agent.status === 'error' ? 'bg-terracotta/12 text-terracotta' : 'bg-stone-gray/12 text-stone-gray'
+                }`}>
                   {agent.status === 'running' ? '工作中' : agent.status === 'error' ? '异常' : '待命'}
                 </span>
               </div>
@@ -256,14 +235,14 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
 }
 
 // ─── 统计卡片 ───
-function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon?: React.ReactNode }) {
+function StatCard({ label, value, colorClass, icon }: { label: string; value: number; colorClass: string; icon?: React.ReactNode }) {
   return (
-    <div className="rounded-xl p-4 bg-ivory border border-border-cream">
+    <div className="card-glass p-4">
       <div className="text-xs mb-1 flex items-center gap-1 text-stone-gray">
         {icon}
         {label}
       </div>
-      <div className="text-2xl font-semibold" style={{ color }}>{value}</div>
+      <div className={`text-2xl font-semibold ${colorClass}`}>{value}</div>
     </div>
   );
 }

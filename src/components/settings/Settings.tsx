@@ -209,11 +209,11 @@ export default function Settings({ isConnected }: SettingsProps) {
       <div className="max-w-2xl mx-auto">
         {/* 标题 */}
         <div className="mb-6">
-          <h2 className="text-lg font-semibold text-[#141413] flex items-center gap-2">
-            <Key size={20} className="text-[#c96442]" />
+          <h2 className="text-lg font-semibold text-near-black flex items-center gap-2">
+            <Key size={20} className="text-terracotta" />
             模型平台配置
           </h2>
-          <p className="text-xs text-[#87867f] mt-0.5">
+          <p className="text-xs text-stone-gray mt-0.5">
             配置 AI 模型平台的 API Key，Agent 将通过这些平台调用大模型
           </p>
         </div>
@@ -222,14 +222,14 @@ export default function Settings({ isConnected }: SettingsProps) {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#faf9f5] rounded-xl border border-[#f0eee6] p-4 mb-5"
+          className="card-glass p-4 mb-5"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Server size={16} className="text-[#87867f]" />
+              <Server size={16} className="text-stone-gray" />
               <div>
-                <p className="text-xs text-[#5e5d59]">
-                  已配置 <span className="text-[#141413] font-medium">{providers.length}</span> 个平台
+                <p className="text-xs text-olive-gray">
+                  已配置 <span className="text-near-black font-medium">{providers.length}</span> 个平台
                   {' · '}
                   <span className="text-green-400">
                     {providers.filter((p) => p.status === 'active').length} 个在线
@@ -247,7 +247,7 @@ export default function Settings({ isConnected }: SettingsProps) {
             </div>
             <div className="flex items-center gap-1.5 text-xs">
               <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-400' : 'bg-yellow-400'}`} />
-              <span className="text-[#87867f]">
+              <span className="text-stone-gray">
                 {isConnected ? '控制面已连接' : '离线模式'}
               </span>
             </div>
@@ -281,11 +281,11 @@ export default function Settings({ isConnected }: SettingsProps) {
             className="text-center py-12"
           >
             <div className="text-3xl mb-3">🔑</div>
-            <p className="text-sm text-[#5e5d59] mb-1">还没有配置任何平台</p>
-            <p className="text-xs text-[#87867f] mb-4">添加一个 AI 平台的 API Key 来开始使用</p>
+            <p className="text-sm text-olive-gray mb-1">还没有配置任何平台</p>
+            <p className="text-xs text-stone-gray mb-4">添加一个 AI 平台的 API Key 来开始使用</p>
             <button
               onClick={() => setShowAddPanel(true)}
-              className="px-4 py-2 bg-[#c96442]/10 text-[#c96442] text-sm rounded-lg hover:bg-[#c96442]/15 transition-colors"
+              className="px-4 py-2 bg-terracotta/10 text-terracotta text-sm rounded-lg hover:bg-terracotta/15 transition-colors"
             >
               <Plus size={14} className="inline mr-1.5" />
               添加平台
@@ -297,7 +297,7 @@ export default function Settings({ isConnected }: SettingsProps) {
         {providers.length > 0 && !showAddPanel && (
           <button
             onClick={() => setShowAddPanel(true)}
-            className="w-full py-3 border border-dashed border-[#e8e6dc] rounded-xl text-sm text-[#87867f] hover:text-[#5e5d59] hover:border-[#e8e6dc] transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 border border-dashed border-border-warm rounded-xl text-sm text-stone-gray hover:text-olive-gray hover:border-border-warm transition-colors flex items-center justify-center gap-2"
           >
             <Plus size={14} />
             添加平台
@@ -313,12 +313,12 @@ export default function Settings({ isConnected }: SettingsProps) {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="bg-[#faf9f5] rounded-xl border border-[#f0eee6] p-4 mt-3">
+              <div className="card-glass p-4 mt-3">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-[#141413]">选择平台</h3>
+                  <h3 className="text-sm font-medium text-near-black">选择平台</h3>
                   <button
                     onClick={() => setShowAddPanel(false)}
-                    className="text-xs text-[#87867f] hover:text-[#5e5d59]"
+                    className="text-xs text-stone-gray hover:text-olive-gray"
                   >
                     取消
                   </button>
@@ -328,14 +328,14 @@ export default function Settings({ isConnected }: SettingsProps) {
                     <button
                       key={key}
                       onClick={() => addProvider(key)}
-                      className="flex items-center gap-3 p-3 bg-[#f5f4ed] hover:bg-[#e8e6dc] border border-[#f0eee6] hover:border-[#e8e6dc] rounded-lg transition-all text-left group"
+                      className="flex items-center gap-3 p-3 bg-parchment hover:bg-warm-sand border border-border-cream hover:border-border-warm rounded-lg transition-all text-left group"
                     >
                       <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${preset.color} flex items-center justify-center text-sm shrink-0`}>
                         {preset.icon}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm text-[#141413] group-hover:text-[#d97757] transition-colors">{preset.name}</p>
-                        <p className="text-[10px] text-[#87867f] truncate">{preset.description}</p>
+                        <p className="text-sm text-near-black group-hover:text-coral transition-colors">{preset.name}</p>
+                        <p className="text-[10px] text-stone-gray truncate">{preset.description}</p>
                       </div>
                     </button>
                   ))}
@@ -388,7 +388,7 @@ function ProviderCard({
   const preset = PROVIDER_PRESETS[provider.provider] || PROVIDER_PRESETS.custom;
 
   const statusConfig = {
-    untested: { color: 'text-[#87867f]', bg: 'bg-gray-500/10', label: '未测试' },
+    untested: { color: 'text-stone-gray', bg: 'bg-gray-500/10', label: '未测试' },
     testing: { color: 'text-blue-400', bg: 'bg-blue-500/10', label: '测试中...' },
     active: { color: 'text-green-400', bg: 'bg-green-500/10', label: '正常' },
     error: { color: 'text-red-400', bg: 'bg-red-500/10', label: '异常' },
@@ -403,12 +403,12 @@ function ProviderCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ delay: index * 0.03 }}
-      className="bg-[#faf9f5] rounded-xl border border-[#f0eee6] overflow-hidden"
+      className="card-glass overflow-hidden"
     >
       {/* 头部 - 始终可见 */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 hover:bg-[#f5f4ed] transition-colors"
+        className="w-full flex items-center justify-between p-4 hover:bg-parchment transition-colors"
       >
         <div className="flex items-center gap-3">
           <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${preset.color} flex items-center justify-center text-sm shrink-0`}>
@@ -416,14 +416,14 @@ function ProviderCard({
           </div>
           <div className="text-left">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-[#141413]">{provider.name}</span>
+              <span className="text-sm font-medium text-near-black">{provider.name}</span>
               {provider.isDefault && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-[#c96442]/10 text-[#c96442] rounded">
+                <span className="text-[10px] px-1.5 py-0.5 bg-terracotta/10 text-terracotta rounded">
                   默认
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-[#87867f]">
+            <p className="text-[11px] text-stone-gray">
               {provider.apiKey ? maskKey(provider.apiKey) : '未填写 Key'}
               {provider.models.length > 0 && ` · ${provider.models.length} 个模型`}
             </p>
@@ -437,9 +437,9 @@ function ProviderCard({
             {st.label}
           </span>
           {isExpanded ? (
-            <ChevronUp size={14} className="text-[#87867f]" />
+            <ChevronUp size={14} className="text-stone-gray" />
           ) : (
-            <ChevronDown size={14} className="text-[#87867f]" />
+            <ChevronDown size={14} className="text-stone-gray" />
           )}
         </div>
       </button>
@@ -454,7 +454,7 @@ function ProviderCard({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 space-y-3 border-t border-[#f0eee6] pt-3">
+            <div className="px-4 pb-4 space-y-3 border-t border-border-cream pt-3">
               {/* 显示名称 */}
               <Field
                 label="显示名称"
@@ -465,19 +465,19 @@ function ProviderCard({
 
               {/* API Key */}
               <div>
-                <label className="text-xs text-[#5e5d59] mb-1.5 block">API Key</label>
+                <label className="text-xs text-olive-gray mb-1.5 block">API Key</label>
                 <div className="relative">
                   <input
                     type={showKey ? 'text' : 'password'}
                     value={provider.apiKey}
                     onChange={(e) => onUpdate({ apiKey: e.target.value, status: 'untested' })}
                     placeholder="sk-..."
-                    className="w-full px-3 py-2 pr-20 bg-[#f5f4ed] border border-[#e8e6dc] rounded-lg text-sm text-[#141413] font-mono placeholder-[#87867f] focus:outline-none focus:border-[#c96442]/25"
+                    className="w-full px-3 py-2 pr-20 bg-parchment border border-border-warm rounded-lg text-sm text-near-black font-mono placeholder-stone-gray focus:outline-none focus:border-terracotta/25"
                   />
                   <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
                     <button
                       onClick={() => setShowKey(!showKey)}
-                      className="p-1.5 text-[#87867f] hover:text-[#5e5d59] transition-colors"
+                      className="p-1.5 text-stone-gray hover:text-olive-gray transition-colors"
                       title={showKey ? '隐藏' : '显示'}
                     >
                       {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -496,9 +496,9 @@ function ProviderCard({
 
               {/* 可用模型 */}
               <div>
-                <label className="text-xs text-[#5e5d59] mb-1.5 block">
+                <label className="text-xs text-olive-gray mb-1.5 block">
                   可用模型
-                  <span className="text-[#87867f] ml-1">（逗号分隔）</span>
+                  <span className="text-stone-gray ml-1">（逗号分隔）</span>
                 </label>
                 <input
                   type="text"
@@ -511,7 +511,7 @@ function ProviderCard({
                     onUpdate({ models });
                   }}
                   placeholder="model-name-1, model-name-2"
-                  className="w-full px-3 py-2 bg-[#f5f4ed] border border-[#e8e6dc] rounded-lg text-sm text-[#141413] font-mono placeholder-[#87867f] focus:outline-none focus:border-[#c96442]/25"
+                  className="w-full px-3 py-2 bg-parchment border border-border-warm rounded-lg text-sm text-near-black font-mono placeholder-stone-gray focus:outline-none focus:border-terracotta/25"
                 />
               </div>
 
@@ -525,7 +525,7 @@ function ProviderCard({
 
               {/* 上次测试时间 */}
               {provider.lastTested && (
-                <p className="text-[10px] text-[#87867f]">
+                <p className="text-[10px] text-stone-gray">
                   上次测试：{provider.lastTested}
                 </p>
               )}
@@ -544,7 +544,7 @@ function ProviderCard({
                   {!provider.isDefault && (
                     <button
                       onClick={onSetDefault}
-                      className="px-3 py-1.5 text-xs bg-[#c96442]/10 text-[#c96442] rounded-lg hover:bg-[#c96442]/15 transition-colors flex items-center gap-1.5"
+                      className="px-3 py-1.5 text-xs bg-terracotta/10 text-terracotta rounded-lg hover:bg-terracotta/15 transition-colors flex items-center gap-1.5"
                     >
                       <Shield size={12} />
                       设为默认
@@ -553,7 +553,7 @@ function ProviderCard({
                 </div>
                 <button
                   onClick={onRemove}
-                  className="p-1.5 text-[#87867f] hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/5"
+                  className="p-1.5 text-stone-gray hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/5"
                   title="删除此平台"
                 >
                   <Trash2 size={14} />
@@ -581,13 +581,13 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-xs text-[#5e5d59] mb-1.5 block">{label}</label>
+      <label className="text-xs text-olive-gray mb-1.5 block">{label}</label>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 bg-[#f5f4ed] border border-[#e8e6dc] rounded-lg text-sm text-[#141413] placeholder-[#87867f] focus:outline-none focus:border-[#c96442]/25"
+        className="w-full px-3 py-2 bg-parchment border border-border-warm rounded-lg text-sm text-near-black placeholder-stone-gray focus:outline-none focus:border-terracotta/25"
       />
     </div>
   );

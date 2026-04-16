@@ -23,7 +23,7 @@ export default function App() {
   return (
     <div className="h-screen w-screen bg-parchment text-near-black flex overflow-hidden">
       <Sidebar active={tab} onNav={setTab} />
-      <main className="flex-1 flex flex-col overflow-hidden bg-ivory">
+      <main className="flex-1 flex flex-col overflow-hidden bg-grid">
         {/* 连接状态指示 */}
         {!checking && (
           <div className={`px-4 py-1 text-[10px] flex items-center gap-1.5 border-b border-border-cream ${connected ? 'text-success-green' : 'text-yellow-600'}`}>
@@ -35,9 +35,7 @@ export default function App() {
         {tab === 'dashboard' && (
           <Dashboard
             agents={dashData.agents}
-            alerts={dashData.alerts}
-            usage={dashData.usage}
-            wallet={dashData.wallet}
+            activities={dashData.activities}
             onGoAgents={() => setTab('agents')}
           />
         )}
