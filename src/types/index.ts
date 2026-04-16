@@ -1,5 +1,146 @@
 // Hub OS 类型定义
 
+// ── 数字员工核心类型 ──────────────────────────────
+
+export type DigitalEmployeeId = 'spark' | 'xiaoke' | 'shuxi' | 'shuibao' | 'lvan';
+
+export type ActivationStatus = 'inactive' | 'activating' | 'active';
+
+export interface DigitalEmployeeSkill {
+  name: string;
+  icon: string;        // lucide icon name
+  description: string;
+}
+
+export interface DigitalEmployeeTool {
+  name: string;
+  icon: string;
+  category: 'generation' | 'analysis' | 'communication' | 'data' | 'legal' | 'finance';
+  description: string;
+}
+
+export interface HarnessSection {
+  title: string;
+  content: string;     // markdown-ish text for display
+}
+
+export interface MemoryEntry {
+  category: string;
+  key: string;
+  value: string;
+}
+
+export interface WorkspaceConfig {
+  type: 'three-panel' | 'dashboard' | 'chat' | 'document';
+  label: string;
+  description: string;
+  screenshot?: string;  // placeholder image path
+  comingSoon?: boolean;
+}
+
+export interface OnboardingPreference {
+  key: string;
+  label: string;
+  type: 'select' | 'text' | 'textarea';
+  options?: string[];
+  placeholder?: string;
+}
+
+export interface DigitalEmployee {
+  id: DigitalEmployeeId;
+  name: string;
+  englishName: string;
+  role: string;
+  tagline: string;            // 一句话定位
+  introduction: string;       // 第一人称自我介绍
+  avatar: string;             // image path (3D pixar style)
+  color: string;              // brand gradient tailwind classes
+  accentColor: string;        // single accent color for badges etc
+  status: ActivationStatus;
+  model: string;
+  
+  // 能力
+  capabilities: string[];     // 简短标签: '品牌设计', 'VI系统' ...
+  skills: DigitalEmployeeSkill[];
+  tools: DigitalEmployeeTool[];
+  
+  // 技术档案
+  harness: HarnessSection[];
+  modelInfo: {
+    base: string;
+    reasoning: string;
+    context: string;
+    specialization: string;
+  };
+  memorySystem: {
+    description: string;
+    layers: string[];
+  };
+  
+  // 工作台
+  workspace: WorkspaceConfig;
+  
+  // 入职配置
+  onboardingPreferences: OnboardingPreference[];
+  trainingDataSources: string[];  // 可导入的数据源
+  
+  // 工作统计 (mock)
+  stats: {
+    monthlyTasks: number;
+    hoursSaved: number;
+    satisfaction: number;     // 0-100
+  };
+}
+
+// ── 激活流程 ──────────────────────────────
+
+export type ActivationStep = 'welcome' | 'key' | 'company' | 'preferences' | 'complete';
+
+export interface ActivationState {
+  employeeId: DigitalEmployeeId;
+  currentStep: ActivationStep;
+  apiKey: string;
+  companyInfo: {
+    name: string;
+    industry: string;
+    business: string;
+    brandFiles?: string[];
+  };
+  preferences: Record<string, string>;
+}
+
+// ── 财务/Key管理 ──────────────────────────────
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  key: string;               // masked: sk-****1234
+  employeeId: DigitalEmployeeId | 'all';
+  createdAt: string;
+  lastUsed: string;
+  status: 'active' | 'disabled' | 'expired';
+  monthlyLimit: number;      // ¥
+  monthlyUsed: number;
+}
+
+export interface EmployeeUsage {
+  employeeId: DigitalEmployeeId;
+  employeeName: string;
+  monthlyTokens: number;
+  monthlyCost: number;
+  dailyBreakdown: { date: string; tokens: number; cost: number }[];
+}
+
+export interface FinanceOverview {
+  totalBalance: number;
+  monthlySpent: number;
+  monthlyBudget: number;
+  keys: ApiKey[];
+  employeeUsage: EmployeeUsage[];
+}
+
+// ── 保留旧类型（Dashboard/Channels/Knowledge仍在用）──
+
 export type AgentStatus = 'running' | 'idle' | 'error';
 
 export type ChannelType = 'wecom' | 'feishu' | 'telegram' | 'dingtalk' | 'email' | 'whatsapp' | 'slack' | 'webhook';
@@ -42,7 +183,7 @@ export interface Template {
   skills: string[];
   color: string;
   status: TemplateStatus;
-  statusLabel?: string;  // 自定义状态文案
+  statusLabel?: string;
 }
 
 export interface Alert {
@@ -66,17 +207,17 @@ export interface ChatMessage {
   content: string;
 }
 
-// 员工动态流 — 时间线首页核心数据
+// 员工动态流
 export type ActivityType =
-  | 'task_done'      // 完成任务
-  | 'content_published' // 发布内容
-  | 'lead_captured'  // 捕获线索
-  | 'email_sent'     // 发送邮件
-  | 'report_ready'   // 报告生成
-  | 'alert'          // 异常/告警
-  | 'approval_needed' // 需要审批
-  | 'customer_reply' // 客户回复
-  | 'insight';       // 洞察/建议
+  | 'task_done'
+  | 'content_published'
+  | 'lead_captured'
+  | 'email_sent'
+  | 'report_ready'
+  | 'alert'
+  | 'approval_needed'
+  | 'customer_reply'
+  | 'insight';
 
 export interface ActivityItem {
   id: string;
@@ -86,11 +227,11 @@ export interface ActivityItem {
   type: ActivityType;
   title: string;
   detail?: string;
-  time: string;         // 相对时间："3 分钟前"
-  timestamp: number;    // 排序用
-  actionLabel?: string; // 按钮文案："查看详情"、"去审批"
+  time: string;
+  timestamp: number;
+  actionLabel?: string;
   actionType?: 'view' | 'approve' | 'reply' | 'dismiss';
   priority?: 'normal' | 'high' | 'urgent';
 }
 
-export type NavTab = 'dashboard' | 'agents' | 'channels' | 'knowledge' | 'settings';
+export type NavTab = 'dashboard' | 'team' | 'channels' | 'knowledge' | 'finance' | 'settings';
