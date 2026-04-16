@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.4.0] - 2026-04-17
+
+### 🏢 数字团队 & 财务中心 — 员工板块全面升级
+
+本次版本将原有的 agents 板块重构为全新的"数字团队"系统，新增财务中心，建立完整的数字员工管理体验。
+
+#### 新增：数字团队页 (Team)
+- **5 名数字员工完整档案**：火花(CMO)、小可(获客)、书熙(法务)、税宝(财税)、绿安(安全)
+- **员工卡片网格**：头像 + 渐变色 + 状态徽章 + 能力标签 + 实时统计
+- **详情面板**：点击卡片展开完整档案，含自我介绍、核心能力、模型信息、技能清单、工具集、记忆系统、工作台配置
+- **状态系统**：在岗(active) / 激活中(activating) / 待入职(inactive) 三态
+- **激活入口**：待入职员工可触发激活流程（Coming Soon 标识）
+- **framer-motion 动画**：卡片错位渐入 + 详情面板滑入 + 状态切换
+
+#### 新增：财务中心 (Finance)
+- **三卡概览**：账户余额 / 本月消费(带进度条) / 月度预算
+- **API Key 管理**：密钥列表 + 脱敏显示/切换 + 绑定员工 + 状态徽章 + 额度进度条
+- **员工用量明细**：每位员工月度 Token 和费用 + 7 天柱状图(CSS 动画 + hover tooltip)
+
+#### 重构：导航系统
+- Sidebar: `agents` → `team`(团队)，新增 `finance`(财务) 入口
+- NavTab 类型扩展：`'dashboard' | 'team' | 'channels' | 'knowledge' | 'finance' | 'settings'`
+- App.tsx: 移除旧 AgentManagement，接入 Team + Finance 组件
+
+#### 类型系统扩展 (types/index.ts)
+- `DigitalEmployee`: 完整员工档案类型（18 个字段）
+- `DigitalEmployeeId`: 5 个员工 ID 联合类型
+- `ActivationStatus / ActivationState / ActivationStep`: 激活流程类型
+- `ApiKey / EmployeeUsage / FinanceOverview`: 财务管理类型
+- `WorkspaceConfig / OnboardingPreference`: 工作台与入职配置
+
+#### 数据层 (data/digital-employees.ts)
+- `DIGITAL_EMPLOYEES`: 5 名员工完整 mock 数据
+- `FINANCE_DATA`: 财务概览 + 3 把 API Key + 2 名员工用量明细
+
 ## [0.3.0] - 2025-04-17
 
 ### 🎨 Claude / Anthropic 设计系统全面改造

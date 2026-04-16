@@ -1,13 +1,14 @@
 // CENTAUR - 侧边导航栏 (Warm Anthropic Style)
-import { LayoutDashboard, Users, Radio, Database, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Radio, Database, Settings, Wallet } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { NavTab } from '../../types';
 
 const navItems: { key: NavTab; icon: typeof LayoutDashboard; label: string }[] = [
   { key: 'dashboard', icon: LayoutDashboard, label: '控制台' },
-  { key: 'agents', icon: Users, label: '员工' },
+  { key: 'team', icon: Users, label: '团队' },
   { key: 'channels', icon: Radio, label: '通讯' },
   { key: 'knowledge', icon: Database, label: '知识库' },
+  { key: 'finance', icon: Wallet, label: '财务' },
 ];
 
 interface SidebarProps {

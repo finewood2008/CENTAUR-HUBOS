@@ -4,19 +4,19 @@ import { useState } from 'react';
 import type { NavTab } from './types';
 import Sidebar from './components/layout/Sidebar';
 import Dashboard from './components/dashboard/Dashboard';
-import AgentManagement from './components/agents/AgentManagement';
+import Team from './components/team/Team';
+import Finance from './components/finance/Finance';
 import Channels from './components/channels/Channels';
 import Knowledge from './components/knowledge/Knowledge';
 import Settings from './components/settings/Settings';
-import { useConnection, useDashboardData, useAgentManagement, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
+import { useConnection, useDashboardData, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
 
 export default function App() {
   const [tab, setTab] = useState<NavTab>('dashboard');
   const { connected, checking } = useConnection();
 
   // 数据加载
-  const { data: dashData, loading: dashLoading } = useDashboardData(connected);
-  const { data: agentData, loading: agentLoading } = useAgentManagement(connected);
+  const { data: dashData } = useDashboardData(connected);
   const { data: channelsData, loading: channelsLoading, refresh: refreshChannels } = useChannelsData(connected);
   const { data: knowledgeData, loading: knowledgeLoading, refresh: refreshKnowledge } = useKnowledgeData(connected);
 
@@ -36,12 +36,11 @@ export default function App() {
           <Dashboard
             agents={dashData.agents}
             activities={dashData.activities}
-            onGoAgents={() => setTab('agents')}
+            onGoAgents={() => setTab('team')}
           />
         )}
-        {tab === 'agents' && (
-          <AgentManagement agents={agentData.agents} templates={agentData.templates} isConnected={connected} />
-        )}
+        {tab === 'team' && <Team />}
+        {tab === 'finance' && <Finance />}
         {tab === 'channels' && (
           <Channels
             agents={dashData.agents}
