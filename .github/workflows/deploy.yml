@@ -25,10 +25,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
-      - run: npm ci
-      - run: npm run build
+      # SDK 是本地 file: 引用，CI 上不存在
+      # 创建 stub 包让 npm ci 通过
+      - name: Stub local SDK packages
+        run: |
+          for pkg in core-sdk product-sdk runtime-sidecar; do
+            mkdir -p ../qeeclaw-sdk/packages/$pkg
+            echo '{"name":"@qeeclaw/'$pkg'","version":"0.0.0","main":"index.js"}' > ../qeeclaw-sdk/packages/$pkg/package.json
+            echo 'module.exports = new Proxy({}, { get: () => () => ({}) });' > ../qeeclaw-sdk/packages/$pkg/index.js
+          done
+
+      - run: npm install --ignore-scripts
+      - run: npx vite build
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
