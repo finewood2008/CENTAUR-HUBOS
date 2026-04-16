@@ -109,7 +109,18 @@ electron-main.cjs                   # Electron 主进程
 
 ---
 
-## 产品状态 (v0.2.0)
+## 产品状态 (v0.3.0)
+
+### 设计系统
+
+v0.3.0 起采用 Claude / Anthropic 风格设计系统。详细改动见 [CHANGELOG.md](./CHANGELOG.md#030---2025-04-17)。
+
+核心要素：
+- 暖色调表面（parchment #f5f4ed / ivory #faf9f5）
+- 赤陶色品牌强调 (terracotta #c96442)
+- 衬线标题 (Georgia) + 无衬线正文 (system-ui)
+- 毛玻璃卡片 + 大圆角 (16px)
+- 30+ 语义化 Tailwind 颜色 token
 
 ### 前端完成度
 
