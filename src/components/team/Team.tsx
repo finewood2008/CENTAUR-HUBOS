@@ -1,17 +1,18 @@
-// Team 数字团队 — 员工卡片 + 详情面板 + 激活入口
+// Team 数字团队 — 员工卡片 + 详情面板 + 激活入口 + 自定义员工创建
 // SDK 连接后合并真实 agent 状态
 import { useState } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
   Users, Sparkles, ArrowLeft, ChevronRight, Zap, Brain,
   Wrench, BarChart3, Clock, Star, Play, Lock,
-  Cpu, Layers, MessageSquare, BookOpen,
+  Cpu, Layers, MessageSquare, BookOpen, Plus,
 } from 'lucide-react';
 import type { DigitalEmployee, ActivationStatus } from '../../types';
 import { DIGITAL_EMPLOYEES } from '../../data/digital-employees';
 import { useAgentManagement } from '../../hooks/useQeeClaw';
 import { getAgentModule } from '../../services/qeeclaw';
 import { useToast } from '../shared/Toast';
+import EmployeeBuilder from './EmployeeBuilder';
 
 interface TeamProps {
   isConnected: boolean;
@@ -317,6 +318,8 @@ function DetailPanel({ emp, onBack, onActivate, onWorkbench }: { emp: DigitalEmp
 // ── main: Team ──
 export default function Team({ isConnected }: TeamProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<DigitalEmployee | null>(null);
+  const [showBuilder, setShowBuilder] = useState(false);
+  const [customEmployees, setCustomEmployees] = useState<DigitalEmployee[]>([]);
   const { data: sdkData, loading, refresh } = useAgentManagement(isConnected);
   const { toast } = useToast();
   const [activating, setActivating] = useState(false);
@@ -365,8 +368,14 @@ export default function Team({ isConnected }: TeamProps) {
       stats: { monthlyTasks: 0, hoursSaved: 0, satisfaction: 0 },
     }));
 
-  const allEmployees = [...employees, ...extraSdkAgents];
+  const allEmployees = [...employees, ...extraSdkAgents, ...customEmployees];
   const activeCount = allEmployees.filter((e) => e.status === 'active').length;
+
+  const handleAddEmployee = (employee: DigitalEmployee) => {
+    setCustomEmployees((prev) => [...prev, employee]);
+    setShowBuilder(false);
+    toast('success', `${employee.name} 已加入团队，等待激活`);
+  };
 
   const handleActivate = async (emp: DigitalEmployee) => {
     if (!isConnected) { toast('error', 'SDK 离线，无法激活'); return; }
@@ -394,7 +403,13 @@ export default function Team({ isConnected }: TeamProps) {
   return (
     <div className="flex-1 overflow-y-auto bg-parchment">
       <AnimatePresence mode="wait">
-        {selectedEmployee ? (
+        {showBuilder ? (
+          <EmployeeBuilder
+            key="builder"
+            onBack={() => setShowBuilder(false)}
+            onComplete={handleAddEmployee}
+          />
+        ) : selectedEmployee ? (
           <DetailPanel
             key="detail"
             emp={selectedEmployee}
@@ -417,17 +432,26 @@ export default function Team({ isConnected }: TeamProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-terracotta/10 flex items-center justify-center">
-                    <Users size={18} className="text-terracotta" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-terracotta/10 flex items-center justify-center">
+                      <Users size={18} className="text-terracotta" />
+                    </div>
+                    <div>
+                      <h1 className="font-serif text-2xl text-near-black tracking-tight">数字团队</h1>
+                      <p className="text-sm text-stone-gray mt-0.5">
+                        {activeCount} 名员工在岗 · 共 {allEmployees.length} 名团队成员
+                        {isConnected && <span className="ml-1 text-success-green text-xs">· SDK</span>}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h1 className="font-serif text-2xl text-near-black tracking-tight">数字团队</h1>
-                    <p className="text-sm text-stone-gray mt-0.5">
-                      {activeCount} 名员工在岗 · 共 {allEmployees.length} 名团队成员
-                      {isConnected && <span className="ml-1 text-success-green text-xs">· SDK</span>}
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => setShowBuilder(true)}
+                    className="btn-terracotta text-xs px-4 py-2 gap-1.5"
+                  >
+                    <Plus size={14} />
+                    添加员工
+                  </button>
                 </div>
               </motion.div>
             </div>
@@ -445,6 +469,23 @@ export default function Team({ isConnected }: TeamProps) {
                     onWorkbench={handleWorkbench}
                   />
                 ))}
+
+                {/* 添加员工卡片 */}
+                <motion.button
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: allEmployees.length * 0.06, duration: 0.35 }}
+                  onClick={() => setShowBuilder(true)}
+                  className="group flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-border-cream hover:border-terracotta/30 bg-parchment/50 hover:bg-terracotta/4 transition-all duration-300 cursor-pointer min-h-[200px]"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-warm-sand/60 group-hover:bg-terracotta/12 flex items-center justify-center transition-colors duration-300">
+                    <Plus size={24} className="text-stone-gray group-hover:text-terracotta transition-colors duration-300" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-stone-gray group-hover:text-near-black transition-colors">添加数字员工</p>
+                    <p className="text-[11px] text-stone-gray/70 mt-0.5">对话式创建，3分钟上岗</p>
+                  </div>
+                </motion.button>
               </div>
             </div>
           </motion.div>
