@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.0] - 2026-04-18
+
+### 🧑‍💼 自定义数字员工创建
+
+#### 新增：Team 页面接入 EmployeeBuilder
+- 头部新增「添加员工」按钮，网格末尾新增虚线「+」卡片入口
+- 点击进入对话式 5 步创建流程（选角色→取名→英文名→定位→性格）
+- 5 个预设角色模板：品牌设计师 / 数据分析师 / 客户经理 / 内容运营 / 财务助理
+- 创建完成后播放 5 步生成动画（GenerationAnimation）
+- 支持试聊（TrialChat）确认满意后加入团队
+- 新员工默认 inactive 状态，可走正常激活流程
+
+#### 技术细节
+- customEmployees 运行时状态管理（useState），不修改预设数据
+- EmployeeBuilder → GenerationAnimation → TrialChat 完整流转
+- 预设 5 名员工数据保持不变
+
 ## [0.5.0] - 2026-04-17
 
 ### 🧹 全站精简 & GitHub Pages 部署
