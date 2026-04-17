@@ -1,9 +1,10 @@
 // Hub OS - 知识库（接入 SDK knowledge API）
-import { Database, FolderOpen, FileText, Upload, Search, Plus, HardDrive, RefreshCw, User, Globe } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { Database, FolderOpen, FileText, Upload, Search, Plus, HardDrive, RefreshCw, User, Globe, X, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { KnowledgeData } from '../../hooks/useQeeClaw';
-import FileUpload from './upload/FileUpload';
+import { getKnowledgeModule } from '../../services/qeeclaw';
+import { useToast } from '../shared/Toast';
 
 // 知识库图标映射（按关键词匹配）
 function getKbIcon(name: string): string {
@@ -42,17 +43,49 @@ function formatTime(iso: string): string {
 interface KnowledgeProps {
   knowledgeData: KnowledgeData;
   knowledgeLoading: boolean;
+  isConnected: boolean;
   onRefresh?: () => void;
 }
 
-export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }: KnowledgeProps) {
+export default function Knowledge({ knowledgeData, knowledgeLoading, isConnected, onRefresh }: KnowledgeProps) {
   const { bases, stats } = knowledgeData;
   const hasData = bases.length > 0;
-  
-  const [uploadKbId, setUploadKbId] = useState<string | null>(null);
-  const uploadKbName = uploadKbId ? bases.find(b => b.id === uploadKbId)?.name || '未知知识库' : '';
+  const { toast } = useToast();
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadName, setUploadName] = useState('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleIngest = async () => {
+    if (!isConnected) { toast('error', 'SDK 离线，无法上传'); return; }
+    if (!uploadFile && !uploadName.trim()) { toast('error', '请输入知识库名称或选择文件'); return; }
+    setUploading(true);
+    try {
+      await getKnowledgeModule().ingest({
+        teamId: 1,
+        file: uploadFile || undefined,
+        filename: uploadFile?.name,
+        sourceName: uploadName.trim() || uploadFile?.name || '未命名知识库',
+      });
+      toast('success', '知识库创建成功');
+      setShowUpload(false);
+      setUploadName('');
+      setUploadFile(null);
+      onRefresh?.();
+    } catch {
+      toast('error', '创建失败，请稍后重试');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   // 计算统计（如果 API stats 没有就从 bases 汇总）
+  const filteredBases = searchTerm
+    ? bases.filter(kb => kb.name.includes(searchTerm) || kb.description.includes(searchTerm))
+    : bases;
   const totalBases = stats?.total_bases ?? bases.length;
   const totalFiles = stats?.total_files ?? bases.reduce((s, k) => s + k.file_count, 0);
   const totalSize = stats?.total_size ?? bases.reduce((s, k) => s + k.total_size, 0);
@@ -72,6 +105,8 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-gray" />
             <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="搜索知识库..."
               className="pl-8 pr-3 py-1.5 rounded-lg text-xs focus:outline-none w-48 bg-border-cream border border-border-warm text-near-black placeholder:text-stone-gray"
             />
@@ -86,12 +121,66 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
             </button>
           )}
           <button
+            onClick={() => setShowUpload(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors bg-terracotta/10 text-terracotta border border-terracotta/20"
           >
             <Plus size={14} /> 新建知识库
           </button>
         </div>
       </div>
+
+      {/* 上传弹窗 */}
+      <AnimatePresence>
+        {showUpload && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => { if (!uploading) setShowUpload(false); }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="card-glass p-6 w-[400px] shadow-2xl !rounded-2xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-lg text-near-black">新建知识库</h3>
+                <button onClick={() => setShowUpload(false)} disabled={uploading} className="p-1 text-stone-gray hover:text-near-black">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <input
+                  value={uploadName}
+                  onChange={(e) => setUploadName(e.target.value)}
+                  placeholder="知识库名称"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border-cream bg-parchment/40 text-near-black placeholder-stone-gray focus:outline-none focus:border-terracotta/40"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-dashed border-border-cream hover:border-terracotta/30 cursor-pointer transition-colors"
+                >
+                  <Upload size={20} className="text-stone-gray" />
+                  <span className="text-xs text-stone-gray">
+                    {uploadFile ? uploadFile.name : '点击选择文件（PDF / TXT / MD / DOCX）'}
+                  </span>
+                </div>
+                <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.txt,.md,.docx,.csv" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
+                <button
+                  onClick={handleIngest}
+                  disabled={uploading || (!uploadFile && !uploadName.trim())}
+                  className="w-full py-2.5 text-sm rounded-xl bg-terracotta text-ivory hover:bg-coral transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {uploading ? <><Loader2 size={14} className="animate-spin" /> 上传中...</> : <><Upload size={14} /> 创建</>}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 总览 */}
       <div className="grid grid-cols-3 gap-4">
@@ -134,7 +223,7 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
           <div className="text-center py-8 text-xs text-stone-gray">加载中...</div>
         ) : (
           <div className="space-y-2">
-            {bases.map((kb, i) => (
+            {filteredBases.map((kb, i) => (
               <motion.div
                 key={kb.id}
                 initial={{ opacity: 0, y: 5 }}
@@ -172,14 +261,7 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
                     更新于 {formatTime(kb.updated_time)}
                   </div>
                 </div>
-                <Upload 
-                  size={14} 
-                  className="shrink-0 transition-colors text-stone-gray hover:text-terracotta" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setUploadKbId(kb.id);
-                  }}
-                />
+                <Upload size={14} className="shrink-0 transition-colors text-stone-gray" />
               </motion.div>
             ))}
           </div>
@@ -203,14 +285,6 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
           <span>配额 50 GB</span>
         </div>
       </div>
-
-      {/* 弹窗区域 */}
-      {uploadKbId && (
-        <FileUpload 
-          kbName={uploadKbName} 
-          onClose={() => setUploadKbId(null)} 
-        />
-      )}
     </div>
   );
 }

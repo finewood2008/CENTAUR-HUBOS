@@ -9,6 +9,7 @@ import {
 import { getAgentModule } from '../../services/qeeclaw';
 import type { Agent, Template } from '../../types';
 import AgentBuilder from './AgentBuilder';
+import { useToast } from '../shared/Toast';
 
 type SubView = 'builder' | 'market' | 'roster' | 'detail';
 
@@ -22,6 +23,7 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
   const [subView, setSubView] = useState<SubView>('builder');
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const { toast } = useToast();
   // 入职弹窗状态
   const [hireTarget, setHireTarget] = useState<Template | null>(null);
   const [hiring, setHiring] = useState(false);
@@ -77,7 +79,7 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
         <AnimatePresence mode="wait">
           {subView === 'market' && (
             <motion.div key="market" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <Market templates={templates} searchTerm={searchTerm} setSearchTerm={setSearchTerm} onHire={setHireTarget} />
+              <Market templates={templates} searchTerm={searchTerm} setSearchTerm={setSearchTerm} onHire={setHireTarget} toast={toast} />
             </motion.div>
           )}
           {subView === 'roster' && (
@@ -92,7 +94,7 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
           )}
           {subView === 'detail' && selectedAgent && (
             <motion.div key="detail" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <AgentDetail agent={selectedAgent} />
+              <AgentDetail agent={selectedAgent} toast={toast} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -202,12 +204,13 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
 
 // ─── 子视图：员工市场（分层展示） ───
 function Market({
-  templates, searchTerm, setSearchTerm, onHire,
+  templates, searchTerm, setSearchTerm, onHire, toast,
 }: {
   templates: Template[];
   searchTerm: string;
   setSearchTerm: (s: string) => void;
   onHire: (tpl: Template) => void;
+  toast: (type: 'success' | 'error' | 'info', msg: string) => void;
 }) {
   const filtered = templates.filter(
     (t) => t.name.includes(searchTerm) || t.desc.includes(searchTerm) || t.category.includes(searchTerm),
@@ -319,7 +322,7 @@ function Market({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-stone-gray">{tpl.category}</span>
-                  <button className="flex items-center gap-1 px-3 py-1.5 bg-parchment text-stone-gray text-xs rounded-lg border border-border-cream cursor-default">
+                  <button onClick={() => toast('info', `已关注「${tpl.name}」上线通知`)} className="flex items-center gap-1 px-3 py-1.5 bg-parchment text-stone-gray text-xs rounded-lg border border-border-cream cursor-pointer hover:bg-warm-sand transition-colors">
                     <Bell size={12} /> 关注上线
                   </button>
                 </div>
@@ -416,7 +419,7 @@ const CHANNEL_TYPES: Record<string, { icon: string; label: string }> = {
 };
 
 // ─── 子视图：员工详情档案卡 ───
-function AgentDetail({ agent }: { agent: Agent }) {
+function AgentDetail({ agent, toast }: { agent: Agent; toast: (type: 'success' | 'error' | 'info', msg: string) => void }) {
   const quotaRatio = agent.budgetUsed / agent.budgetPercent;
   const quotaColor = quotaRatio > 0.9 ? 'bg-red-500' : quotaRatio > 0.7 ? 'bg-amber-500' : 'bg-green-500';
   const ch = agent.channel;
@@ -462,10 +465,10 @@ function AgentDetail({ agent }: { agent: Agent }) {
                 </div>
               </div>
               <div className="flex gap-2">
-                <button className="flex-1 text-[10px] py-1.5 rounded-lg bg-parchment text-olive-gray hover:text-near-black hover:bg-warm-sand transition-colors">
+                <button onClick={() => toast('info', '渠道配置功能即将上线')} className="flex-1 text-[10px] py-1.5 rounded-lg bg-parchment text-olive-gray hover:text-near-black hover:bg-warm-sand transition-colors">
                   配置
                 </button>
-                <button className="flex-1 text-[10px] py-1.5 rounded-lg bg-parchment text-olive-gray hover:text-near-black hover:bg-warm-sand transition-colors">
+                <button onClick={() => toast('info', '连接测试功能即将上线')} className="flex-1 text-[10px] py-1.5 rounded-lg bg-parchment text-olive-gray hover:text-near-black hover:bg-warm-sand transition-colors">
                   测试连接
                 </button>
               </div>
@@ -477,6 +480,7 @@ function AgentDetail({ agent }: { agent: Agent }) {
                 {Object.entries(CHANNEL_TYPES).slice(0, 4).map(([type, meta]) => (
                   <button
                     key={type}
+                    onClick={() => toast('info', `${meta.label}渠道接入即将上线`)}
                     className="flex flex-col items-center gap-1 p-2 rounded-lg border border-dashed border-border-warm hover:border-terracotta/25 hover:bg-ivory/60 transition-all"
                   >
                     <span className="text-base">{meta.icon}</span>
@@ -484,7 +488,7 @@ function AgentDetail({ agent }: { agent: Agent }) {
                   </button>
                 ))}
               </div>
-              <button className="w-full flex items-center justify-center gap-1 text-[10px] py-1.5 rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20 transition-colors border border-terracotta/20">
+              <button onClick={() => toast('info', '渠道接入功能即将上线')} className="w-full flex items-center justify-center gap-1 text-[10px] py-1.5 rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20 transition-colors border border-terracotta/20">
                 <Plus size={10} /> 接入渠道
               </button>
             </div>

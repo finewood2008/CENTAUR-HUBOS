@@ -1,13 +1,21 @@
 // Team 数字团队 — 员工卡片 + 详情面板 + 激活入口
-import { useState, useMemo } from 'react';
+// SDK 连接后合并真实 agent 状态
+import { useState } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
   Users, Sparkles, ArrowLeft, ChevronRight, Zap, Brain,
-  Shield, Wrench, BarChart3, Clock, Star, Play, Lock,
-  Cpu, Layers, MessageSquare, BookOpen, Plus,
+  Wrench, BarChart3, Clock, Star, Play, Lock,
+  Cpu, Layers, MessageSquare, BookOpen,
 } from 'lucide-react';
 import type { DigitalEmployee, ActivationStatus } from '../../types';
 import { DIGITAL_EMPLOYEES } from '../../data/digital-employees';
+import { useAgentManagement } from '../../hooks/useQeeClaw';
+import { getAgentModule } from '../../services/qeeclaw';
+import { useToast } from '../shared/Toast';
+
+interface TeamProps {
+  isConnected: boolean;
+}
 
 // ── animations ──
 const fadeUp: Variants = {
@@ -26,8 +34,8 @@ const statusConfig: Record<ActivationStatus, { label: string; dot: string; bg: s
 
 // ── sub: EmployeeCard ──
 function EmployeeCard({
-  emp, index, onClick,
-}: { emp: DigitalEmployee; index: number; onClick: () => void }) {
+  emp, index, onClick, onActivate, onWorkbench,
+}: { emp: DigitalEmployee; index: number; onClick: () => void; onActivate: (emp: DigitalEmployee) => void; onWorkbench: () => void }) {
   const st = statusConfig[emp.status];
   return (
     <motion.div
@@ -86,7 +94,7 @@ function EmployeeCard({
       {/* action hint */}
       <div className="mt-3 flex items-center justify-between">
         {emp.status === 'active' ? (
-          <button className="btn-terracotta text-[11px] px-3 py-1.5 gap-1">
+          <button onClick={(e) => { e.stopPropagation(); onWorkbench(); }} className="btn-terracotta text-[11px] px-3 py-1.5 gap-1">
             <Play size={12} /> 进入工作台
           </button>
         ) : emp.status === 'activating' ? (
@@ -94,7 +102,7 @@ function EmployeeCard({
             <Sparkles size={12} /> 激活中...
           </button>
         ) : (
-          <button className="px-3 py-1.5 rounded-lg bg-warm-sand text-olive-gray text-[11px] font-medium flex items-center gap-1 hover:bg-terracotta/10 hover:text-terracotta transition-colors">
+          <button onClick={(e) => { e.stopPropagation(); onActivate(emp); }} className="px-3 py-1.5 rounded-lg bg-warm-sand text-olive-gray text-[11px] font-medium flex items-center gap-1 hover:bg-terracotta/10 hover:text-terracotta transition-colors">
             <Lock size={12} /> 激活入职
           </button>
         )}
@@ -105,7 +113,7 @@ function EmployeeCard({
 }
 
 // ── sub: DetailPanel ──
-function DetailPanel({ emp, onBack }: { emp: DigitalEmployee; onBack: () => void }) {
+function DetailPanel({ emp, onBack, onActivate, onWorkbench }: { emp: DigitalEmployee; onBack: () => void; onActivate: (emp: DigitalEmployee) => void; onWorkbench: () => void }) {
   return (
     <motion.div
       className="flex-1 overflow-y-auto"
@@ -288,7 +296,7 @@ function DetailPanel({ emp, onBack }: { emp: DigitalEmployee; onBack: () => void
         {/* action button */}
         <div className="pt-2 pb-4">
           {emp.status === 'active' ? (
-            <button className="btn-terracotta w-full py-3 text-sm gap-2">
+            <button onClick={onWorkbench} className="btn-terracotta w-full py-3 text-sm gap-2">
               <Play size={16} /> 进入 {emp.name} 工作台
             </button>
           ) : emp.workspace.comingSoon ? (
@@ -296,7 +304,7 @@ function DetailPanel({ emp, onBack }: { emp: DigitalEmployee; onBack: () => void
               <Lock size={16} /> 即将上线，敬请期待
             </button>
           ) : (
-            <button className="w-full py-3 rounded-xl bg-terracotta/10 text-terracotta text-sm font-medium flex items-center justify-center gap-2 hover:bg-terracotta hover:text-ivory transition-colors">
+            <button onClick={() => onActivate(emp)} className="w-full py-3 rounded-xl bg-terracotta/10 text-terracotta text-sm font-medium flex items-center justify-center gap-2 hover:bg-terracotta hover:text-ivory transition-colors">
               <Sparkles size={16} /> 激活 {emp.name} 入职
             </button>
           )}
@@ -306,25 +314,82 @@ function DetailPanel({ emp, onBack }: { emp: DigitalEmployee; onBack: () => void
   );
 }
 
-// ── helper: load custom employees from localStorage ──
-function loadCustomEmployees(): DigitalEmployee[] {
-  try {
-    const raw = localStorage.getItem('hubos_custom_employees');
-    if (raw) return JSON.parse(raw) as DigitalEmployee[];
-  } catch { /* ignore */ }
-  return [];
-}
-
 // ── main: Team ──
-export default function Team({ onStartBuilder }: { onStartBuilder?: () => void }) {
+export default function Team({ isConnected }: TeamProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<DigitalEmployee | null>(null);
+  const { data: sdkData, loading, refresh } = useAgentManagement(isConnected);
+  const { toast } = useToast();
+  const [activating, setActivating] = useState(false);
 
-  const allEmployees = useMemo(() => {
-    const custom = loadCustomEmployees();
-    return [...DIGITAL_EMPLOYEES, ...custom];
-  }, []);
+  // SDK agents 按 name 建立查询表，用于合并状态
+  const sdkAgentMap = new Map(sdkData.agents.map(a => [a.name.toLowerCase(), a]));
 
+  // 合并：如果 SDK 中有匹配的 agent，更新状态为 active
+  const employees = DIGITAL_EMPLOYEES.map(emp => {
+    const sdkMatch = sdkAgentMap.get(emp.name.toLowerCase()) || sdkAgentMap.get(emp.englishName.toLowerCase());
+    if (sdkMatch) {
+      return {
+        ...emp,
+        status: 'active' as ActivationStatus,
+        model: sdkMatch.model || emp.model,
+      };
+    }
+    return emp;
+  });
+
+  // 追加 SDK 中有但 DIGITAL_EMPLOYEES 里没有的 agent
+  const knownNames = new Set(DIGITAL_EMPLOYEES.flatMap(e => [e.name.toLowerCase(), e.englishName.toLowerCase()]));
+  const extraSdkAgents: DigitalEmployee[] = sdkData.agents
+    .filter(a => !knownNames.has(a.name.toLowerCase()))
+    .map((a, i) => ({
+      id: a.id as any,
+      name: a.name,
+      englishName: a.name,
+      role: a.role || 'AI 员工',
+      tagline: '来自 SDK 的数字员工',
+      introduction: a.role || '',
+      avatar: a.avatar || '🤖',
+      color: 'from-blue-500 to-cyan-400',
+      accentColor: 'text-blue-600',
+      status: (a.status === 'running' ? 'active' : 'inactive') as ActivationStatus,
+      model: a.model || 'unknown',
+      capabilities: a.skills.length > 0 ? a.skills : ['AI 对话'],
+      skills: [],
+      tools: [],
+      harness: [],
+      modelInfo: { base: a.model || 'unknown', reasoning: '-', context: '-', specialization: '-' },
+      memorySystem: { description: '', layers: [] },
+      workspace: { type: 'chat' as const, label: '对话工作台', description: '' },
+      onboardingPreferences: [],
+      trainingDataSources: [],
+      stats: { monthlyTasks: 0, hoursSaved: 0, satisfaction: 0 },
+    }));
+
+  const allEmployees = [...employees, ...extraSdkAgents];
   const activeCount = allEmployees.filter((e) => e.status === 'active').length;
+
+  const handleActivate = async (emp: DigitalEmployee) => {
+    if (!isConnected) { toast('error', 'SDK 离线，无法激活'); return; }
+    setActivating(true);
+    try {
+      await getAgentModule().create({
+        name: emp.name,
+        description: emp.tagline,
+        model: emp.model || 'gpt-4o',
+        runtimeType: 'hermes',
+      });
+      toast('success', `${emp.name} 激活成功！`);
+      await refresh();
+    } catch {
+      toast('error', `${emp.name} 激活失败`);
+    } finally {
+      setActivating(false);
+    }
+  };
+
+  const handleWorkbench = () => {
+    toast('info', '工作台功能即将上线');
+  };
 
   return (
     <div className="flex-1 overflow-y-auto bg-parchment">
@@ -334,6 +399,8 @@ export default function Team({ onStartBuilder }: { onStartBuilder?: () => void }
             key="detail"
             emp={selectedEmployee}
             onBack={() => setSelectedEmployee(null)}
+            onActivate={handleActivate}
+            onWorkbench={handleWorkbench}
           />
         ) : (
           <motion.div
@@ -358,6 +425,7 @@ export default function Team({ onStartBuilder }: { onStartBuilder?: () => void }
                     <h1 className="font-serif text-2xl text-near-black tracking-tight">数字团队</h1>
                     <p className="text-sm text-stone-gray mt-0.5">
                       {activeCount} 名员工在岗 · 共 {allEmployees.length} 名团队成员
+                      {isConnected && <span className="ml-1 text-success-green text-xs">· SDK</span>}
                     </p>
                   </div>
                 </div>
@@ -373,30 +441,10 @@ export default function Team({ onStartBuilder }: { onStartBuilder?: () => void }
                     emp={emp}
                     index={i}
                     onClick={() => setSelectedEmployee(emp)}
+                    onActivate={handleActivate}
+                    onWorkbench={handleWorkbench}
                   />
                 ))}
-
-                {/* Create custom employee card */}
-                <motion.div
-                  className="card-glass-warm p-5 cursor-pointer hover:shadow-md transition-all group"
-                  style={{ border: '2px dashed rgba(180, 130, 100, 0.3)' }}
-                  variants={fadeUp}
-                  initial="hidden"
-                  animate="visible"
-                  custom={allEmployees.length}
-                  whileHover={{ y: -2, borderColor: 'rgba(180, 130, 100, 0.6)' }}
-                  onClick={onStartBuilder}
-                >
-                  <div className="flex flex-col items-center justify-center h-full min-h-[180px] gap-3">
-                    <div className="w-14 h-14 rounded-xl bg-terracotta/8 flex items-center justify-center group-hover:bg-terracotta/15 transition-colors">
-                      <Plus size={28} className="text-terracotta" />
-                    </div>
-                    <div className="text-center">
-                      <p className="font-serif text-near-black font-semibold text-base">定制员工</p>
-                      <p className="text-xs text-stone-gray mt-1">通过对话创建专属数字员工</p>
-                    </div>
-                  </div>
-                </motion.div>
               </div>
             </div>
           </motion.div>

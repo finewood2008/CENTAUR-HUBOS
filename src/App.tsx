@@ -12,7 +12,7 @@ import Knowledge from './components/knowledge/Knowledge';
 import Settings from './components/settings/Settings';
 import { ToastProvider } from './components/shared/Toast';
 import { AppProvider } from './stores/useAppStore';
-import { useConnection, useDashboardData, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
+import { useConnection, useEnhancedDashboardData, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
 
 export default function App() {
   const [tab, setTab] = useState<NavTab>('dashboard');
@@ -51,7 +51,7 @@ export default function App() {
   }, []);
 
   // 数据加载
-  const { data: dashData } = useDashboardData(connected);
+  const { data: dashData, refresh: refreshDashboard } = useEnhancedDashboardData(connected);
   const { data: channelsData, loading: channelsLoading, refresh: refreshChannels } = useChannelsData(connected);
   const { data: knowledgeData, loading: knowledgeLoading, refresh: refreshKnowledge } = useKnowledgeData(connected);
 
@@ -72,7 +72,7 @@ export default function App() {
           {tab === 'dashboard' && (
             <DashboardGrid />
           )}
-          {tab === 'team' && !building && <Team onStartBuilder={() => setBuilding(true)} />}
+          {tab === 'team' && !building && <Team isConnected={connected} />}
           {tab === 'team' && building && (
             <EmployeeBuilder
               onBack={() => setBuilding(false)}
@@ -87,7 +87,7 @@ export default function App() {
               }}
             />
           )}
-          {tab === 'finance' && <Finance />}
+          {tab === 'finance' && <Finance isConnected={connected} />}
           {tab === 'channels' && (
             <Channels
               agents={dashData.agents}
@@ -100,6 +100,7 @@ export default function App() {
             <Knowledge
               knowledgeData={knowledgeData}
               knowledgeLoading={knowledgeLoading}
+              isConnected={connected}
               onRefresh={refreshKnowledge}
             />
           )}

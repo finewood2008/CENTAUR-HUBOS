@@ -8,10 +8,25 @@ import {
   getModelsModule,
   getChannelsModule,
   getKnowledgeModule,
+  getDevicesModule,
+  getAuditModule,
+  getApprovalModule,
+  getApiKeyModule,
+  getWorkflowModule,
+  getTenantModule,
+  getConversationsModule,
 } from '../services/qeeclaw';
 import { AGENTS, TEMPLATES, ALERTS, USAGE_7DAYS, ACTIVITY_FEED } from '../data/mock';
 import type { Agent, Template, Alert, UsageStat, ActivityItem } from '../types';
-import type { MyAgent, AgentTemplate } from '@qeeclaw/core-sdk';
+import type {
+  MyAgent, AgentTemplate,
+  WalletSummary, ModelQuotaSummary,
+  AppKeyRecord, LLMKeyRecord,
+  ModelUsageSummary, ModelCostSummary,
+  BillingRecord,
+  ConversationHistoryMessage,
+  AuditEvent,
+} from '@qeeclaw/core-sdk';
 
 // ── 连接状态 hook ─────────────────────────────────
 export function useConnection() {
@@ -395,4 +410,360 @@ export function useQeeClawAgent(agentId: string) {
   );
 
   return { invokeModel, loading };
+}
+
+// ── 设备管理 hook ────────────────────────────────
+export function useDevicesData(isConnected: boolean) {
+  const [devices, setDevices] = useState<unknown[]>([]);
+  const [onlineState, setOnlineState] = useState<unknown>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    if (!isConnected) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [list, online] = await Promise.all([
+        getDevicesModule().list().catch(() => []),
+        getDevicesModule().getOnlineState().catch(() => null),
+      ]);
+      setDevices(list);
+      setOnlineState(online);
+    } catch { /* fallback empty */ }
+    finally { setLoading(false); }
+  }, [isConnected]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  return { devices, onlineState, loading, refresh };
+}
+
+// ── 审计日志 hook ────────────────────────────────
+export function useAuditData(isConnected: boolean) {
+  const [summary, setSummary] = useState<unknown>(null);
+  const [events, setEvents] = useState<unknown[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    if (!isConnected) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [sum, evts] = await Promise.all([
+        getAuditModule().getSummary().catch(() => null),
+        getAuditModule().listEvents({ page: 1, pageSize: 20 }).catch(() => null),
+      ]);
+      setSummary(sum);
+      setEvents(evts?.items ?? []);
+    } catch { /* fallback empty */ }
+    finally { setLoading(false); }
+  }, [isConnected]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  return { summary, events, loading, refresh };
+}
+
+// ── 审批流 hook ──────────────────────────────────
+export function useApprovalData(isConnected: boolean) {
+  const [approvals, setApprovals] = useState<unknown[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    if (!isConnected) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const result = await getApprovalModule().list({ page: 1, pageSize: 20 });
+      setApprovals(result?.items ?? []);
+    } catch { setApprovals([]); }
+    finally { setLoading(false); }
+  }, [isConnected]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  return { approvals, loading, refresh };
+}
+
+// ── API Key 管理 hook ────────────────────────────
+export function useApiKeyData(isConnected: boolean) {
+  const [appKeys, setAppKeys] = useState<unknown[]>([]);
+  const [llmKeys, setLlmKeys] = useState<unknown[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    if (!isConnected) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [ak, lk] = await Promise.all([
+        getApiKeyModule().list().catch(() => null),
+        getApiKeyModule().listLLMKeys().catch(() => []),
+      ]);
+      setAppKeys(ak?.items ?? []);
+      setLlmKeys(lk ?? []);
+    } catch { /* fallback empty */ }
+    finally { setLoading(false); }
+  }, [isConnected]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  return { appKeys, llmKeys, loading, refresh };
+}
+
+// ── 工作流 hook ──────────────────────────────────
+export function useWorkflowData(isConnected: boolean) {
+  const [workflows, setWorkflows] = useState<unknown[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    if (!isConnected) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const result = await getWorkflowModule().list();
+      setWorkflows(Array.isArray(result) ? result : []);
+    } catch { setWorkflows([]); }
+    finally { setLoading(false); }
+  }, [isConnected]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  return { workflows, loading, refresh };
+}
+
+// ── 租户上下文 hook ──────────────────────────────
+export function useTenantContext(isConnected: boolean) {
+  const [context, setContext] = useState<unknown>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isConnected) { setLoading(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getTenantModule().getCurrentContext();
+        if (!cancelled) setContext(result);
+      } catch { /* ignore */ }
+      finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [isConnected]);
+
+  return { context, loading };
+}
+
+// ── 会话中心 hook ────────────────────────────────
+export function useConversationsData(isConnected: boolean) {
+  const [stats, setStats] = useState<unknown>(null);
+  const [groups, setGroups] = useState<unknown[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    if (!isConnected) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [s, g] = await Promise.all([
+        getConversationsModule().getStats(1).catch(() => null),
+        getConversationsModule().listGroups({ teamId: 1 }).catch(() => []),
+      ]);
+      setStats(s);
+      setGroups(Array.isArray(g) ? g : []);
+    } catch { /* fallback empty */ }
+    finally { setLoading(false); }
+  }, [isConnected]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  return { stats, groups, loading, refresh };
+}
+
+// ── 财务中心数据加载 ────────────────────────────────
+export interface FinanceData {
+  wallet: WalletSummary | null;
+  quota: ModelQuotaSummary | null;
+  appKeys: AppKeyRecord[];
+  llmKeys: LLMKeyRecord[];
+  usageSummary: ModelUsageSummary | null;
+  costSummary: ModelCostSummary | null;
+  billingRecords: BillingRecord[];
+}
+
+export function useFinanceData(isConnected: boolean) {
+  const [data, setData] = useState<FinanceData>({
+    wallet: null,
+    quota: null,
+    appKeys: [],
+    llmKeys: [],
+    usageSummary: null,
+    costSummary: null,
+    billingRecords: [],
+  });
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    if (!isConnected) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [wallet, quota, appKeysResult, llmKeys, usageSummary, costSummary, billingResult] = await Promise.all([
+        getBillingModule().getWallet().catch(() => null),
+        getModelsModule().getQuota().catch(() => null),
+        getApiKeyModule().list().catch(() => null),
+        getApiKeyModule().listLLMKeys().catch(() => []),
+        getModelsModule().getUsage({ days: 7 }).catch(() => null),
+        getModelsModule().getCost({ days: 7 }).catch(() => null),
+        getBillingModule().listRecords({ page: 1, pageSize: 50 }).catch(() => null),
+      ]);
+
+      setData({
+        wallet,
+        quota,
+        appKeys: appKeysResult?.items ?? [],
+        llmKeys: llmKeys ?? [],
+        usageSummary,
+        costSummary,
+        billingRecords: billingResult?.items ?? [],
+      });
+    } catch { /* fallback empty */ }
+    finally { setLoading(false); }
+  }, [isConnected]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  return { data, loading, refresh };
+}
+
+// ── 聊天对话 hook ───────────────────────────────────
+export function useChatConversation(isConnected: boolean) {
+  const [messages, setMessages] = useState<ConversationHistoryMessage[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const loadHistory = useCallback(async () => {
+    if (!isConnected) return;
+    setLoading(true);
+    try {
+      const result = await getConversationsModule().listHistory({ teamId: 1, limit: 50 });
+      setMessages(result);
+    } catch { /* fallback empty */ }
+    finally { setLoading(false); }
+  }, [isConnected]);
+
+  const sendMessage = useCallback(async (content: string, agentId?: number) => {
+    if (!isConnected || !content.trim()) return null;
+    setSending(true);
+    try {
+      const userMsg = await getConversationsModule().sendMessage({
+        teamId: 1,
+        content,
+        agentId,
+        direction: 'user_to_agent',
+      });
+      setMessages(prev => [...prev, userMsg]);
+
+      const aiResult = await getModelsModule().invoke({ prompt: content });
+      const aiMsg = await getConversationsModule().sendMessage({
+        teamId: 1,
+        content: aiResult.text,
+        agentId,
+        direction: 'agent_to_user',
+      });
+      setMessages(prev => [...prev, aiMsg]);
+      return aiResult;
+    } catch (err) {
+      console.error('发送消息失败:', err);
+      return null;
+    } finally {
+      setSending(false);
+    }
+  }, [isConnected]);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+  return { messages, loading, sending, sendMessage, refresh: loadHistory };
+}
+
+// ── 增强版 Dashboard 数据（含 SDK 动态）────────────
+export interface EnhancedDashboardData extends DashboardData {
+  auditEvents: AuditEvent[];
+  billingRecords: BillingRecord[];
+}
+
+export function useEnhancedDashboardData(isConnected: boolean) {
+  const { data: baseData, loading: baseLoading, refresh: baseRefresh } = useDashboardData(isConnected);
+  const [extra, setExtra] = useState<{ auditEvents: AuditEvent[]; billingRecords: BillingRecord[] }>({
+    auditEvents: [],
+    billingRecords: [],
+  });
+  const [extraLoading, setExtraLoading] = useState(true);
+
+  const loadExtra = useCallback(async () => {
+    if (!isConnected) {
+      setExtraLoading(false);
+      return;
+    }
+    setExtraLoading(true);
+    try {
+      const [auditResult, billingResult] = await Promise.all([
+        getAuditModule().listEvents({ page: 1, pageSize: 20 }).catch(() => null),
+        getBillingModule().listRecords({ page: 1, pageSize: 10 }).catch(() => null),
+      ]);
+      setExtra({
+        auditEvents: auditResult?.data ?? [],
+        billingRecords: billingResult?.data ?? [],
+      });
+    } catch {
+      setExtra({ auditEvents: [], billingRecords: [] });
+    } finally {
+      setExtraLoading(false);
+    }
+  }, [isConnected]);
+
+  useEffect(() => {
+    loadExtra();
+  }, [loadExtra]);
+
+  const mergedAlerts: import('../types').Alert[] = extra.auditEvents.length > 0
+    ? extra.auditEvents
+        .filter(evt => evt.riskLevel === 'high' || evt.riskLevel === 'critical' || evt.category === 'approval')
+        .map((evt, i) => ({
+          id: evt.eventId || `alert-${i}`,
+          agentId: 'system',
+          agentName: evt.actor?.username || '系统',
+          type: (evt.category === 'approval' ? 'security' : evt.riskLevel === 'critical' ? 'error' : 'quota') as 'quota' | 'error' | 'security',
+          message: evt.title,
+          time: evt.createdAt ? new Date(evt.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '',
+          severity: (evt.riskLevel === 'critical' ? 'critical' : 'warning') as 'warning' | 'critical',
+        }))
+    : baseData.alerts;
+
+  const mergedActivities: ActivityItem[] = extra.auditEvents.length > 0
+    ? extra.auditEvents.map((evt, i) => ({
+        id: evt.eventId || `audit-${i}`,
+        agentId: 'system',
+        agentName: evt.actor?.username || '系统',
+        agentAvatar: evt.category === 'approval' ? '📋' : '🔔',
+        type: evt.category === 'approval' ? 'approval_needed' as const : 'task_done' as const,
+        title: evt.title,
+        detail: evt.summary ?? undefined,
+        time: evt.createdAt ? new Date(evt.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '',
+        timestamp: evt.createdAt ? new Date(evt.createdAt).getTime() : Date.now(),
+        actionLabel: evt.category === 'approval' ? '审批' : '查看',
+        actionType: evt.category === 'approval' ? 'approve' as const : 'view' as const,
+      }))
+    : baseData.activities;
+
+  const mergedUsage: import('../types').UsageStat[] = extra.billingRecords.length > 0
+    ? extra.billingRecords.slice(0, 7).map(r => ({
+        date: r.createdTime?.split('T')[0] ?? '',
+        tokens: r.textInputLength + r.textOutputLength,
+        cost: r.amount,
+      }))
+    : baseData.usage;
+
+  return {
+    data: {
+      ...baseData,
+      alerts: mergedAlerts,
+      activities: mergedActivities,
+      usage: mergedUsage,
+      auditEvents: extra.auditEvents,
+      billingRecords: extra.billingRecords,
+    },
+    loading: baseLoading || extraLoading,
+    refresh: async () => {
+      await baseRefresh();
+      await loadExtra();
+    },
+  };
 }
