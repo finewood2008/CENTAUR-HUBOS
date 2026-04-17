@@ -10,6 +10,7 @@ import Channels from './components/channels/Channels';
 import Knowledge from './components/knowledge/Knowledge';
 import Settings from './components/settings/Settings';
 import { ToastProvider } from './components/shared/Toast';
+import { AppProvider } from './stores/useAppStore';
 import { useConnection, useDashboardData, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
 
 export default function App() {
@@ -53,6 +54,7 @@ export default function App() {
   const { data: knowledgeData, loading: knowledgeLoading, refresh: refreshKnowledge } = useKnowledgeData(connected);
 
   return (
+    <AppProvider>
     <ToastProvider>
       <div className="h-screen w-screen bg-parchment text-near-black flex overflow-hidden">
         <Sidebar active={tab} onNav={setTab} />
@@ -94,5 +96,6 @@ export default function App() {
         </main>
       </div>
     </ToastProvider>
+    </AppProvider>
   );
 }

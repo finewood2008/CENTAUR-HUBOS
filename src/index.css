@@ -624,3 +624,348 @@ html, body, #root {
 .section-gap-lg {
   margin-top: 48px;
 }
+
+/* ══════════════════════════════════════════════════════
+   DARK THEME — Warm Dark Mode
+   Apply .dark to <html> to activate
+   ══════════════════════════════════════════════════════ */
+
+/* ── Dark Mode: Base Overrides ── */
+html.dark,
+html.dark body,
+html.dark #root {
+  background: #1a1a1a;
+  color: #e8e6dc;
+}
+
+/* ── Dark Mode: Tailwind Theme Token Overrides ── */
+html.dark {
+  /* Surfaces */
+  --color-parchment: #1a1a1a;
+  --color-ivory: #242424;
+  --color-warm-sand: #2d2d2d;
+  --color-dark-surface: #e8e6dc;
+  --color-deep-dark: #f5f4ed;
+
+  /* Text — inverted for readability on dark */
+  --color-near-black: #e8e6dc;
+  --color-charcoal-warm: #b0aea5;
+  --color-dark-warm: #c2c0b6;
+  --color-olive-gray: #9a9890;
+  --color-stone-gray: #87867f;
+  --color-warm-silver: #5e5d59;
+
+  /* Borders */
+  --color-border-cream: #333333;
+  --color-border-warm: #3a3a3a;
+  --color-border-dark: #e8e6dc;
+
+  /* Rings */
+  --color-ring-warm: #3a3a3a;
+  --color-ring-subtle: #444440;
+  --color-ring-deep: #4a4a46;
+
+  /* Extended palette — slightly brighter for dark bg */
+  --color-teal: #5a9cb4;
+  --color-sage-green: #6a9a6e;
+  --color-amber: #c49c4c;
+  --color-amber-warm: #c8960b;
+  --color-purple: #a07ab4;
+
+  /* Semantic */
+  --color-error-crimson: #d05555;
+  --color-focus-blue: #4da8fc;
+  --color-success-green: #5a9c69;
+
+  /* Shadow overrides for dark mode */
+  --shadow-whisper: rgba(0,0,0,0.25) 0px 4px 24px;
+  --shadow-ring-warm: #3a3a3a 0px 0px 0px 0px, #3a3a3a 0px 0px 0px 1px;
+  --shadow-ring-deep: #4a4a46 0px 0px 0px 0px, #4a4a46 0px 0px 0px 1px;
+  --shadow-ring-terracotta: #c96442 0px 0px 0px 0px, #c96442 0px 0px 0px 1px;
+  --shadow-ring-dark: #e8e6dc 0px 0px 0px 0px, #e8e6dc 0px 0px 0px 1px;
+}
+
+/* ── Dark Mode: Grid Backgrounds ── */
+html.dark .bg-grid {
+  background-color: #1e1e1e;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+html.dark .bg-grid-subtle {
+  background-color: #1a1a1a;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ── Dark Mode: Glass Cards ── */
+html.dark .card-glass {
+  background: linear-gradient(
+    135deg,
+    rgba(40, 40, 38, 0.92) 0%,
+    rgba(36, 36, 34, 0.85) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 4px 16px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+html.dark .card-glass:hover {
+  border-color: rgba(201, 100, 66, 0.3);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.25),
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+html.dark .card-glass-success {
+  background: linear-gradient(
+    135deg,
+    rgba(74, 124, 89, 0.12) 0%,
+    rgba(40, 40, 38, 0.90) 40%,
+    rgba(36, 36, 34, 0.82) 100%
+  );
+  border: 1px solid rgba(74, 124, 89, 0.2);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    0 4px 16px rgba(74, 124, 89, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+html.dark .card-glass-success:hover {
+  border-color: rgba(74, 124, 89, 0.35);
+  box-shadow:
+    0 2px 8px rgba(74, 124, 89, 0.12),
+    0 8px 32px rgba(74, 124, 89, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+html.dark .card-glass-warm {
+  background: linear-gradient(
+    135deg,
+    rgba(201, 100, 66, 0.1) 0%,
+    rgba(40, 40, 38, 0.90) 40%,
+    rgba(36, 36, 34, 0.82) 100%
+  );
+  border: 1px solid rgba(201, 100, 66, 0.15);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    0 4px 16px rgba(201, 100, 66, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+html.dark .card-glass-warm:hover {
+  border-color: rgba(201, 100, 66, 0.3);
+  box-shadow:
+    0 2px 8px rgba(201, 100, 66, 0.12),
+    0 8px 32px rgba(201, 100, 66, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+html.dark .card-glass-blue {
+  background: linear-gradient(
+    135deg,
+    rgba(76, 130, 180, 0.1) 0%,
+    rgba(40, 40, 38, 0.90) 40%,
+    rgba(36, 36, 34, 0.82) 100%
+  );
+  border: 1px solid rgba(76, 130, 180, 0.15);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    0 4px 16px rgba(76, 130, 180, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+html.dark .card-glass-blue:hover {
+  border-color: rgba(76, 130, 180, 0.3);
+  box-shadow:
+    0 2px 8px rgba(76, 130, 180, 0.12),
+    0 8px 32px rgba(76, 130, 180, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+html.dark .card-glass-alert {
+  background: linear-gradient(
+    135deg,
+    rgba(180, 60, 40, 0.1) 0%,
+    rgba(40, 40, 38, 0.90) 40%,
+    rgba(36, 36, 34, 0.82) 100%
+  );
+  border: 1px solid rgba(180, 60, 40, 0.15);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.15),
+    0 4px 16px rgba(180, 60, 40, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+html.dark .card-glass-alert:hover {
+  border-color: rgba(180, 60, 40, 0.28);
+}
+
+/* ── Dark Mode: Typography ── */
+html.dark .heading-display,
+html.dark .heading-section,
+html.dark .heading-card,
+html.dark .page-title,
+html.dark .stat-value {
+  color: #e8e6dc;
+}
+
+html.dark .text-body {
+  color: #9a9890;
+}
+
+html.dark .text-caption,
+html.dark .text-label,
+html.dark .text-overline,
+html.dark .stat-label,
+html.dark .page-subtitle {
+  color: #7a7970;
+}
+
+/* ── Dark Mode: Buttons ── */
+html.dark .btn-sand {
+  background: #2d2d2d;
+  color: #b0aea5;
+  box-shadow: var(--shadow-ring-warm);
+}
+html.dark .btn-sand:hover {
+  background: #363634;
+  box-shadow: var(--shadow-ring-deep);
+}
+html.dark .btn-sand:active {
+  box-shadow: inset 0px 0px 0px 1px rgba(255,255,255,0.08);
+}
+
+html.dark .btn-terracotta {
+  background: #c96442;
+  color: #faf9f5;
+}
+html.dark .btn-terracotta:hover {
+  background: #d97757;
+}
+
+html.dark .btn-dark {
+  background: #e8e6dc;
+  color: #1a1a1a;
+  box-shadow: none;
+}
+html.dark .btn-dark:hover {
+  background: #f0eee6;
+}
+
+html.dark .btn-ghost {
+  color: #9a9890;
+}
+html.dark .btn-ghost:hover {
+  background: #2d2d2d;
+  color: #e8e6dc;
+}
+
+/* ── Dark Mode: Cards ── */
+html.dark .card {
+  background: #242424;
+  border: 1px solid #333333;
+}
+
+html.dark .card-featured {
+  background: #242424;
+  border: 1px solid #333333;
+}
+
+html.dark .card-dark {
+  background: #e8e6dc;
+  border: 1px solid #e8e6dc;
+  color: #1a1a1a;
+}
+
+/* ── Dark Mode: Input ── */
+html.dark .input-warm {
+  background: #242424;
+  border: 1px solid #3a3a3a;
+  color: #e8e6dc;
+}
+html.dark .input-warm::placeholder {
+  color: #6a6960;
+}
+html.dark .input-warm:focus {
+  border-color: #4da8fc;
+  box-shadow: 0 0 0 2px rgba(77, 168, 252, 0.15);
+}
+
+/* ── Dark Mode: Badge ── */
+html.dark .badge {
+  background: #2d2d2d;
+  color: #9a9890;
+}
+
+html.dark .badge-terracotta {
+  background: rgba(201, 100, 66, 0.18);
+  color: #d97757;
+}
+
+html.dark .badge-success {
+  background: rgba(74, 124, 89, 0.18);
+  color: #6a9a6e;
+}
+
+html.dark .badge-error {
+  background: rgba(181, 51, 51, 0.18);
+  color: #d05555;
+}
+
+/* ── Dark Mode: Divider ── */
+html.dark .divider {
+  background: #333333;
+}
+
+/* ── Dark Mode: Stat Card ── */
+html.dark .stat-card {
+  background: #242424;
+  border: 1px solid #333333;
+}
+
+/* ── Dark Mode: Tab Navigation ── */
+html.dark .tab-group {
+  background: #2d2d2d;
+}
+html.dark .tab-item {
+  color: #7a7970;
+}
+html.dark .tab-item:hover {
+  color: #9a9890;
+}
+html.dark .tab-item-active {
+  background: #363634;
+  color: #e8e6dc;
+  box-shadow: var(--shadow-ring-warm);
+}
+
+/* ── Dark Mode: Ring Interactive ── */
+html.dark .ring-interactive:hover {
+  box-shadow: 0px 0px 0px 1px #4a4a46;
+}
+html.dark .ring-interactive:active {
+  box-shadow: inset 0px 0px 0px 1px rgba(255,255,255,0.06);
+}
+
+/* ── Dark Mode: Nav Pill ── */
+html.dark .nav-pill-active {
+  background: rgba(201, 100, 66, 0.18);
+  box-shadow: 0px 0px 0px 1px rgba(201, 100, 66, 0.25);
+}
+
+/* ── Dark Mode: Scrollbar ── */
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* ── Dark Mode: Selection ── */
+html.dark ::selection {
+  background: rgba(201, 100, 66, 0.3);
+  color: #e8e6dc;
+}

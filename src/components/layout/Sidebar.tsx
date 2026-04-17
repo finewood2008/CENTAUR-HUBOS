@@ -1,7 +1,8 @@
-// CENTAUR - 侧边导航栏 (Warm Anthropic Style)
+// CENTAUR - 侧边导航栏 (Warm Anthropic Style + Dark Theme Support)
 import { LayoutDashboard, Users, Radio, Database, Settings, Wallet } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { NavTab } from '../../types';
+import { useOrg } from '../../stores/useAppStore';
 
 const navItems: { key: NavTab; icon: typeof LayoutDashboard; label: string }[] = [
   { key: 'dashboard', icon: LayoutDashboard, label: '信息流' },
@@ -17,21 +18,32 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ active, onNav }: SidebarProps) {
+  const { org } = useOrg();
+  const orgName = org.name;
+
+  // Display name: truncate to 6 characters max
+  const displayName = orgName.length > 6 ? orgName.slice(0, 6) + '…' : orgName;
+  // First character for the logo circle
+  const logoChar = orgName.charAt(0).toUpperCase();
+
   return (
     <div
-      className="w-[68px] h-full flex flex-col items-center pt-10 pb-5 gap-1 bg-deep-dark border-r border-border-dark"
+      className="w-[68px] h-full flex flex-col items-center pt-10 pb-5 gap-1 bg-deep-dark dark:bg-deep-dark border-r border-border-dark dark:border-border-dark"
       style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
     >
       {/* Logo */}
       <div className="mb-6 flex flex-col items-center">
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold bg-terracotta text-ivory"
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold bg-terracotta dark:bg-terracotta text-ivory dark:text-ivory"
           style={{ boxShadow: 'var(--shadow-ring-terracotta)' }}
         >
-          C
+          {logoChar}
         </div>
-        <span className="text-[9px] mt-1 tracking-widest text-stone-gray">
-          CENTAUR
+        <span className="text-[9px] mt-1 tracking-widest text-stone-gray dark:text-stone-gray">
+          {displayName}
+        </span>
+        <span className="text-[7px] mt-0.5 text-stone-gray/60 dark:text-stone-gray/50 tracking-wide">
+          OPC 超级工作台
         </span>
       </div>
 
@@ -57,15 +69,15 @@ export default function Sidebar({ active, onNav }: SidebarProps) {
               size={20}
               className={`relative z-10 transition-colors ${
                 isActive
-                  ? 'text-coral'
-                  : 'text-stone-gray group-hover:text-warm-silver'
+                  ? 'text-coral dark:text-coral'
+                  : 'text-stone-gray dark:text-stone-gray group-hover:text-warm-silver dark:group-hover:text-warm-silver'
               }`}
             />
             <span
               className={`text-[9px] mt-0.5 relative z-10 transition-colors ${
                 isActive
-                  ? 'text-coral'
-                  : 'text-stone-gray group-hover:text-warm-silver'
+                  ? 'text-coral dark:text-coral'
+                  : 'text-stone-gray dark:text-stone-gray group-hover:text-warm-silver dark:group-hover:text-warm-silver'
               }`}
             >
               {item.label}
@@ -92,15 +104,15 @@ export default function Sidebar({ active, onNav }: SidebarProps) {
             size={18}
             className={`relative z-10 transition-colors ${
               active === 'settings'
-                ? 'text-coral'
-                : 'text-stone-gray group-hover:text-warm-silver'
+                ? 'text-coral dark:text-coral'
+                : 'text-stone-gray dark:text-stone-gray group-hover:text-warm-silver dark:group-hover:text-warm-silver'
             }`}
           />
           <span
             className={`text-[9px] mt-0.5 relative z-10 transition-colors ${
               active === 'settings'
-                ? 'text-coral'
-                : 'text-stone-gray group-hover:text-warm-silver'
+                ? 'text-coral dark:text-coral'
+                : 'text-stone-gray dark:text-stone-gray group-hover:text-warm-silver dark:group-hover:text-warm-silver'
             }`}
           >
             设置
