@@ -7,7 +7,7 @@ import {
   Building2, Upload, Image,
   Users, Timer, Layers, Gauge,
   Bell, BellRing, FileText, AlertTriangle, Mail,
-  Shield, Lock, ScrollText, DatabaseBackup, Globe,
+  Palette, Globe,
 } from 'lucide-react';
 
 // ─── 类型 ────────────────────────────────────────
@@ -34,6 +34,7 @@ interface SettingsState {
   accessLog: boolean;
   autoBackup: boolean;
   backupDays: string;
+  bgStyle: string;
   language: string;
 }
 
@@ -59,6 +60,7 @@ const DEFAULTS: SettingsState = {
   accessLog: true,
   autoBackup: true,
   backupDays: '30',
+  bgStyle: 'grid',
   language: 'zh-CN',
 };
 
@@ -112,6 +114,7 @@ export default function Settings({ isConnected }: SettingsProps) {
   // 保存辅助
   const persist = useCallback((next: SettingsState) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event('hubos-settings-changed'));
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
   }, []);
@@ -364,11 +367,68 @@ export default function Settings({ isConnected }: SettingsProps) {
         </motion.section>
 
         {/* ════════════════════════════════════════════
-            7. 底部
+            7. 外观与底部
            ════════════════════════════════════════════ */}
         <motion.section variants={fadeUp} initial="hidden" animate="visible" custom={6}>
-          <div className="card-glass p-4">
-            <div className="flex items-center justify-between">
+          <SectionTitle icon={Palette} label="外观" />
+          <div className="card-glass divide-y divide-border-cream">
+            {/* 背景样式 */}
+            <div className="p-3.5">
+              <div className="flex items-center gap-2.5 mb-3">
+                <Monitor size={15} className="text-stone-gray" />
+                <span className="text-sm text-olive-gray">背景样式</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => set('bgStyle', 'grid')}
+                  className={`relative rounded-xl border-2 p-3 transition-all ${
+                    s.bgStyle === 'grid'
+                      ? 'border-terracotta shadow-[0_0_0_1px_rgba(201,100,66,0.3)]'
+                      : 'border-border-warm hover:border-stone-gray/30'
+                  }`}
+                >
+                  {/* 网格预览 */}
+                  <div className="h-16 rounded-lg bg-[#f0efe8] mb-2 overflow-hidden"
+                    style={{
+                      backgroundImage: 'linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)',
+                      backgroundSize: '8px 8px',
+                    }}
+                  >
+                    <div className="m-2 h-4 w-16 rounded bg-white/70" />
+                    <div className="mx-2 h-3 w-10 rounded bg-white/50" />
+                  </div>
+                  <span className="text-xs text-olive-gray">网格</span>
+                  {s.bgStyle === 'grid' && (
+                    <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-terracotta flex items-center justify-center">
+                      <Check size={10} className="text-white" />
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => set('bgStyle', 'solid')}
+                  className={`relative rounded-xl border-2 p-3 transition-all ${
+                    s.bgStyle === 'solid'
+                      ? 'border-terracotta shadow-[0_0_0_1px_rgba(201,100,66,0.3)]'
+                      : 'border-border-warm hover:border-stone-gray/30'
+                  }`}
+                >
+                  {/* 纯色预览 */}
+                  <div className="h-16 rounded-lg bg-parchment mb-2">
+                    <div className="m-2 h-4 w-16 rounded bg-white/70" />
+                    <div className="mx-2 h-3 w-10 rounded bg-white/50" />
+                  </div>
+                  <span className="text-xs text-olive-gray">纯色</span>
+                  {s.bgStyle === 'solid' && (
+                    <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-terracotta flex items-center justify-center">
+                      <Check size={10} className="text-white" />
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* 语言 */}
+            <div className="flex items-center justify-between p-3.5">
               <div className="flex items-center gap-2.5">
                 <Globe size={15} className="text-stone-gray" />
                 <span className="text-sm text-olive-gray">界面语言</span>

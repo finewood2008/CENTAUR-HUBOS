@@ -1,6 +1,6 @@
 // Hub OS - 主应用入口
 // SDK 连接 → 真实数据；后端未启动 → 自动 fallback mock
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { NavTab } from './types';
 import Sidebar from './components/layout/Sidebar';
 import Dashboard from './components/dashboard/Dashboard';
@@ -16,6 +16,37 @@ export default function App() {
   const [tab, setTab] = useState<NavTab>('dashboard');
   const { connected, checking } = useConnection();
 
+  // 读取背景样式设置
+  const [bgStyle, setBgStyle] = useState('grid');
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('hubos-settings');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.bgStyle) setBgStyle(parsed.bgStyle);
+      }
+    } catch { /* ignore */ }
+    // 监听 storage 变化（跨标签页）+ 自定义事件（同页面设置页保存）
+    const update = () => {
+      try {
+        const raw = localStorage.getItem('hubos-settings');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.bgStyle) setBgStyle(parsed.bgStyle);
+        }
+      } catch { /* ignore */ }
+    };
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === 'hubos-settings') update();
+    };
+    window.addEventListener('storage', storageHandler);
+    window.addEventListener('hubos-settings-changed', update);
+    return () => {
+      window.removeEventListener('storage', storageHandler);
+      window.removeEventListener('hubos-settings-changed', update);
+    };
+  }, []);
+
   // 数据加载
   const { data: dashData } = useDashboardData(connected);
   const { data: channelsData, loading: channelsLoading, refresh: refreshChannels } = useChannelsData(connected);
@@ -25,7 +56,7 @@ export default function App() {
     <ToastProvider>
       <div className="h-screen w-screen bg-parchment text-near-black flex overflow-hidden">
         <Sidebar active={tab} onNav={setTab} />
-        <main className="flex-1 flex flex-col overflow-hidden bg-grid">
+        <main className={`flex-1 flex flex-col overflow-hidden ${bgStyle === 'grid' ? 'bg-grid' : 'bg-parchment'}`}>
           {/* 连接状态指示 */}
           {!checking && (
             <div className={`px-4 py-1 text-[10px] flex items-center gap-1.5 border-b border-border-cream ${connected ? 'text-success-green' : 'text-yellow-600'}`}>
