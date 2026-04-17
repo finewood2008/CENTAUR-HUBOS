@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { MOCK_FEED } from './cockpitData';
 import type { FeedItem } from './cockpitData';
+import type { ActivityItem, Alert } from '../../types';
 import {
   CheckCircle, AlertTriangle, FileText, Lightbulb,
   ClipboardCheck, ChevronDown, ChevronUp, Filter,
@@ -12,6 +13,15 @@ const TYPE_CONFIG: Record<FeedItem['type'], { icon: typeof CheckCircle; label: s
   approval:  { icon: ClipboardCheck, label: '待审批', badgeClass: 'badge-terracotta' },
   alert:     { icon: AlertTriangle,  label: '警告',   badgeClass: 'badge-error' },
   insight:   { icon: Lightbulb,      label: '洞察',   badgeClass: 'badge' },
+};
+
+// 优先级对应的左色条
+const PRIORITY_BAR: Record<string, string> = {
+  approval: 'border-l-[3px] border-l-terracotta',
+  alert:    'border-l-[3px] border-l-red-400',
+  insight:  'border-l-[3px] border-l-amber-400',
+  report:   '',
+  task_done: '',
 };
 
 function timeAgo(ts: string): string {
@@ -27,10 +37,14 @@ function timeAgo(ts: string): string {
 function FeedCard({ item }: { item: FeedItem }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = TYPE_CONFIG[item.type];
-  const Icon = cfg.icon;
+  const priorityBar = PRIORITY_BAR[item.type] || '';
+  // 高优先级背景微调
+  const urgentBg = (item.type === 'approval' || item.type === 'alert') && !item.read
+    ? 'bg-terracotta/[0.03]'
+    : '';
 
   return (
-    <div className={`card-glass p-0 transition-all ${!item.read ? 'ring-1 ring-terracotta/20' : ''}`}>
+    <div className={`card-glass p-0 transition-all ${priorityBar} ${urgentBg} ${!item.read ? 'ring-1 ring-terracotta/20' : ''}`}>
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start gap-3">
@@ -89,7 +103,7 @@ function FeedCard({ item }: { item: FeedItem }) {
         )}
       </div>
 
-      {/* Unread indicator */}
+      {/* Unread indicator — inside card to avoid overflow clip */}
       {!item.read && (
         <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-terracotta" />
       )}
@@ -99,19 +113,88 @@ function FeedCard({ item }: { item: FeedItem }) {
 
 type FilterType = 'all' | FeedItem['type'];
 
-export default function FeedStream() {
+// SDK ActivityItem → FeedItem 转换
+function activityToFeedItem(a: ActivityItem): FeedItem {
+  const typeMap: Record<string, FeedItem['type']> = {
+    task_done: 'task_done',
+    content_published: 'task_done',
+    report_ready: 'report',
+    alert: 'alert',
+    approval_needed: 'approval',
+    insight: 'insight',
+    customer_reply: 'alert',
+    lead_captured: 'insight',
+    email_sent: 'task_done',
+  };
+
+  return {
+    id: a.id,
+    agentId: a.agentId,
+    agentName: a.agentName,
+    agentAvatar: a.agentAvatar || '🤖',
+    agentColor: '#7c8a9e',
+    type: typeMap[a.type] || 'report',
+    content: a.title,
+    detail: a.detail,
+    timestamp: a.time || new Date(a.timestamp).toISOString(),
+    read: false,
+    actionable: a.actionType === 'approve' || a.actionType === 'reply',
+    actionLabel: a.actionLabel,
+  };
+}
+
+// SDK Alert → FeedItem 转换
+function alertToFeedItem(a: Alert): FeedItem {
+  return {
+    id: a.id,
+    agentId: a.agentId,
+    agentName: a.agentName,
+    agentAvatar: '⚠️',
+    agentColor: a.severity === 'critical' ? '#dc2626' : '#d97706',
+    type: 'alert',
+    content: a.message,
+    timestamp: new Date().toISOString(),
+    read: false,
+    actionable: a.severity === 'critical',
+    actionLabel: '立即处理',
+  };
+}
+
+interface FeedStreamProps {
+  activities?: ActivityItem[];
+  alerts?: Alert[];
+  isConnected?: boolean;
+}
+
+export default function FeedStream({ activities, alerts, isConnected }: FeedStreamProps) {
   const [filter, setFilter] = useState<FilterType>('all');
   const [agentFilter, setAgentFilter] = useState<string>('all');
 
-  const agents = Array.from(new Set(MOCK_FEED.map(f => f.agentId)));
-  const agentNames: Record<string, string> = {};
-  MOCK_FEED.forEach(f => { agentNames[f.agentId] = f.agentName; });
+  // 合并数据源：SDK → FeedItem 或 fallback MOCK
+  const feedItems: FeedItem[] = useMemo(() => {
+    if (isConnected && activities && activities.length > 0) {
+      const items = activities.map(activityToFeedItem);
+      // 追加alerts
+      if (alerts && alerts.length > 0) {
+        const alertItems = alerts.map(alertToFeedItem);
+        items.push(...alertItems);
+      }
+      // 按时间倒序
+      items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      return items;
+    }
+    return MOCK_FEED;
+  }, [isConnected, activities, alerts]);
 
-  const filtered = MOCK_FEED
+  const agents = Array.from(new Set(feedItems.map(f => f.agentId)));
+  const agentNames: Record<string, string> = {};
+  feedItems.forEach(f => { agentNames[f.agentId] = f.agentName; });
+
+  const filtered = feedItems
     .filter(f => filter === 'all' || f.type === filter)
     .filter(f => agentFilter === 'all' || f.agentId === agentFilter);
 
-  const unreadCount = MOCK_FEED.filter(f => !f.read).length;
+  const unreadCount = feedItems.filter(f => !f.read).length;
 
   return (
     <div className="flex flex-col h-full">

@@ -70,7 +70,7 @@ export default function App() {
           )}
 
           {tab === 'dashboard' && (
-            <Cockpit />
+            <Cockpit onNav={setTab} />
           )}
           {tab === 'team' && !building && <Team isConnected={connected} />}
           {tab === 'team' && building && (
