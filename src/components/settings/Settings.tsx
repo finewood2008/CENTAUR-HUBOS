@@ -7,8 +7,11 @@ import {
   Building2, Upload, Image,
   Users, Timer, Layers, Gauge,
   Bell, BellRing, FileText, AlertTriangle, Mail,
-  Palette, Globe,
+  Palette, Globe, Sun, Moon,
+  Shield, Lock, ScrollText, DatabaseBackup,
 } from 'lucide-react';
+import { useOrg, useTheme } from '../../stores/useAppStore';
+import type { OrgInfo } from '../../stores/useAppStore';
 
 // ─── 类型 ────────────────────────────────────────
 interface SettingsProps {
@@ -102,6 +105,8 @@ export default function Settings({ isConnected }: SettingsProps) {
   const [s, setS] = useState<SettingsState>(DEFAULTS);
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
+  const { org, updateOrg } = useOrg();
+  const { theme, setTheme } = useTheme();
 
   // 加载
   useEffect(() => {
@@ -246,17 +251,27 @@ export default function Settings({ isConnected }: SettingsProps) {
             <div>
               <label className="text-xs text-olive-gray mb-1.5 block">企业名称</label>
               <input
-                value={s.companyName}
-                onChange={e => set('companyName', e.target.value)}
+                value={org.name}
+                onChange={e => { updateOrg({ name: e.target.value }); persist(s); }}
                 placeholder="请输入企业名称"
                 className={inputCls}
               />
             </div>
 
+            {/* 组织类型 */}
+            <div>
+              <label className="text-xs text-olive-gray mb-1.5 block">组织类型</label>
+              <select value={org.type} onChange={e => { updateOrg({ type: e.target.value as OrgInfo['type'] }); persist(s); }} className={`w-full ${selectCls}`}>
+                <option value="personal">个人</option>
+                <option value="studio">工作室</option>
+                <option value="company">企业</option>
+              </select>
+            </div>
+
             {/* 行业 */}
             <div>
               <label className="text-xs text-olive-gray mb-1.5 block">所属行业</label>
-              <select value={s.industry} onChange={e => set('industry', e.target.value)} className={`w-full ${selectCls}`}>
+              <select value={org.industry || s.industry} onChange={e => { updateOrg({ industry: e.target.value }); set('industry', e.target.value); }} className={`w-full ${selectCls}`}>
                 <option value="">请选择</option>
                 <option value="trade">外贸 / 跨境电商</option>
                 <option value="manufacturing">制造业</option>
@@ -268,12 +283,12 @@ export default function Settings({ isConnected }: SettingsProps) {
               </select>
             </div>
 
-            {/* 主营业务 */}
+            {/* 一句话介绍 */}
             <div>
-              <label className="text-xs text-olive-gray mb-1.5 block">主营业务</label>
+              <label className="text-xs text-olive-gray mb-1.5 block">一句话介绍</label>
               <textarea
-                value={s.business}
-                onChange={e => set('business', e.target.value)}
+                value={org.tagline || s.business}
+                onChange={e => { updateOrg({ tagline: e.target.value }); set('business', e.target.value); }}
                 placeholder="简要描述企业主营业务方向"
                 rows={2}
                 className={`${inputCls} resize-none`}
@@ -372,6 +387,45 @@ export default function Settings({ isConnected }: SettingsProps) {
         <motion.section variants={fadeUp} initial="hidden" animate="visible" custom={6}>
           <SectionTitle icon={Palette} label="外观" />
           <div className="card-glass divide-y divide-border-cream">
+            {/* 主题切换 */}
+            <div className="p-3.5">
+              <div className="flex items-center gap-2.5 mb-3">
+                <Sun size={15} className="text-stone-gray" />
+                <span className="text-sm text-olive-gray">主题模式</span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {([
+                  { key: 'warm' as const, label: '暖色', icon: Sun, preview: 'bg-[#f5f0e8]' },
+                  { key: 'dark' as const, label: '暗色', icon: Moon, preview: 'bg-[#1a1a2e]' },
+                  { key: 'system' as const, label: '跟随系统', icon: Monitor, preview: 'bg-gradient-to-r from-[#f5f0e8] to-[#1a1a2e]' },
+                ]).map(({ key, label, icon: ThemeIcon, preview }) => (
+                  <button
+                    key={key}
+                    onClick={() => setTheme(key)}
+                    className={`relative rounded-xl border-2 p-3 transition-all ${
+                      theme === key
+                        ? 'border-terracotta shadow-[0_0_0_1px_rgba(201,100,66,0.3)]'
+                        : 'border-border-warm hover:border-stone-gray/30'
+                    }`}
+                  >
+                    <div className={`h-12 rounded-lg mb-2 ${preview}`}>
+                      <div className="m-2 h-3 w-10 rounded bg-white/40" />
+                      <div className="mx-2 h-2 w-6 rounded bg-white/25" />
+                    </div>
+                    <div className="flex items-center justify-center gap-1">
+                      <ThemeIcon size={12} className="text-stone-gray" />
+                      <span className="text-xs text-olive-gray">{label}</span>
+                    </div>
+                    {theme === key && (
+                      <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-terracotta flex items-center justify-center">
+                        <Check size={10} className="text-white" />
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* 背景样式 */}
             <div className="p-3.5">
               <div className="flex items-center gap-2.5 mb-3">
