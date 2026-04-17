@@ -5,7 +5,7 @@ import type { NavTab } from '../../types';
 import { useOrg } from '../../stores/useAppStore';
 
 const navItems: { key: NavTab; icon: typeof LayoutDashboard; label: string }[] = [
-  { key: 'dashboard', icon: LayoutDashboard, label: '信息流' },
+  { key: 'dashboard', icon: LayoutDashboard, label: '工作台' },
   { key: 'team', icon: Users, label: '团队' },
   { key: 'channels', icon: Radio, label: '通讯' },
   { key: 'knowledge', icon: Database, label: '知识库' },

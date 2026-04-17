@@ -23,6 +23,11 @@ export interface EmployeeSpec {
   workspaceLabel?: string;
   personality?: string;
   confirmed?: boolean;
+  workflow?: string[];
+  personaTags?: string[];
+  checklist?: string[];
+  quickCommands?: string[];
+  boundaries?: string[];
 }
 
 export type ActivationStatus = 'inactive' | 'activating' | 'active';

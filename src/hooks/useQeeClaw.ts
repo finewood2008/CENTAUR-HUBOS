@@ -119,60 +119,52 @@ export function useDashboardData(isConnected: boolean) {
   const [loading, setLoading] = useState(true);
   const fetchedRef = useRef(false);
 
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    let cancelled = false;
+  const refresh = useCallback(async () => {
+    if (!isConnected) {
+      setData({ agents: AGENTS, alerts: ALERTS, usage: USAGE_7DAYS, activities: ACTIVITY_FEED, wallet: null });
+      setLoading(false);
+      return;
+    }
 
-    (async () => {
-      if (!isConnected) {
-        // 用 mock
-        setData({ agents: AGENTS, alerts: ALERTS, usage: USAGE_7DAYS, activities: ACTIVITY_FEED, wallet: null });
-        setLoading(false);
-        return;
-      }
+    setLoading(true);
+    try {
+      const [agentList, wallet] = await Promise.all([
+        getAgentModule().listMyAgents().catch(() => null),
+        getBillingModule().getWallet().catch(() => null),
+      ]);
 
-      try {
-        // 并行拉取 agents + wallet
-        const [agentList, wallet] = await Promise.all([
-          getAgentModule().listMyAgents().catch(() => null),
-          getBillingModule().getWallet().catch(() => null),
-        ]);
+      const agents = agentList
+        ? agentList.map(sdkAgentToHubAgent)
+        : AGENTS;
 
-        if (cancelled) return;
-        fetchedRef.current = true;
-
-        const agents = agentList
-          ? agentList.map(sdkAgentToHubAgent)
-          : AGENTS;
-
-        setData({
-          agents: agents.length > 0 ? agents : AGENTS,
-          alerts: ALERTS, // alerts 暂无 SDK 接口，用 mock
-          usage: USAGE_7DAYS, // usage 暂用 mock，后续接 billing.listRecords
-          activities: ACTIVITY_FEED, // activities 暂用 mock
-          wallet: wallet
-            ? {
-                balance: wallet.balance,
-                currency: wallet.currency,
-                currentMonthSpent: wallet.currentMonthSpent,
-                totalSpent: wallet.totalSpent,
-              }
-            : null,
-        });
-      } catch {
-        // SDK 调用失败，fallback mock
-        if (!cancelled) {
-          setData({ agents: AGENTS, alerts: ALERTS, usage: USAGE_7DAYS, activities: ACTIVITY_FEED, wallet: null });
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
+      setData({
+        agents: agents.length > 0 ? agents : AGENTS,
+        alerts: ALERTS,
+        usage: USAGE_7DAYS,
+        activities: ACTIVITY_FEED,
+        wallet: wallet
+          ? {
+              balance: wallet.balance,
+              currency: wallet.currency,
+              currentMonthSpent: wallet.currentMonthSpent,
+              totalSpent: wallet.totalSpent,
+            }
+          : null,
+      });
+    } catch {
+      setData({ agents: AGENTS, alerts: ALERTS, usage: USAGE_7DAYS, activities: ACTIVITY_FEED, wallet: null });
+    } finally {
+      setLoading(false);
+    }
   }, [isConnected]);
 
-  return { data, loading };
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    refresh();
+  }, [refresh]);
+
+  return { data, loading, refresh };
 }
 
 // ── 员工管理数据加载 ──────────────────────────────

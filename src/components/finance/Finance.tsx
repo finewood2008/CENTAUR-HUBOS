@@ -166,7 +166,7 @@ function ApiKeySection({ data, hasSdkData, isConnected, onRefresh, toast }: {
     try {
       const result = await getApiKeyModule().create();
       toast('success', `密钥已创建：${result.appKey.slice(0, 8)}...`);
-      await refresh();
+      await onRefresh();
     } catch {
       toast('error', '创建密钥失败');
     } finally {
@@ -179,7 +179,7 @@ function ApiKeySection({ data, hasSdkData, isConnected, onRefresh, toast }: {
     try {
       await getApiKeyModule().remove(id);
       toast('success', `已删除「${name}」`);
-      await refresh();
+      await onRefresh();
     } catch {
       toast('error', '删除失败');
     }
@@ -190,7 +190,7 @@ function ApiKeySection({ data, hasSdkData, isConnected, onRefresh, toast }: {
     try {
       await getApiKeyModule().removeLLMKey(id);
       toast('success', `已删除「${name}」`);
-      await refresh();
+      await onRefresh();
     } catch {
       toast('error', '删除失败');
     }

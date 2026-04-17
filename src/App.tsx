@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { NavTab } from './types';
 import Sidebar from './components/layout/Sidebar';
-import DashboardGrid from './components/dashboard/DashboardGrid';
+import Cockpit from './components/cockpit';
 import Team from './components/team/Team';
 import EmployeeBuilder from './components/team/EmployeeBuilder';
 import Finance from './components/finance/Finance';
@@ -70,7 +70,7 @@ export default function App() {
           )}
 
           {tab === 'dashboard' && (
-            <DashboardGrid />
+            <Cockpit />
           )}
           {tab === 'team' && !building && <Team isConnected={connected} />}
           {tab === 'team' && building && (

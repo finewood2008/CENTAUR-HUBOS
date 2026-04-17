@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import apiMockPlugin from './src/vite-api-mock-plugin'
 
 const BRIDGE_URL = process.env.VITE_BRIDGE_URL || 'http://127.0.0.1:21747'
 
@@ -9,10 +10,12 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    apiMockPlugin(),
   ],
   server: {
     proxy: {
-      '/api': { target: BRIDGE_URL, changeOrigin: true },
+      // /api/* 由 apiMockPlugin 处理（rewrite或mock）
+      // 以下是 bridge_server 原生支持的路径，直接转发
       '/invoke': { target: BRIDGE_URL, changeOrigin: true },
       '/health': { target: BRIDGE_URL, changeOrigin: true },
       '/agents': { target: BRIDGE_URL, changeOrigin: true },

@@ -197,6 +197,7 @@ function specToEmployee(spec: EmployeeSpec): DigitalEmployee {
     workspace: {
       type: spec.workspaceType || 'chat',
       label: spec.workspaceLabel || '工作台',
+      description: spec.workspaceLabel || '默认工作台',
     },
     onboardingPreferences: [],
     trainingDataSources: [],
