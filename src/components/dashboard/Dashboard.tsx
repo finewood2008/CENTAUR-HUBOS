@@ -4,9 +4,11 @@ import { motion } from 'framer-motion';
 import {
   CheckCircle2, FileText, Users, Mail, BarChart3,
   AlertTriangle, Lightbulb, MessageSquare, ChevronRight,
-  Clock, Sparkles,
+  Clock, Sparkles, Send, ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 import type { Agent, ActivityItem } from '../../types';
+import Modal from '../shared/Modal';
+import { useToast } from '../shared/Toast';
 
 interface DashboardProps {
   agents: Agent[];
@@ -33,10 +35,22 @@ const priorityBar: Record<string, string> = {
   normal: 'bg-transparent',
 };
 
+// actionType → Modal 标题映射
+const modalTitleMap: Record<string, string> = {
+  view: '详情查看',
+  approve: '审批确认',
+  reply: '回复消息',
+  dismiss: '处理提醒',
+};
+
 type FilterKey = 'all' | 'needs_action' | 'updates';
 
 export default function Dashboard({ agents, activities }: DashboardProps) {
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [selectedItem, setSelectedItem] = useState<ActivityItem | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const { toast } = useToast();
 
   const totalTasks = agents.reduce((s, a) => s + a.todayTasks, 0);
   const runningCount = agents.filter((a) => a.status === 'running').length;
@@ -52,6 +66,70 @@ export default function Dashboard({ agents, activities }: DashboardProps) {
   const filtered = filter === 'needs_action' ? needsAction
     : filter === 'updates' ? updates
     : activities;
+
+  // 打开弹窗
+  const handleAction = (item: ActivityItem) => {
+    setSelectedItem(item);
+    setReplyText('');
+    setModalOpen(true);
+  };
+
+  // 关闭弹窗
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedItem(null);
+    setReplyText('');
+  };
+
+  // 审批 - 确认
+  const handleApprove = () => {
+    if (selectedItem) {
+      toast('success', `已确认「${selectedItem.title}」`);
+    }
+    handleCloseModal();
+  };
+
+  // 审批 - 拒绝
+  const handleReject = () => {
+    if (selectedItem) {
+      toast('info', `已拒绝「${selectedItem.title}」`);
+    }
+    handleCloseModal();
+  };
+
+  // 回复 - 发送
+  const handleSendReply = () => {
+    if (!replyText.trim()) {
+      toast('error', '请输入回复内容');
+      return;
+    }
+    if (selectedItem) {
+      toast('success', `已回复「${selectedItem.agentName}」`);
+    }
+    handleCloseModal();
+  };
+
+  // dismiss / view 关闭
+  const handleDismiss = () => {
+    if (selectedItem) {
+      toast('success', `已处理「${selectedItem.title}」`);
+    }
+    handleCloseModal();
+  };
+
+  // 获取 Modal 标题
+  const getModalTitle = () => {
+    if (!selectedItem) return '';
+    return modalTitleMap[selectedItem.actionType || 'view'] || '详情';
+  };
+
+  // 获取 Modal 尺寸
+  const getModalSize = (): 'sm' | 'md' | 'lg' => {
+    if (!selectedItem) return 'md';
+    if (selectedItem.actionType === 'reply') return 'md';
+    if (selectedItem.actionType === 'approve') return 'md';
+    return 'sm';
+  };
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -108,7 +186,7 @@ export default function Dashboard({ agents, activities }: DashboardProps) {
       <div className="px-8 pb-8">
         <div className="space-y-2">
           {filtered.map((item, i) => (
-            <ActivityCard key={item.id} item={item} index={i} />
+            <ActivityCard key={item.id} item={item} index={i} onAction={handleAction} />
           ))}
         </div>
 
@@ -118,12 +196,118 @@ export default function Dashboard({ agents, activities }: DashboardProps) {
           </div>
         )}
       </div>
+
+      {/* 详情 Modal */}
+      <Modal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        title={getModalTitle()}
+        size={getModalSize()}
+      >
+        {selectedItem && (
+          <div className="space-y-4">
+            {/* 动态信息头 */}
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full ${typeConfig[selectedItem.type]?.bg || 'bg-warm-sand'} flex items-center justify-center`}>
+                <span className="text-lg">{selectedItem.agentAvatar}</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-near-black">{selectedItem.agentName}</p>
+                <p className="text-xs text-stone-gray">{selectedItem.time}</p>
+              </div>
+            </div>
+
+            {/* 标题 */}
+            <div className="p-3 rounded-xl bg-parchment/60 border border-border-cream">
+              <h3 className="text-sm font-medium text-near-black">{selectedItem.title}</h3>
+              {selectedItem.detail && (
+                <p className="text-xs text-olive-gray mt-2 leading-relaxed">{selectedItem.detail}</p>
+              )}
+            </div>
+
+            {/* 根据 actionType 展示不同内容 */}
+            {selectedItem.actionType === 'view' && (
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={handleCloseModal}
+                  className="btn-sand !text-xs !px-4 !py-2"
+                >
+                  关闭
+                </button>
+              </div>
+            )}
+
+            {selectedItem.actionType === 'approve' && (
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={handleReject}
+                  className="flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-lg border border-border-cream text-stone-gray hover:bg-warm-sand/50 transition-colors"
+                >
+                  <ThumbsDown size={13} />
+                  拒绝
+                </button>
+                <button
+                  onClick={handleApprove}
+                  className="btn-terracotta !text-xs !px-4 !py-2 flex items-center gap-1.5"
+                >
+                  <ThumbsUp size={13} />
+                  确认通过
+                </button>
+              </div>
+            )}
+
+            {selectedItem.actionType === 'reply' && (
+              <div className="space-y-3 pt-1">
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="输入你的回复..."
+                  rows={3}
+                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-border-cream bg-parchment/40 text-near-black placeholder-warm-silver focus:outline-none focus:ring-2 focus:ring-terracotta/20 focus:border-terracotta/40 resize-none transition-all"
+                />
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleSendReply}
+                    className="btn-terracotta !text-xs !px-4 !py-2 flex items-center gap-1.5"
+                  >
+                    <Send size={13} />
+                    发送回复
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedItem.actionType === 'dismiss' && (
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={handleDismiss}
+                  className="btn-terracotta !text-xs !px-4 !py-2"
+                >
+                  已知悉，关闭
+                </button>
+              </div>
+            )}
+
+            {/* 没有 actionType 的情况，显示关闭按钮 */}
+            {!selectedItem.actionType && (
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={handleCloseModal}
+                  className="btn-sand !text-xs !px-4 !py-2"
+                >
+                  关闭
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
 
 // ── 单条动态卡片 ──────────────────────────────────
-function ActivityCard({ item, index }: { item: ActivityItem; index: number }) {
+function ActivityCard({ item, index, onAction }: { item: ActivityItem; index: number; onAction: (item: ActivityItem) => void }) {
   const config = typeConfig[item.type] || typeConfig.task_done;
   const Icon = config.icon;
   const barColor = priorityBar[item.priority || 'normal'];
@@ -166,6 +350,7 @@ function ActivityCard({ item, index }: { item: ActivityItem; index: number }) {
       {/* 操作按钮 */}
       {item.actionLabel && (
         <button
+          onClick={() => onAction(item)}
           className={`shrink-0 self-center text-xs font-medium px-3 py-1.5 rounded-lg transition-all
             ${item.actionType === 'approve'
               ? 'btn-terracotta !text-[11px] !px-3 !py-1.5'

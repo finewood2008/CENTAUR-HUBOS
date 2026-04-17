@@ -9,6 +9,7 @@ import Finance from './components/finance/Finance';
 import Channels from './components/channels/Channels';
 import Knowledge from './components/knowledge/Knowledge';
 import Settings from './components/settings/Settings';
+import { ToastProvider } from './components/shared/Toast';
 import { useConnection, useDashboardData, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
 
 export default function App() {
@@ -21,44 +22,46 @@ export default function App() {
   const { data: knowledgeData, loading: knowledgeLoading, refresh: refreshKnowledge } = useKnowledgeData(connected);
 
   return (
-    <div className="h-screen w-screen bg-parchment text-near-black flex overflow-hidden">
-      <Sidebar active={tab} onNav={setTab} />
-      <main className="flex-1 flex flex-col overflow-hidden bg-grid">
-        {/* 连接状态指示 */}
-        {!checking && (
-          <div className={`px-4 py-1 text-[10px] flex items-center gap-1.5 border-b border-border-cream ${connected ? 'text-success-green' : 'text-yellow-600'}`}>
-            <span className={`status-dot ${connected ? 'status-dot-active' : 'bg-yellow-500'}`} />
-            {connected ? 'SDK 已连接 · 控制面在线' : 'SDK 离线 · 使用演示数据'}
-          </div>
-        )}
+    <ToastProvider>
+      <div className="h-screen w-screen bg-parchment text-near-black flex overflow-hidden">
+        <Sidebar active={tab} onNav={setTab} />
+        <main className="flex-1 flex flex-col overflow-hidden bg-grid">
+          {/* 连接状态指示 */}
+          {!checking && (
+            <div className={`px-4 py-1 text-[10px] flex items-center gap-1.5 border-b border-border-cream ${connected ? 'text-success-green' : 'text-yellow-600'}`}>
+              <span className={`status-dot ${connected ? 'status-dot-active' : 'bg-yellow-500'}`} />
+              {connected ? 'SDK 已连接 · 控制面在线' : 'SDK 离线 · 使用演示数据'}
+            </div>
+          )}
 
-        {tab === 'dashboard' && (
-          <Dashboard
-            agents={dashData.agents}
-            activities={dashData.activities}
-          />
-        )}
-        {tab === 'team' && <Team />}
-        {tab === 'finance' && <Finance />}
-        {tab === 'channels' && (
-          <Channels
-            agents={dashData.agents}
-            channelsData={channelsData}
-            channelsLoading={channelsLoading}
-            onRefresh={refreshChannels}
-          />
-        )}
-        {tab === 'knowledge' && (
-          <Knowledge
-            knowledgeData={knowledgeData}
-            knowledgeLoading={knowledgeLoading}
-            onRefresh={refreshKnowledge}
-          />
-        )}
-        {tab === 'settings' && (
-          <Settings isConnected={connected} />
-        )}
-      </main>
-    </div>
+          {tab === 'dashboard' && (
+            <Dashboard
+              agents={dashData.agents}
+              activities={dashData.activities}
+            />
+          )}
+          {tab === 'team' && <Team />}
+          {tab === 'finance' && <Finance />}
+          {tab === 'channels' && (
+            <Channels
+              agents={dashData.agents}
+              channelsData={channelsData}
+              channelsLoading={channelsLoading}
+              onRefresh={refreshChannels}
+            />
+          )}
+          {tab === 'knowledge' && (
+            <Knowledge
+              knowledgeData={knowledgeData}
+              knowledgeLoading={knowledgeLoading}
+              onRefresh={refreshKnowledge}
+            />
+          )}
+          {tab === 'settings' && (
+            <Settings isConnected={connected} />
+          )}
+        </main>
+      </div>
+    </ToastProvider>
   );
 }
