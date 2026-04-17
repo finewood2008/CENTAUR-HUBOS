@@ -1,7 +1,9 @@
 // Hub OS - 知识库（接入 SDK knowledge API）
 import { Database, FolderOpen, FileText, Upload, Search, Plus, HardDrive, RefreshCw, User, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useState } from 'react';
 import type { KnowledgeData } from '../../hooks/useQeeClaw';
+import FileUpload from './upload/FileUpload';
 
 // 知识库图标映射（按关键词匹配）
 function getKbIcon(name: string): string {
@@ -46,6 +48,9 @@ interface KnowledgeProps {
 export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }: KnowledgeProps) {
   const { bases, stats } = knowledgeData;
   const hasData = bases.length > 0;
+  
+  const [uploadKbId, setUploadKbId] = useState<string | null>(null);
+  const uploadKbName = uploadKbId ? bases.find(b => b.id === uploadKbId)?.name || '未知知识库' : '';
 
   // 计算统计（如果 API stats 没有就从 bases 汇总）
   const totalBases = stats?.total_bases ?? bases.length;
@@ -167,7 +172,14 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
                     更新于 {formatTime(kb.updated_time)}
                   </div>
                 </div>
-                <Upload size={14} className="shrink-0 transition-colors text-stone-gray" />
+                <Upload 
+                  size={14} 
+                  className="shrink-0 transition-colors text-stone-gray hover:text-terracotta" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setUploadKbId(kb.id);
+                  }}
+                />
               </motion.div>
             ))}
           </div>
@@ -191,6 +203,14 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, onRefresh }
           <span>配额 50 GB</span>
         </div>
       </div>
+
+      {/* 弹窗区域 */}
+      {uploadKbId && (
+        <FileUpload 
+          kbName={uploadKbName} 
+          onClose={() => setUploadKbId(null)} 
+        />
+      )}
     </div>
   );
 }
