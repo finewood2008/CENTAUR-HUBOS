@@ -2,7 +2,28 @@
 
 // ── 数字员工核心类型 ──────────────────────────────
 
-export type DigitalEmployeeId = 'spark' | 'xiaoke' | 'shuxi' | 'shuibao' | 'lvan';
+export type DigitalEmployeeId = 'spark' | 'xiaoke' | 'shuxi' | 'shuibao' | 'lvan' | (string & {});
+
+// ── 员工创建器中间状态 ──────────────────────────────
+export interface EmployeeSpec {
+  name?: string;
+  englishName?: string;
+  role?: string;
+  tagline?: string;
+  introduction?: string;
+  avatar?: string;
+  color?: string;
+  accentColor?: string;
+  model?: string;
+  capabilities?: string[];
+  skills?: { name: string; description: string }[];
+  tools?: { name: string; category: string; description: string }[];
+  memorylayers?: string[];
+  workspaceType?: 'three-panel' | 'dashboard' | 'chat' | 'document';
+  workspaceLabel?: string;
+  personality?: string;
+  confirmed?: boolean;
+}
 
 export type ActivationStatus = 'inactive' | 'activating' | 'active';
 

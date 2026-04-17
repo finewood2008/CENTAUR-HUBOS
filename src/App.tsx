@@ -5,6 +5,7 @@ import type { NavTab } from './types';
 import Sidebar from './components/layout/Sidebar';
 import Dashboard from './components/dashboard/Dashboard';
 import Team from './components/team/Team';
+import EmployeeBuilder from './components/team/EmployeeBuilder';
 import Finance from './components/finance/Finance';
 import Channels from './components/channels/Channels';
 import Knowledge from './components/knowledge/Knowledge';
@@ -15,6 +16,7 @@ import { useConnection, useDashboardData, useChannelsData, useKnowledgeData } fr
 
 export default function App() {
   const [tab, setTab] = useState<NavTab>('dashboard');
+  const [building, setBuilding] = useState(false);
   const { connected, checking } = useConnection();
 
   // 读取背景样式设置
@@ -73,7 +75,21 @@ export default function App() {
               activities={dashData.activities}
             />
           )}
-          {tab === 'team' && <Team />}
+          {tab === 'team' && !building && <Team onStartBuilder={() => setBuilding(true)} />}
+          {tab === 'team' && building && (
+            <EmployeeBuilder
+              onBack={() => setBuilding(false)}
+              onComplete={(employee) => {
+                try {
+                  const raw = localStorage.getItem('hubos_custom_employees');
+                  const list = raw ? JSON.parse(raw) : [];
+                  list.push(employee);
+                  localStorage.setItem('hubos_custom_employees', JSON.stringify(list));
+                } catch { /* ignore */ }
+                setBuilding(false);
+              }}
+            />
+          )}
           {tab === 'finance' && <Finance />}
           {tab === 'channels' && (
             <Channels

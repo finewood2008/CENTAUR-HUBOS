@@ -1,10 +1,10 @@
 // Team 数字团队 — 员工卡片 + 详情面板 + 激活入口
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
   Users, Sparkles, ArrowLeft, ChevronRight, Zap, Brain,
   Shield, Wrench, BarChart3, Clock, Star, Play, Lock,
-  Cpu, Layers, MessageSquare, BookOpen,
+  Cpu, Layers, MessageSquare, BookOpen, Plus,
 } from 'lucide-react';
 import type { DigitalEmployee, ActivationStatus } from '../../types';
 import { DIGITAL_EMPLOYEES } from '../../data/digital-employees';
@@ -306,10 +306,25 @@ function DetailPanel({ emp, onBack }: { emp: DigitalEmployee; onBack: () => void
   );
 }
 
+// ── helper: load custom employees from localStorage ──
+function loadCustomEmployees(): DigitalEmployee[] {
+  try {
+    const raw = localStorage.getItem('hubos_custom_employees');
+    if (raw) return JSON.parse(raw) as DigitalEmployee[];
+  } catch { /* ignore */ }
+  return [];
+}
+
 // ── main: Team ──
-export default function Team() {
+export default function Team({ onStartBuilder }: { onStartBuilder?: () => void }) {
   const [selectedEmployee, setSelectedEmployee] = useState<DigitalEmployee | null>(null);
-  const activeCount = DIGITAL_EMPLOYEES.filter((e) => e.status === 'active').length;
+
+  const allEmployees = useMemo(() => {
+    const custom = loadCustomEmployees();
+    return [...DIGITAL_EMPLOYEES, ...custom];
+  }, []);
+
+  const activeCount = allEmployees.filter((e) => e.status === 'active').length;
 
   return (
     <div className="flex-1 overflow-y-auto bg-parchment">
@@ -342,7 +357,7 @@ export default function Team() {
                   <div>
                     <h1 className="font-serif text-2xl text-near-black tracking-tight">数字团队</h1>
                     <p className="text-sm text-stone-gray mt-0.5">
-                      {activeCount} 名员工在岗 · 共 {DIGITAL_EMPLOYEES.length} 名团队成员
+                      {activeCount} 名员工在岗 · 共 {allEmployees.length} 名团队成员
                     </p>
                   </div>
                 </div>
@@ -352,7 +367,7 @@ export default function Team() {
             {/* Grid */}
             <div className="px-8 pb-8 mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {DIGITAL_EMPLOYEES.map((emp, i) => (
+                {allEmployees.map((emp, i) => (
                   <EmployeeCard
                     key={emp.id}
                     emp={emp}
@@ -360,6 +375,28 @@ export default function Team() {
                     onClick={() => setSelectedEmployee(emp)}
                   />
                 ))}
+
+                {/* Create custom employee card */}
+                <motion.div
+                  className="card-glass-warm p-5 cursor-pointer hover:shadow-md transition-all group"
+                  style={{ border: '2px dashed rgba(180, 130, 100, 0.3)' }}
+                  variants={fadeUp}
+                  initial="hidden"
+                  animate="visible"
+                  custom={allEmployees.length}
+                  whileHover={{ y: -2, borderColor: 'rgba(180, 130, 100, 0.6)' }}
+                  onClick={onStartBuilder}
+                >
+                  <div className="flex flex-col items-center justify-center h-full min-h-[180px] gap-3">
+                    <div className="w-14 h-14 rounded-xl bg-terracotta/8 flex items-center justify-center group-hover:bg-terracotta/15 transition-colors">
+                      <Plus size={28} className="text-terracotta" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-serif text-near-black font-semibold text-base">定制员工</p>
+                      <p className="text-xs text-stone-gray mt-1">通过对话创建专属数字员工</p>
+                    </div>
+                  </div>
+                </motion.div>
               </div>
             </div>
           </motion.div>
