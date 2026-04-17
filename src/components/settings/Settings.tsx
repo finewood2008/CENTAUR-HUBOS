@@ -27,35 +27,14 @@ interface SettingsProps {
   isConnected: boolean;
 }
 
-// ─── 支持的平台 ──────────────────────────────────
+// ─── 支持的平台（仅 QeeClaw 官方）───────────────────
 const API_KEY_CONFIGS: Omit<ApiKeyConfig, 'apiKey'>[] = [
   {
-    provider: 'anthropic',
-    label: 'Anthropic (Claude)',
-    helpUrl: 'https://console.anthropic.com/settings/keys',
-    placeholder: 'sk-ant-...',
-    icon: '🟤',
-  },
-  {
-    provider: 'openai',
-    label: 'OpenAI (GPT)',
-    helpUrl: 'https://platform.openai.com/api-keys',
-    placeholder: 'sk-...',
-    icon: '🟢',
-  },
-  {
-    provider: 'google',
-    label: 'Google AI (Gemini)',
-    helpUrl: 'https://aistudio.google.com/apikey',
-    placeholder: 'AIza...',
-    icon: '🔵',
-  },
-  {
-    provider: 'deepseek',
-    label: 'DeepSeek',
-    helpUrl: 'https://platform.deepseek.com/api_keys',
-    placeholder: 'sk-...',
-    icon: '🐋',
+    provider: 'qeeclaw',
+    label: 'QeeClaw AI',
+    helpUrl: 'https://qeeclaw.com/console/keys',
+    placeholder: 'qc-...',
+    icon: '🐾',
   },
 ];
 
@@ -121,7 +100,7 @@ export default function Settings({ isConnected }: SettingsProps) {
             设置
           </h2>
           <p className="text-xs text-stone-gray mt-0.5">
-            API 密钥与偏好设置
+            连接 QeeClaw 与偏好设置
           </p>
         </div>
 
@@ -129,9 +108,9 @@ export default function Settings({ isConnected }: SettingsProps) {
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Key size={16} className="text-terracotta" />
-            <h3 className="text-sm font-medium text-near-black">API 密钥</h3>
+            <h3 className="text-sm font-medium text-near-black">AI 引擎连接</h3>
             <span className="text-[10px] text-stone-gray ml-auto">
-              {configuredCount} / {API_KEY_CONFIGS.length} 已配置
+              {configuredCount > 0 ? '已连接' : '未连接'}
             </span>
           </div>
 

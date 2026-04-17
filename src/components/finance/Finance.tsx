@@ -95,7 +95,7 @@ export default function Finance() {
             <p className="text-2xl font-serif text-success-green font-semibold">
               ¥{formatCurrency(data.totalBalance)}
             </p>
-            <p className="text-xs text-olive-gray mt-1">Anthropic API 账户</p>
+            <p className="text-xs text-olive-gray mt-1">QeeClaw AI 账户</p>
           </motion.div>
 
           {/* 本月消费 */}

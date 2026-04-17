@@ -287,7 +287,7 @@ export const FINANCE_DATA: FinanceOverview = {
     {
       id: 'key-1',
       name: '主生产密钥',
-      key: 'sk-ant-****7x2K',
+      key: 'qc-****7x2K',
       employeeId: 'all',
       createdAt: '2026-03-15',
       lastUsed: '2026-04-17 05:30',
@@ -298,7 +298,7 @@ export const FINANCE_DATA: FinanceOverview = {
     {
       id: 'key-2',
       name: 'Spark 专用',
-      key: 'sk-ant-****pQ9m',
+      key: 'qc-****pQ9m',
       employeeId: 'spark',
       createdAt: '2026-03-20',
       lastUsed: '2026-04-17 04:15',
@@ -309,7 +309,7 @@ export const FINANCE_DATA: FinanceOverview = {
     {
       id: 'key-3',
       name: '测试密钥',
-      key: 'sk-ant-****tEsT',
+      key: 'qc-****tEsT',
       employeeId: 'all',
       createdAt: '2026-04-01',
       lastUsed: '2026-04-10 11:00',
