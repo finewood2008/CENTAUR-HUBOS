@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { NavTab } from './types';
 import Sidebar from './components/layout/Sidebar';
-import Dashboard from './components/dashboard/Dashboard';
+import DashboardGrid from './components/dashboard/DashboardGrid';
 import Team from './components/team/Team';
 import EmployeeBuilder from './components/team/EmployeeBuilder';
 import Finance from './components/finance/Finance';
@@ -70,10 +70,7 @@ export default function App() {
           )}
 
           {tab === 'dashboard' && (
-            <Dashboard
-              agents={dashData.agents}
-              activities={dashData.activities}
-            />
+            <DashboardGrid />
           )}
           {tab === 'team' && !building && <Team onStartBuilder={() => setBuilding(true)} />}
           {tab === 'team' && building && (
