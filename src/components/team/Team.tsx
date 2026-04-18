@@ -12,7 +12,7 @@ import { DIGITAL_EMPLOYEES } from '../../data/digital-employees';
 import { useAgentManagement } from '../../hooks/useQeeClaw';
 import { getAgentModule } from '../../services/qeeclaw';
 import { useToast } from '../shared/Toast';
-import EmployeeBuilder from './EmployeeBuilder';
+import EmployeeBuilderV2 from '../builder';
 
 interface TeamProps {
   isConnected: boolean;
@@ -404,7 +404,7 @@ export default function Team({ isConnected }: TeamProps) {
     <div className="flex-1 overflow-y-auto bg-parchment">
       <AnimatePresence mode="wait">
         {showBuilder ? (
-          <EmployeeBuilder
+          <EmployeeBuilderV2
             key="builder"
             onBack={() => setShowBuilder(false)}
             onComplete={handleAddEmployee}
