@@ -5,7 +5,7 @@ import type { NavTab } from './types';
 import Sidebar from './components/layout/Sidebar';
 import Cockpit from './components/cockpit';
 import Team from './components/team/Team';
-import EmployeeBuilder from './components/team/EmployeeBuilder';
+import EmployeeBuilderV2 from './components/builder';
 import Finance from './components/finance/Finance';
 import Channels from './components/channels/Channels';
 import Knowledge from './components/knowledge/Knowledge';
@@ -74,13 +74,13 @@ export default function App() {
           )}
           {tab === 'team' && !building && <Team isConnected={connected} />}
           {tab === 'team' && building && (
-            <EmployeeBuilder
+            <EmployeeBuilderV2
               onBack={() => setBuilding(false)}
-              onComplete={(employee) => {
+              onComplete={(spec) => {
                 try {
                   const raw = localStorage.getItem('hubos_custom_employees');
                   const list = raw ? JSON.parse(raw) : [];
-                  list.push(employee);
+                  list.push(spec);
                   localStorage.setItem('hubos_custom_employees', JSON.stringify(list));
                 } catch { /* ignore */ }
                 setBuilding(false);
