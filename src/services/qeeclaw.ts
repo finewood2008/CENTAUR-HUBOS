@@ -44,7 +44,8 @@ async function tryLoadRealSDK(): Promise<boolean> {
   _loadAttempted = true;
   try {
     // 只在 node_modules 有真实 SDK 时才成功 (dev 环境)
-    const mod = await import('@qeeclaw/core-sdk');
+    // @ts-ignore - dynamic import may fail at build time
+    const mod = await (Function('return import("@qeeclaw/core-sdk")')());
     _realCreateClient = mod.createQeeClawClient;
     return true;
   } catch {
