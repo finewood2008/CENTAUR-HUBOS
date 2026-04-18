@@ -12,16 +12,6 @@ export default defineConfig({
     tailwindcss(),
     apiMockPlugin(),
   ],
-  build: {
-    rollupOptions: {
-      external: ['@qeeclaw/core-sdk'],
-      output: {
-        globals: {
-          '@qeeclaw/core-sdk': 'QeeClawCoreSDK',
-        },
-      },
-    },
-  },
   server: {
     proxy: {
       // /api/* 由 apiMockPlugin 处理（rewrite或mock）
