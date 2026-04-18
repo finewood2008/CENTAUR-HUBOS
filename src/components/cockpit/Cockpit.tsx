@@ -1,7 +1,9 @@
-import { AlertTriangle, ClipboardCheck, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, ClipboardCheck, TrendingUp, RefreshCw } from 'lucide-react';
 import FeedStream from './FeedStream';
-import { TeamOverviewWidget, PendingTasksWidget } from './WidgetsLeft';
-import { FinanceSnapshotWidget } from './WidgetsRight';
+import { TeamOverviewWidget, PendingTasksWidget, QuickActionsWidget } from './WidgetsLeft';
+import { FinanceSnapshotWidget, ChannelStatusWidget, KnowledgeRecentWidget } from './WidgetsRight';
+import { useToast } from '../shared/Toast';
 import type { NavTab } from '../../types';
 import {
   useConnection,
@@ -9,6 +11,8 @@ import {
   useAgentManagement,
   useApprovalData,
   useFinanceData,
+  useChannelsData,
+  useKnowledgeData,
 } from '../../hooks/useQeeClaw';
 
 interface CockpitProps {
@@ -18,10 +22,16 @@ interface CockpitProps {
 export default function Cockpit({ onNav }: CockpitProps) {
   // SDK hooks
   const { connected } = useConnection();
-  const { data: dashData } = useEnhancedDashboardData(connected);
+  const { data: dashData, refresh: refreshDash } = useEnhancedDashboardData(connected);
   const { data: agentData, loading: agentLoading } = useAgentManagement(connected);
-  const { approvals, loading: approvalLoading } = useApprovalData(connected);
+  const { approvals, loading: approvalLoading, refresh: refreshApprovals } = useApprovalData(connected);
   const { data: financeData, loading: financeLoading } = useFinanceData(connected);
+  const { data: channelsData, loading: channelsLoading } = useChannelsData(connected);
+  const { data: knowledgeData, loading: knowledgeLoading } = useKnowledgeData(connected);
+
+  // Toast
+  const { toast } = useToast();
+  const [refreshing, setRefreshing] = useState(false);
 
   // 摘要指标
   const pendingApprovalCount = connected && approvals.length > 0
@@ -31,6 +41,29 @@ export default function Cockpit({ onNav }: CockpitProps) {
   const todaySpent = financeData.wallet
     ? financeData.wallet.currentMonthSpent ?? 0
     : 42.3;
+
+  // 全局刷新
+  const handleRefreshAll = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refreshDash(), refreshApprovals()]);
+      toast('success', '数据已刷新');
+    } catch {
+      toast('error', '刷新失败');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // 审批操作回调
+  const handleApprovalAction = (id: string | number, action: 'approved' | 'rejected') => {
+    const label = action === 'approved' ? '已通过' : '已驳回';
+    toast(action === 'approved' ? 'success' : 'info', `审批项 ${id} ${label}`);
+    // SDK 连接时尝试调用后端
+    if (connected) {
+      refreshApprovals();
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -57,6 +90,14 @@ export default function Cockpit({ onNav }: CockpitProps) {
             </span>
           </div>
         </div>
+        <button
+          onClick={handleRefreshAll}
+          disabled={refreshing}
+          className="flex items-center gap-1.5 text-[12px] text-stone-gray hover:text-terracotta transition-colors disabled:opacity-50"
+        >
+          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+          刷新
+        </button>
       </div>
 
       {/* Two-column layout: left widgets + right feed */}
@@ -64,13 +105,16 @@ export default function Cockpit({ onNav }: CockpitProps) {
         {/* Left sidebar — widgets */}
         <aside className="w-[280px] shrink-0 overflow-y-auto p-3 space-y-3 border-r border-border-cream/60 custom-scrollbar max-lg:w-[240px] max-md:hidden">
           <TeamOverviewWidget agents={agentData.agents} loading={agentLoading} isConnected={connected} onNav={onNav} />
-          <PendingTasksWidget approvals={approvals} loading={approvalLoading} isConnected={connected} activities={dashData.activities} onNav={onNav} />
+          <PendingTasksWidget approvals={approvals} loading={approvalLoading} isConnected={connected} activities={dashData.activities} onNav={onNav} onAction={handleApprovalAction} />
           <FinanceSnapshotWidget data={financeData} loading={financeLoading} isConnected={connected} onNav={onNav} />
+          <ChannelStatusWidget data={channelsData} loading={channelsLoading} isConnected={connected} onNav={onNav} />
+          <KnowledgeRecentWidget data={knowledgeData} loading={knowledgeLoading} isConnected={connected} onNav={onNav} />
+          <QuickActionsWidget onNav={onNav} />
         </aside>
 
         {/* Main feed */}
         <main className="flex-1 min-w-0 overflow-hidden">
-          <FeedStream activities={dashData.activities} alerts={dashData.alerts} isConnected={connected} />
+          <FeedStream activities={dashData.activities} alerts={dashData.alerts} isConnected={connected} onNav={onNav} />
         </main>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { MOCK_FEED } from './cockpitData';
 import type { FeedItem } from './cockpitData';
-import type { ActivityItem, Alert } from '../../types';
+import type { ActivityItem, Alert, NavTab } from '../../types';
 import {
   CheckCircle, AlertTriangle, FileText, Lightbulb,
   ClipboardCheck, ChevronDown, ChevronUp, Filter,
@@ -68,15 +68,40 @@ function timeAgo(ts: string): string {
   return `${Math.floor(hrs / 24)} 天前`;
 }
 
-function FeedCard({ item }: { item: FeedItem }) {
+function FeedCard({ item, onNav }: { item: FeedItem; onNav?: (tab: NavTab) => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [handled, setHandled] = useState<'approved' | 'rejected' | null>(null);
   const style = TYPE_STYLE[item.type];
   const Icon = style.icon;
 
   // 未读 + 可操作 = 脉冲呼吸
-  const pulse = !item.read && item.actionable ? 'feed-pulse' : '';
+  const pulse = !item.read && item.actionable && !handled ? 'feed-pulse' : '';
   // 已读项整体降透明度
-  const readFade = item.read ? 'opacity-65 hover:opacity-90' : '';
+  const readFade = item.read || handled ? 'opacity-65 hover:opacity-90' : '';
+
+  // 操作按钮映射
+  const actionMap: Record<string, { label: string; tab?: NavTab; handler?: () => void }[]> = {
+    approval: [
+      { label: '通过', handler: () => setHandled('approved') },
+      { label: '驳回', handler: () => setHandled('rejected') },
+      { label: '查看详情', tab: 'team' },
+    ],
+    alert: [
+      { label: '立即处理', tab: 'team' },
+      { label: '查看', tab: 'team' },
+    ],
+    insight: [
+      { label: '查看报告', tab: 'finance' },
+    ],
+    task_done: [
+      { label: '查看', tab: 'team' },
+    ],
+    report: [
+      { label: '查看报告', tab: 'finance' },
+    ],
+  };
+
+  const actions = handled ? [] : (actionMap[item.type] || []);
 
   return (
     <div className={`${style.cardClass} p-0 transition-all relative ${pulse} ${readFade}`}>
@@ -129,18 +154,42 @@ function FeedCard({ item }: { item: FeedItem }) {
           </div>
         </div>
 
-        {/* Action button */}
-        {item.actionable && (
+        {/* Handled status */}
+        {handled && (
           <div className="mt-3 pt-3 border-t border-border-cream flex justify-end">
-            <button className="btn-terracotta text-[12px] py-1.5 px-3">
-              {item.actionLabel || '处理'}
-            </button>
+            <span className={`text-[12px] font-medium ${handled === 'approved' ? 'text-success-green' : 'text-terracotta'}`}>
+              {handled === 'approved' ? '✅ 已通过' : '❌ 已驳回'}
+            </span>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        {!handled && item.actionable && actions.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-border-cream flex justify-end gap-2">
+            {actions.map((act, i) => {
+              const isPrimary = i === 0;
+              return (
+                <button
+                  key={act.label}
+                  className={isPrimary
+                    ? 'btn-terracotta text-[12px] py-1.5 px-3'
+                    : 'text-[12px] py-1.5 px-3 rounded-lg border border-border-cream text-stone-gray hover:text-near-black hover:border-near-black/20 transition-colors'
+                  }
+                  onClick={() => {
+                    if (act.handler) act.handler();
+                    if (act.tab && onNav) onNav(act.tab);
+                  }}
+                >
+                  {act.label}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
       {/* Unread dot */}
-      {!item.read && (
+      {!item.read && !handled && (
         <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-terracotta" />
       )}
     </div>
@@ -200,9 +249,10 @@ interface FeedStreamProps {
   activities?: ActivityItem[];
   alerts?: Alert[];
   isConnected?: boolean;
+  onNav?: (tab: NavTab) => void;
 }
 
-export default function FeedStream({ activities, alerts, isConnected }: FeedStreamProps) {
+export default function FeedStream({ activities, alerts, isConnected, onNav }: FeedStreamProps) {
   const [filter, setFilter] = useState<FilterType>('all');
   const [agentFilter, setAgentFilter] = useState<string>('all');
 
@@ -316,7 +366,7 @@ export default function FeedStream({ activities, alerts, isConnected }: FeedStre
             暂无匹配的消息
           </div>
         ) : (
-          filtered.map(item => <FeedCard key={item.id} item={item} />)
+          filtered.map(item => <FeedCard key={item.id} item={item} onNav={onNav} />)
         )}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { Wallet, Radio, Database, TrendingDown, CheckCircle, XCircle } from 'lucide-react';
+import { Wallet, Radio, Database, TrendingDown, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import type { FinanceData, ChannelsData, ChannelItem, KnowledgeData } from '../../hooks/useQeeClaw';
 import type { NavTab } from '../../types';
 
@@ -94,9 +94,10 @@ interface ChannelStatusProps {
   data?: ChannelsData;
   loading?: boolean;
   isConnected?: boolean;
+  onNav?: (tab: NavTab) => void;
 }
 
-export function ChannelStatusWidget({ data, loading, isConnected }: ChannelStatusProps) {
+export function ChannelStatusWidget({ data, loading, isConnected, onNav }: ChannelStatusProps) {
   if (loading) {
     return (
       <div className="card-glass p-4">
@@ -126,9 +127,10 @@ export function ChannelStatusWidget({ data, loading, isConnected }: ChannelStatu
   }
 
   const onlineCount = channels.filter(c => c.status === 'online').length;
+  const offlineChannels = channels.filter(c => c.status === 'offline');
 
   return (
-    <div className="card-glass p-4">
+    <div className="card-glass p-4 cursor-pointer hover:ring-1 hover:ring-terracotta/30 transition-all" onClick={() => onNav?.('channels')}>
       <div className="flex items-center gap-2 mb-3">
         <Radio size={15} className="text-terracotta" />
         <h3 className="text-[13px] font-semibold text-near-black">通讯状态</h3>
@@ -136,17 +138,32 @@ export function ChannelStatusWidget({ data, loading, isConnected }: ChannelStatu
           {onlineCount}/{channels.length} 在线
         </span>
       </div>
+
+      {/* 离线通道警告 */}
+      {offlineChannels.length > 0 && (
+        <div className="mb-2 px-2 py-1.5 bg-red-50 border border-red-200/60 rounded-lg flex items-center gap-1.5">
+          <AlertTriangle size={12} className="text-red-500 shrink-0" />
+          <span className="text-[11px] text-red-600">
+            {offlineChannels.map(c => c.name).join('、')} 离线
+          </span>
+        </div>
+      )}
+
       {/* 紧凑横排 icon+状态点 */}
       <div className="flex flex-wrap gap-2">
         {channels.map(c => (
           <div
             key={c.name}
-            className="flex items-center gap-1.5 py-1 px-2 rounded-lg bg-parchment text-[11px] text-charcoal-warm"
+            className={`flex items-center gap-1.5 py-1 px-2 rounded-lg text-[11px] transition-colors ${
+              c.status === 'offline'
+                ? 'bg-red-50 text-red-600 border border-red-200/40'
+                : 'bg-parchment text-charcoal-warm'
+            }`}
             title={`${c.name}: ${c.status === 'online' ? '在线' : '离线'}`}
           >
             {c.status === 'online'
               ? <CheckCircle size={11} className="text-success-green shrink-0" />
-              : <XCircle size={11} className="text-stone-gray shrink-0" />
+              : <XCircle size={11} className="text-red-500 shrink-0 animate-pulse" />
             }
             <span className="truncate max-w-[64px]">{c.name}</span>
           </div>
@@ -161,6 +178,7 @@ interface KnowledgeRecentProps {
   data?: KnowledgeData;
   loading?: boolean;
   isConnected?: boolean;
+  onNav?: (tab: NavTab) => void;
 }
 
 function timeAgoShort(iso: string): string {
@@ -173,7 +191,7 @@ function timeAgoShort(iso: string): string {
   return `${Math.floor(hrs / 24)}天前`;
 }
 
-export function KnowledgeRecentWidget({ data, loading, isConnected }: KnowledgeRecentProps) {
+export function KnowledgeRecentWidget({ data, loading, isConnected, onNav }: KnowledgeRecentProps) {
   if (loading) {
     return (
       <div className="card-glass p-4">
@@ -204,7 +222,7 @@ export function KnowledgeRecentWidget({ data, loading, isConnected }: KnowledgeR
   }
 
   return (
-    <div className="card-glass p-4">
+    <div className="card-glass p-4 cursor-pointer hover:ring-1 hover:ring-terracotta/30 transition-all" onClick={() => onNav?.('knowledge')}>
       <div className="flex items-center gap-2 mb-3">
         <Database size={15} className="text-terracotta" />
         <h3 className="text-[13px] font-semibold text-near-black">知识库动态</h3>
