@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.8.0] - 2026-04-18
+
+### 🏗️ Builder V2 三栏构建工作台 + 团队页精简
+
+#### 新增：EmployeeBuilder V2 — 三栏构建工作台
+- **左栏 Chat**：自然语言对话驱动构建流程，接入 Gemini 2.5 Flash 模型
+- **中栏 Canvas**：可视化三层架构画布（身份层 / 能力层 / 工作流层），节点随对话实时变色
+- **右栏 Detail**：点击画布节点展开详情编辑面板，支持逐项修改
+- **底栏层级导航**：三层切换指示器 + 整体进度条
+- 组件路径: `src/components/builder/`（EmployeeBuilderV2 / BuilderChat / BuilderCanvas / NodeDetailPanel）
+
+#### 修复：Team.tsx Builder 入口统一
+- Team.tsx 内部原引用旧版 `EmployeeBuilder`，现统一切换到 `EmployeeBuilderV2`
+- App.tsx 和 Team.tsx 两个入口均指向 V2
+
+#### 优化：团队页卡片精简
+- 移除 SDK 额外 agent 自动追加逻辑
+- 团队页现在只展示 `digital-employees.ts` 预设的 5 名核心员工（火花/小可/书熙/税宝/绿安）+ 用户通过 Builder 自建的员工
+- SDK 中的临时 agent（如 Linda/Helen/老张）不再污染团队卡片列表
+
 ## [0.7.0] - 2026-04-18
 
 ### 🚀 超级工作台 + GitHub Pages 全面上线

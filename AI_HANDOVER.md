@@ -1,7 +1,7 @@
 # AI_HANDOVER.md — Hub OS 项目交接文档
 
 > 给其他 AI 开发者（Claude Code / Codex / OpenCode 等）的项目状态说明
-> 最后更新: 2026-04-18 v0.7.0
+> 最后更新: 2026-04-18 v0.8.0
 
 ---
 
@@ -23,7 +23,8 @@ Hub OS 是半人马 AI 的数字员工操作系统前端。把大模型 Agent �
 |------|---------|------|------|
 | 超级工作台 | `components/cockpit/` | v0.7 | 三栏布局，左侧面板(团队/待办/财务/通讯/知识库) + 右侧信息流 |
 | 信息流 | `components/dashboard/` | v0.7 | 语义化 Feed 卡片，按类型/员工筛选，审批操作按钮 |
-| 数字团队 | `components/team/` | v0.6 | 5 名预设员工 + 对话式创建新员工(EmployeeBuilder) |
+| 数字团队 | `components/team/` | v0.8 | 5 名预设核心员工 + Builder V2 对话式创建，不再追加 SDK 额外 agent |
+| 员工构建工作台 | `components/builder/` | v0.8 | 三栏布局(Chat+Canvas+Detail)，Gemini AI 对话驱动，三层可视化画布 |
 | 财务中心 | `components/finance/` | v0.4 | API Key 管理 + 员工用量明细 + 月度预算 |
 | 通讯中心 | `components/channels/` | v0.3 | 渠道监控大盘（企微/飞书/Telegram/钉钉/邮件） |
 | 知识库 | `components/knowledge/` | v0.3 | 文档管理 + 统计 + 权限分配 |
@@ -62,15 +63,21 @@ src/
     │   ├── Cockpit.tsx            #   主容器（三栏布局）
     │   ├── SidePanel.tsx          #   左侧信息面板
     │   └── FeedStream.tsx         #   右侧信息流
+    ├── builder/                   # ★ v0.8 员工构建工作台
+    │   ├── index.ts               #   导出入口
+    │   ├── EmployeeBuilderV2.tsx   #   主容器（三栏 Chat+Canvas+Detail + header + footer）
+    │   ├── BuilderChat.tsx         #   左栏：对话式构建（接 Gemini）
+    │   ├── BuilderCanvas.tsx       #   中栏：三层可视化画布（身份/能力/工作流）
+    │   └── NodeDetailPanel.tsx     #   右栏：节点详情编辑面板
     ├── dashboard/Dashboard.tsx    # 信息流 Feed
-    ├── team/Team.tsx              # 数字团队
+    ├── team/Team.tsx              # 数字团队（引用 builder/）
     ├── finance/Finance.tsx        # 财务中心
     ├── channels/Channels.tsx      # 通讯中心
     ├── knowledge/Knowledge.tsx    # 知识库
     ├── settings/Settings.tsx      # 设置
     ├── chat/ChatArea.tsx          # AI 对话
-    ├── agents/                    # Agent 创建/管理
-    │   ├── EmployeeBuilder.tsx    #   对话式创建器
+    ├── agents/                    # Agent 创建/管理（旧版，保留兼容）
+    │   ├── EmployeeBuilder.tsx    #   旧版对话式创建器（已被 builder/ 取代）
     │   ├── GenerationAnimation.tsx#   生成动画
     │   └── TrialChat.tsx          #   试聊确认
     ├── layout/Sidebar.tsx         # 侧边导航栏
@@ -291,3 +298,16 @@ const { data } = useNewFeatureData(connected);
 4. **设计约束** 所有颜色使用语义化 token（`text-terracotta` 而非 `text-[#c96442]`），标题用 `font-serif`，正文用 `font-sans`。
 
 5. **前端类型** `@qeeclaw/core-sdk` 的类型（`MyAgent`, `AgentTemplate`, `WalletSummary` 等）在 `useQeeClaw.ts` 的 import 中声明。本地开发需要该包存在。如果不可用，构建会跳过类型检查（CI 中 `tsc -b` 在失败后有 fallback step 直接跑 `vite build`）。
+
+6. **Builder V2 入口有两处** — `App.tsx`（顶部导航"添加员工"按钮）和 `Team.tsx`（团队页底部"添加数字员工"卡片）都引用 `components/builder/`。修改 Builder 时需确认两个入口都正常。
+
+7. **团队页不追加 SDK 额外 agent** — `Team.tsx` 只展示 `digital-employees.ts` 中预设的 5 名核心员工 + 用户通过 Builder 自建的员工。SDK 中有但预设列表里没有的 agent 会被忽略，避免演示时出现多余卡片。
+
+---
+
+## 八、v0.8 待办 / 已知问题
+
+1. **Builder V2 Gemini 依赖** — BuilderChat 通过 CF Worker 代理调用 Gemini 2.5 Flash，需要网络可用。离线时 AI 对话不可用，但画布和手动编辑仍可操作。
+2. **旧版 EmployeeBuilder 未删除** — `components/agents/EmployeeBuilder.tsx` 仍保留，但已无入口引用。可安全删除。
+3. **Builder 演示数据** — 当前 Builder 打开时所有节点为空（status='empty'），投资人演示时需手动走完对话流程或考虑加入预填充 mock 数据。
+4. **mock.ts 中的 AGENTS** — 仍包含 Linda/Helen/老张，这些数据被 Cockpit/Dashboard 使用，与团队页的 `DIGITAL_EMPLOYEES` 是两套独立数据源。如需统一，需重构数据层。
