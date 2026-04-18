@@ -6,10 +6,16 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,14 +31,20 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build
-        continue-on-error: true # There are some TS errors, we just want to force build the dist if possible, or bypass typescript checking.
-
-      - name: Build (Ignore TS errors)
         run: npx vite build
 
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
