@@ -14,56 +14,6 @@ export interface FeedItem {
   actionLabel?: string;
 }
 
-export type WidgetType =
-  | 'team_overview'
-  | 'pending_tasks'
-  | 'quick_actions'
-  | 'finance_snapshot'
-  | 'channel_status'
-  | 'knowledge_recent';
-
-export type WidgetSize = 'S' | 'M';
-
-export interface WidgetConfig {
-  type: WidgetType;
-  label: string;
-  description: string;
-  emoji: string;
-  side: 'left' | 'right';
-  size: WidgetSize;
-  defaultEnabled: boolean;
-}
-
-// 所有可选小组件定义
-// S = 紧凑小卡 (2-3行)  M = 标准中卡 (4-6行)
-export const WIDGET_REGISTRY: WidgetConfig[] = [
-  { type: 'team_overview',    label: '团队概览',   emoji: '👥', description: '数字员工在线状态一览',     side: 'left',  size: 'M', defaultEnabled: true },
-  { type: 'pending_tasks',    label: '待办事项',   emoji: '📋', description: '需要你确认/审批的事项',     side: 'left',  size: 'M', defaultEnabled: true },
-  { type: 'quick_actions',    label: '快捷指令',   emoji: '⚡', description: '常用操作快速入口',          side: 'left',  size: 'S', defaultEnabled: true },
-  { type: 'finance_snapshot', label: '财务快照',   emoji: '💰', description: '余额、本月消耗速览',        side: 'right', size: 'M', defaultEnabled: true },
-  { type: 'channel_status',   label: '通讯状态',   emoji: '📡', description: '各渠道连接状态',            side: 'right', size: 'S', defaultEnabled: true },
-  { type: 'knowledge_recent', label: '知识库动态', emoji: '📚', description: '最近更新的文档',            side: 'right', size: 'M', defaultEnabled: true },
-];
-
-// 布局持久化结构
-export interface WidgetLayout {
-  left: WidgetType[];
-  right: WidgetType[];
-  disabled: WidgetType[];
-}
-
-export function getDefaultLayout(): WidgetLayout {
-  return {
-    left: WIDGET_REGISTRY.filter(w => w.side === 'left' && w.defaultEnabled).map(w => w.type),
-    right: WIDGET_REGISTRY.filter(w => w.side === 'right' && w.defaultEnabled).map(w => w.type),
-    disabled: [],
-  };
-}
-
-export function getWidgetConfig(type: WidgetType): WidgetConfig {
-  return WIDGET_REGISTRY.find(w => w.type === type)!;
-}
-
 // Mock 信息流数据
 const now = Date.now();
 const mins = (n: number) => new Date(now - n * 60_000).toISOString();

@@ -1,5 +1,6 @@
 import { Wallet, Radio, Database, TrendingDown, CheckCircle, XCircle } from 'lucide-react';
 import type { FinanceData, ChannelsData, ChannelItem, KnowledgeData } from '../../hooks/useQeeClaw';
+import type { NavTab } from '../../types';
 
 // ── Mock fallback ──
 const MOCK_FINANCE = { balance: 128.50, monthSpent: 42.30, budgetPercent: 33 };
@@ -22,9 +23,10 @@ interface FinanceSnapshotProps {
   data?: FinanceData;
   loading?: boolean;
   isConnected?: boolean;
+  onNav?: (tab: NavTab) => void;
 }
 
-export function FinanceSnapshotWidget({ data, loading, isConnected }: FinanceSnapshotProps) {
+export function FinanceSnapshotWidget({ data, loading, isConnected, onNav }: FinanceSnapshotProps) {
   if (loading) {
     return (
       <div className="card-glass p-4">
@@ -51,7 +53,7 @@ export function FinanceSnapshotWidget({ data, loading, isConnected }: FinanceSna
     : MOCK_FINANCE.budgetPercent;
 
   return (
-    <div className="card-glass p-4">
+    <div className="card-glass p-4 cursor-pointer hover:ring-1 hover:ring-terracotta/30 transition-all" onClick={() => onNav?.('finance')}>
       <div className="flex items-center gap-2 mb-3">
         <Wallet size={15} className="text-terracotta" />
         <h3 className="text-[13px] font-semibold text-near-black">财务快照</h3>

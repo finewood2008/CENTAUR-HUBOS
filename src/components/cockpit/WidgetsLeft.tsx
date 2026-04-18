@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Users, Clock, Zap, CheckCircle } from 'lucide-react';
 import type { Agent, ActivityItem, NavTab } from '../../types';
 
@@ -10,9 +11,9 @@ const MOCK_AGENTS = [
 ];
 
 const MOCK_TASKS = [
-  { id: 1, text: '审批：新员工张三入职', agent: '🔥', urgent: true },
-  { id: 2, text: '确认：本周内容排期表', agent: '📊', urgent: false },
-  { id: 3, text: '回复：3条客户咨询', agent: '💬', urgent: true },
+  { id: 1, text: '审批：新员工张三入职', agent: '🔥', urgent: true, detail: '入职日期：2026-04-20，岗位：前端工程师，薪资方案已按模板生成。' },
+  { id: 2, text: '确认：本周内容排期表', agent: '📊', urgent: false, detail: '包含5篇小红书文章、2条抖音视频、1篇公众号长文。' },
+  { id: 3, text: '回复：3条客户咨询', agent: '💬', urgent: true, detail: '来自微信公众号，客户询问定价和服务范围，超过2小时未回复。' },
 ];
 
 // ── 团队概览 ──
@@ -20,9 +21,10 @@ interface TeamOverviewProps {
   agents?: Agent[];
   loading?: boolean;
   isConnected?: boolean;
+  onNav?: (tab: NavTab) => void;
 }
 
-export function TeamOverviewWidget({ agents, loading, isConnected }: TeamOverviewProps) {
+export function TeamOverviewWidget({ agents, loading, isConnected, onNav }: TeamOverviewProps) {
   // SDK 数据可用时用真实数据，否则 fallback mock
   const useSDK = isConnected && agents && agents.length > 0;
 
@@ -75,7 +77,11 @@ export function TeamOverviewWidget({ agents, loading, isConnected }: TeamOvervie
       </div>
       <div className="space-y-2">
         {items.map(a => (
-          <div key={a.name} className="flex items-center gap-2.5 py-1">
+          <div
+            key={a.name}
+            className="flex items-center gap-2.5 py-1 hover:bg-parchment rounded-lg px-1 transition-colors cursor-pointer"
+            onClick={() => onNav?.('team')}
+          >
             <span className="text-base">{a.emoji}</span>
             <span className="text-[12px] text-charcoal-warm flex-1 truncate">{a.name}</span>
             <span className={`status-dot ${statusDot[a.status] || 'status-dot-idle'}`} />
@@ -95,9 +101,14 @@ interface PendingTasksProps {
   activities?: ActivityItem[];
   loading?: boolean;
   isConnected?: boolean;
+  onNav?: (tab: NavTab) => void;
 }
 
-export function PendingTasksWidget({ approvals, activities, loading, isConnected }: PendingTasksProps) {
+export function PendingTasksWidget({ approvals, activities, loading, isConnected, onNav }: PendingTasksProps) {
+  const [expandedId, setExpandedId] = useState<string | number | null>(null);
+  const [handledItems, setHandledItems] = useState<Map<string | number, 'approved' | 'rejected'>>(new Map());
+  const [notes, setNotes] = useState<Record<string | number, string>>({});
+
   // 优先用 SDK approvals，其次用 activities 中的 approval_needed，最后 mock
   const useSDK = isConnected && approvals && approvals.length > 0;
   const useActivities = !useSDK && activities && activities.filter(a => a.type === 'approval_needed').length > 0;
@@ -118,7 +129,7 @@ export function PendingTasksWidget({ approvals, activities, loading, isConnected
     );
   }
 
-  type TaskItem = { id: string | number; text: string; agent: string; urgent: boolean };
+  type TaskItem = { id: string | number; text: string; agent: string; urgent: boolean; detail?: string };
   let tasks: TaskItem[];
 
   if (useSDK) {
@@ -127,6 +138,7 @@ export function PendingTasksWidget({ approvals, activities, loading, isConnected
       text: a.title || a.summary || `审批项 ${i + 1}`,
       agent: '📋',
       urgent: a.status === 'pending' || a.priority === 'high',
+      detail: a.detail || a.description || '',
     }));
   } else if (useActivities) {
     tasks = activities!
@@ -136,35 +148,108 @@ export function PendingTasksWidget({ approvals, activities, loading, isConnected
         text: a.title,
         agent: a.agentAvatar || '📋',
         urgent: a.priority === 'urgent' || a.priority === 'high',
+        detail: '',
       }));
   } else {
     tasks = MOCK_TASKS;
   }
 
+  const handleAction = (id: string | number, action: 'approved' | 'rejected') => {
+    setHandledItems(prev => new Map(prev).set(id, action));
+    setExpandedId(null);
+  };
+
+  const toggleExpand = (id: string | number) => {
+    if (handledItems.has(id)) return;
+    setExpandedId(prev => (prev === id ? null : id));
+  };
+
   return (
     <div className="card-glass p-4">
       <div className="flex items-center gap-2 mb-3">
         <Clock size={15} className="text-terracotta" />
-        <h3 className="text-[13px] font-semibold text-near-black">待办事项</h3>
+        <h3
+          className="text-[13px] font-semibold text-near-black cursor-pointer hover:text-terracotta transition-colors"
+          onClick={() => onNav?.('team')}
+        >
+          待办事项
+        </h3>
         <span className="badge-terracotta text-[10px] px-1.5 py-0 ml-auto">{tasks.length}</span>
       </div>
       <div className="space-y-2">
-        {tasks.slice(0, 5).map(t => (
-          <div
-            key={t.id}
-            className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-parchment transition-colors cursor-pointer group"
-          >
-            <span className="text-sm">{t.agent}</span>
-            <span className={`text-[12px] flex-1 truncate ${t.urgent ? 'text-near-black font-medium' : 'text-charcoal-warm'}`}>
-              {t.text}
-            </span>
-            {t.urgent && <span className="w-1.5 h-1.5 rounded-full bg-terracotta shrink-0" />}
-            <CheckCircle
-              size={14}
-              className="text-stone-gray opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-            />
-          </div>
-        ))}
+        {tasks.slice(0, 5).map(t => {
+          const handled = handledItems.get(t.id);
+          const isExpanded = expandedId === t.id && !handled;
+
+          return (
+            <div key={t.id} className="rounded-lg transition-colors">
+              {/* Task row */}
+              <div
+                className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-parchment transition-colors cursor-pointer group"
+                onClick={() => toggleExpand(t.id)}
+              >
+                <span className="text-sm">{t.agent}</span>
+                <span className={`text-[12px] flex-1 truncate ${t.urgent ? 'text-near-black font-medium' : 'text-charcoal-warm'}`}>
+                  {t.text}
+                </span>
+                {handled ? (
+                  <span className={`text-[11px] shrink-0 ${handled === 'approved' ? 'text-success-green' : 'text-terracotta'}`}>
+                    {handled === 'approved' ? '✅ 已通过' : '❌ 已驳回'}
+                  </span>
+                ) : (
+                  <>
+                    {t.urgent && <span className="w-1.5 h-1.5 rounded-full bg-terracotta shrink-0" />}
+                    <CheckCircle
+                      size={14}
+                      className="text-stone-gray opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAction(t.id, 'approved');
+                      }}
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Expanded detail panel */}
+              {isExpanded && (
+                <div className="mx-2 mt-1 mb-2 p-3 bg-parchment rounded-lg border border-border-cream">
+                  <p className="text-[12px] text-charcoal-warm mb-2 leading-relaxed">
+                    {t.detail || '暂无详细信息'}
+                  </p>
+                  <textarea
+                    className="w-full text-[11px] text-charcoal-warm bg-white/60 border border-border-cream rounded-md p-2 mb-2 resize-none focus:outline-none focus:border-terracotta/40 placeholder:text-stone-gray"
+                    rows={2}
+                    placeholder="添加备注（可选）…"
+                    value={notes[t.id] || ''}
+                    onChange={(e) => setNotes(prev => ({ ...prev, [t.id]: e.target.value }))}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      className="text-[11px] px-3 py-1 rounded-md border border-terracotta text-terracotta hover:bg-terracotta/10 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAction(t.id, 'rejected');
+                      }}
+                    >
+                      驳回
+                    </button>
+                    <button
+                      className="text-[11px] px-3 py-1 rounded-md bg-success-green text-white hover:bg-success-green/90 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAction(t.id, 'approved');
+                      }}
+                    >
+                      通过
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
