@@ -11,7 +11,7 @@ import {
   Shield, Lock, ScrollText, DatabaseBackup,
 } from 'lucide-react';
 import { useOrg, useTheme } from '../../stores/useAppStore';
-import type { OrgInfo } from '../../stores/useAppStore';
+import type { OrgInfo, BackgroundStyle } from '../../stores/useAppStore';
 
 // ─── 类型 ────────────────────────────────────────
 interface SettingsProps {
@@ -106,7 +106,7 @@ export default function Settings({ isConnected }: SettingsProps) {
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const { org, updateOrg } = useOrg();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, bgStyle, setBgStyle } = useTheme();
 
   // 加载
   useEffect(() => {
@@ -432,52 +432,34 @@ export default function Settings({ isConnected }: SettingsProps) {
                 <Monitor size={15} className="text-stone-gray" />
                 <span className="text-sm text-olive-gray">背景样式</span>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => set('bgStyle', 'grid')}
-                  className={`relative rounded-xl border-2 p-3 transition-all ${
-                    s.bgStyle === 'grid'
-                      ? 'border-terracotta shadow-[0_0_0_1px_rgba(201,100,66,0.3)]'
-                      : 'border-border-warm hover:border-stone-gray/30'
-                  }`}
-                >
-                  {/* 网格预览 */}
-                  <div className="h-16 rounded-lg bg-[#f0efe8] mb-2 overflow-hidden"
-                    style={{
-                      backgroundImage: 'linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)',
-                      backgroundSize: '8px 8px',
-                    }}
+              <div className="grid grid-cols-4 gap-2.5">
+                {([
+                  { key: 'grid' as BackgroundStyle, label: '网格', previewCls: 'bg-parchment', previewStyle: { backgroundImage: 'linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)', backgroundSize: '8px 8px' } },
+                  { key: 'solid' as BackgroundStyle, label: '纯色', previewCls: 'bg-parchment', previewStyle: {} },
+                  { key: 'paper' as BackgroundStyle, label: '纸纹', previewCls: 'bg-parchment', previewStyle: { backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E\")" } },
+                  { key: 'gradient' as BackgroundStyle, label: '渐变', previewCls: '', previewStyle: { background: 'linear-gradient(145deg, #f5f4ed 0%, #faf9f5 40%, #ede8dc 100%)' } },
+                ]).map(({ key, label, previewCls, previewStyle }) => (
+                  <button
+                    key={key}
+                    onClick={() => setBgStyle(key)}
+                    className={`relative rounded-xl border-2 p-2.5 transition-all ${
+                      bgStyle === key
+                        ? 'border-terracotta shadow-[0_0_0_1px_rgba(201,100,66,0.3)]'
+                        : 'border-border-warm hover:border-stone-gray/30'
+                    }`}
                   >
-                    <div className="m-2 h-4 w-16 rounded bg-white/70" />
-                    <div className="mx-2 h-3 w-10 rounded bg-white/50" />
-                  </div>
-                  <span className="text-xs text-olive-gray">网格</span>
-                  {s.bgStyle === 'grid' && (
-                    <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-terracotta flex items-center justify-center">
-                      <Check size={10} className="text-white" />
-                    </span>
-                  )}
-                </button>
-                <button
-                  onClick={() => set('bgStyle', 'solid')}
-                  className={`relative rounded-xl border-2 p-3 transition-all ${
-                    s.bgStyle === 'solid'
-                      ? 'border-terracotta shadow-[0_0_0_1px_rgba(201,100,66,0.3)]'
-                      : 'border-border-warm hover:border-stone-gray/30'
-                  }`}
-                >
-                  {/* 纯色预览 */}
-                  <div className="h-16 rounded-lg bg-parchment mb-2">
-                    <div className="m-2 h-4 w-16 rounded bg-white/70" />
-                    <div className="mx-2 h-3 w-10 rounded bg-white/50" />
-                  </div>
-                  <span className="text-xs text-olive-gray">纯色</span>
-                  {s.bgStyle === 'solid' && (
-                    <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-terracotta flex items-center justify-center">
-                      <Check size={10} className="text-white" />
-                    </span>
-                  )}
-                </button>
+                    <div className={`h-12 rounded-lg mb-1.5 overflow-hidden ${previewCls}`} style={previewStyle}>
+                      <div className="m-1.5 h-3 w-10 rounded bg-white/60" />
+                      <div className="mx-1.5 h-2 w-6 rounded bg-white/40" />
+                    </div>
+                    <span className="text-[11px] text-olive-gray">{label}</span>
+                    {bgStyle === key && (
+                      <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-full bg-terracotta flex items-center justify-center">
+                        <Check size={8} className="text-white" />
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
             </div>
 

@@ -24,10 +24,12 @@ export interface OrgInfo {
 
 export type ThemeSetting = 'warm' | 'dark' | 'system';
 export type ResolvedTheme = 'warm' | 'dark';
+export type BackgroundStyle = 'grid' | 'solid' | 'paper' | 'gradient';
 
 interface Preferences {
   language: string;
   theme: ThemeSetting;
+  bgStyle: BackgroundStyle;
   notifications: boolean;
   autoSave: boolean;
 }
@@ -41,7 +43,9 @@ interface OrgContextValue {
 interface ThemeContextValue {
   theme: ThemeSetting;
   resolvedTheme: ResolvedTheme;
+  bgStyle: BackgroundStyle;
   setTheme: (theme: ThemeSetting) => void;
+  setBgStyle: (style: BackgroundStyle) => void;
 }
 
 // ─── Constants ──────────────────────────────────────
@@ -60,6 +64,7 @@ const DEFAULT_ORG: OrgInfo = {
 const DEFAULT_PREFS: Preferences = {
   language: 'zh-CN',
   theme: 'warm',
+  bgStyle: 'grid',
   notifications: true,
   autoSave: true,
 };
@@ -148,9 +153,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Persist theme into the shared preferences object
   const setTheme = useCallback((next: ThemeSetting) => {
     setThemeSettingState(next);
-    // Merge into existing preferences to avoid clobbering other fields
     const existing = loadJSON<Preferences>(STORAGE_PREFS, DEFAULT_PREFS);
     saveJSON(STORAGE_PREFS, { ...existing, theme: next });
+  }, []);
+
+  // ── Background style state ─────────────────────
+  const [bgStyle, setBgStyleState] = useState<BackgroundStyle>(() => {
+    const prefs = loadJSON<Preferences>(STORAGE_PREFS, DEFAULT_PREFS);
+    return prefs.bgStyle;
+  });
+
+  const setBgStyle = useCallback((next: BackgroundStyle) => {
+    setBgStyleState(next);
+    const existing = loadJSON<Preferences>(STORAGE_PREFS, DEFAULT_PREFS);
+    saveJSON(STORAGE_PREFS, { ...existing, bgStyle: next });
   }, []);
 
   // Resolve + apply whenever themeSetting changes
@@ -182,8 +198,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const themeValue = useMemo<ThemeContextValue>(
-    () => ({ theme: themeSetting, resolvedTheme: resolved, setTheme }),
-    [themeSetting, resolved, setTheme],
+    () => ({ theme: themeSetting, resolvedTheme: resolved, bgStyle, setTheme, setBgStyle }),
+    [themeSetting, resolved, bgStyle, setTheme, setBgStyle],
   );
 
   // ── Render ────────────────────────────────────

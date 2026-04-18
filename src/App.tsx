@@ -11,44 +11,22 @@ import Channels from './components/channels/Channels';
 import Knowledge from './components/knowledge/Knowledge';
 import Settings from './components/settings/Settings';
 import { ToastProvider } from './components/shared/Toast';
-import { AppProvider } from './stores/useAppStore';
+import { AppProvider, useTheme } from './stores/useAppStore';
 import { useConnection, useEnhancedDashboardData, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
 
-export default function App() {
+// 背景样式映射
+const BG_CLASS_MAP: Record<string, string> = {
+  grid: 'bg-grid',
+  solid: '',
+  paper: 'bg-paper',
+  gradient: 'bg-gradient',
+};
+
+function AppInner() {
   const [tab, setTab] = useState<NavTab>('dashboard');
   const [building, setBuilding] = useState(false);
   const { connected, checking } = useConnection();
-
-  // 读取背景样式设置
-  const [bgStyle, setBgStyle] = useState('grid');
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('hubos-settings');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.bgStyle) setBgStyle(parsed.bgStyle);
-      }
-    } catch { /* ignore */ }
-    // 监听 storage 变化（跨标签页）+ 自定义事件（同页面设置页保存）
-    const update = () => {
-      try {
-        const raw = localStorage.getItem('hubos-settings');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed.bgStyle) setBgStyle(parsed.bgStyle);
-        }
-      } catch { /* ignore */ }
-    };
-    const storageHandler = (e: StorageEvent) => {
-      if (e.key === 'hubos-settings') update();
-    };
-    window.addEventListener('storage', storageHandler);
-    window.addEventListener('hubos-settings-changed', update);
-    return () => {
-      window.removeEventListener('storage', storageHandler);
-      window.removeEventListener('hubos-settings-changed', update);
-    };
-  }, []);
+  const { bgStyle } = useTheme();
 
   // 数据加载
   const { data: dashData, refresh: refreshDashboard } = useEnhancedDashboardData(connected);
@@ -56,11 +34,11 @@ export default function App() {
   const { data: knowledgeData, loading: knowledgeLoading, refresh: refreshKnowledge } = useKnowledgeData(connected);
 
   return (
-    <AppProvider>
+    <>
     <ToastProvider>
       <div className="h-screen w-screen bg-parchment text-near-black flex overflow-hidden">
         <Sidebar active={tab} onNav={setTab} />
-        <main className={`flex-1 flex flex-col overflow-hidden ${bgStyle === 'grid' ? 'bg-grid' : 'bg-parchment'}`}>
+        <main className={`flex-1 flex flex-col overflow-hidden bg-parchment ${BG_CLASS_MAP[bgStyle] || ''}`}>
           {/* 连接状态指示 */}
           {!checking && (
             <div className={`px-4 py-1 text-[10px] flex items-center gap-1.5 border-b border-border-cream ${connected ? 'text-success-green' : 'text-yellow-600'}`}>
@@ -110,6 +88,15 @@ export default function App() {
         </main>
       </div>
     </ToastProvider>
+    </>
+  );
+}
+
+// 外层包裹 AppProvider，确保 useTheme 可用
+export default function App() {
+  return (
+    <AppProvider>
+      <AppInner />
     </AppProvider>
   );
 }
