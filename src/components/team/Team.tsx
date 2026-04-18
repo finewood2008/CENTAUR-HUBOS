@@ -340,35 +340,9 @@ export default function Team({ isConnected }: TeamProps) {
     return emp;
   });
 
-  // 追加 SDK 中有但 DIGITAL_EMPLOYEES 里没有的 agent
-  const knownNames = new Set(DIGITAL_EMPLOYEES.flatMap(e => [e.name.toLowerCase(), e.englishName.toLowerCase()]));
-  const extraSdkAgents: DigitalEmployee[] = sdkData.agents
-    .filter(a => !knownNames.has(a.name.toLowerCase()))
-    .map((a, i) => ({
-      id: a.id as any,
-      name: a.name,
-      englishName: a.name,
-      role: a.role || 'AI 员工',
-      tagline: '来自 SDK 的数字员工',
-      introduction: a.role || '',
-      avatar: a.avatar || '🤖',
-      color: 'from-blue-500 to-cyan-400',
-      accentColor: 'text-blue-600',
-      status: (a.status === 'running' ? 'active' : 'inactive') as ActivationStatus,
-      model: a.model || 'unknown',
-      capabilities: a.skills.length > 0 ? a.skills : ['AI 对话'],
-      skills: [],
-      tools: [],
-      harness: [],
-      modelInfo: { base: a.model || 'unknown', reasoning: '-', context: '-', specialization: '-' },
-      memorySystem: { description: '', layers: [] },
-      workspace: { type: 'chat' as const, label: '对话工作台', description: '' },
-      onboardingPreferences: [],
-      trainingDataSources: [],
-      stats: { monthlyTasks: 0, hoursSaved: 0, satisfaction: 0 },
-    }));
-
-  const allEmployees = [...employees, ...extraSdkAgents, ...customEmployees];
+  // 团队只展示 DIGITAL_EMPLOYEES 预设的核心员工 + 用户自建的员工
+  // SDK 额外 agent 不追加到团队列表（避免演示时出现多余卡片）
+  const allEmployees = [...employees, ...customEmployees];
   const activeCount = allEmployees.filter((e) => e.status === 'active').length;
 
   const handleAddEmployee = (employee: DigitalEmployee) => {
