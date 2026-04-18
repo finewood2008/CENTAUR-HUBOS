@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.7.0] - 2026-04-18
+
+### 🚀 超级工作台 + GitHub Pages 全面上线
+
+#### 新增：超级工作台 (Cockpit) — 三栏布局
+- **左侧信息面板**：团队概览(2/4 工作中)、待办事项(红色角标)、财务快照(余额/消耗/预算进度条)、通讯状态(4/5 在线+离线警告)、知识库动态、快捷指令
+- **右侧信息流 (FeedStream)**：7 条 Feed 卡片，支持按类型筛选(全部/待审批/警告/已完成/汇报/洞察) + 按员工筛选
+- **交互联动**：审批通过/驳回 Toast 反馈、团队详情面板点击展开、通讯离线警告提示、知识库快捷跳转
+- **自定义面板**：拖拽排序 + 删除/恢复 + 尺寸分类
+- **语义化卡片**：信息流按类型使用不同卡片样式(待审批=橙色、警告=红色、已完成=绿色等)
+
+#### 修复：GitHub Pages 部署
+- `@qeeclaw/core-sdk` 未发布到 npm，浏览器 bare specifier 报错白屏
+- 改为双模式架构：`new Function('return import(...)')` 隐藏动态 import，骗过 Vite 静态分析
+- 本地开发用真实 SDK，GitHub Pages 自动降级为 Proxy stub
+- 页面顶部显示 "SDK 离线 · 使用演示数据" 提示条
+- 切换为 `actions/upload-pages-artifact` + `actions/deploy-pages` 官方 Action
+
+#### 技术改进
+- SDK 适配层重写 (`src/services/qeeclaw.ts`)：类型安全的 stub client + 动态加载真实 SDK
+- 所有 17 个 SDK 模块导出便捷访问器
+- 移除 `rollupOptions.external`，构建完全自包含
+
 ## [0.6.0] - 2026-04-18
 
 ### 🧑‍💼 自定义数字员工创建
