@@ -163,6 +163,19 @@ export function useHarnessChat(employeeId: string): UseHarnessChatReturn {
         for (const [key, val] of Object.entries(state.stepResults)) {
           if (key === step.id) continue;
           if (key.endsWith('_user')) continue;
+          if (val == null) continue;
+
+          // 对象类型（如 confirmCard 存的 parsed card data）→ JSON.stringify
+          if (typeof val === 'object') {
+            const json = JSON.stringify(val, null, 0);
+            if (json.length > 800) {
+              contextParts.push(`[${key}]:\n${json.slice(0, 800)}...`);
+            } else {
+              contextParts.push(`[${key}]:\n${json}`);
+            }
+            continue;
+          }
+
           if (typeof val !== 'string' || val.length === 0) continue;
           // 对于长文本（如大纲步骤的 AI 回复），只提取 JSON 部分
           const jsonMatch = val.match(/```json\s*([\s\S]*?)```/);

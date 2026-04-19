@@ -16,17 +16,21 @@ interface WidgetData {
   lastMessage?: string;
 }
 
-// 模拟初始数据
+// 模拟初始数据 — 与 5 名核心数字员工统一
 const INITIAL_WIDGETS: WidgetData[] = [
-  { id: 'widget-1', type: 'agentFeed', agentId: 'spark', agentName: 'Spark (火花)', status: 'working', lastMessage: '正在为您生成最新的品牌Logo草图，预计需要2分钟。' },
-  { id: 'widget-2', type: 'agentFeed', agentId: 'hr_bot', agentName: 'HR 助理', status: 'idle', lastMessage: '今天所有新入职员工的资料已归档。' },
-  { id: 'widget-3', type: 'agentFeed', agentId: 'data_analyst', agentName: '数据分析师', status: 'waiting', lastMessage: '本周销售报表已生成，是否需要发送至您的邮箱？' }
+  { id: 'widget-1', type: 'agentFeed', agentId: 'spark',   agentName: '火花 Spark',   status: 'working', lastMessage: '正在为您生成最新的品牌推文，预计需要2分钟。' },
+  { id: 'widget-2', type: 'agentFeed', agentId: 'xiaoke',  agentName: '小可 Xiaoke',  status: 'idle',    lastMessage: '今日新增 3 条线索已录入 CRM，等待跟进。' },
+  { id: 'widget-3', type: 'agentFeed', agentId: 'shuxi',   agentName: '书熙 Shuxi',   status: 'waiting', lastMessage: '劳动合同续签模板已生成，请确认后发送给员工。' },
+  { id: 'widget-4', type: 'agentFeed', agentId: 'shuibao', agentName: '税宝 Shuibao', status: 'idle',    lastMessage: '4月增值税申报表已预填，待您审核。' },
+  { id: 'widget-5', type: 'agentFeed', agentId: 'lvan',    agentName: '绿安 Lvan',    status: 'working', lastMessage: '正在扫描本周新增应用的安全漏洞，已完成60%。' },
 ];
 
 const INITIAL_LAYOUT: any[] = [
   { i: 'widget-1', x: 0, y: 0, w: 4, h: 4 },
-  { i: 'widget-2', x: 4, y: 0, w: 3, h: 3 },
-  { i: 'widget-3', x: 7, y: 0, w: 3, h: 3 }
+  { i: 'widget-2', x: 4, y: 0, w: 4, h: 4 },
+  { i: 'widget-3', x: 8, y: 0, w: 4, h: 4 },
+  { i: 'widget-4', x: 0, y: 4, w: 4, h: 4 },
+  { i: 'widget-5', x: 4, y: 4, w: 4, h: 4 },
 ];
 
 export default function DashboardGrid() {

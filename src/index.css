@@ -32,7 +32,7 @@
 
   /* Rings */
   --color-ring-warm: #d1cfc5;
-  --color-ring-subtle: #dedc01;
+  --color-ring-subtle: #dbd8cc;
   --color-ring-deep: #c2c0b6;
 
   /* Extended palette */
@@ -363,7 +363,7 @@ html, body, #root {
   box-shadow: var(--shadow-ring-terracotta);
 }
 .btn-terracotta:hover {
-  background: #d97757;
+  background: var(--color-coral);
 }
 .btn-terracotta:active {
   box-shadow: inset 0px 0px 0px 1px rgba(0,0,0,0.12);
@@ -490,7 +490,7 @@ html, body, #root {
 
 .badge-insight {
   background: rgba(76, 130, 180, 0.12);
-  color: #4c82b4;
+  color: var(--color-focus-blue, #4c82b4);
 }
 
 /* ── Feed pulse animation for urgent items ── */
@@ -892,7 +892,7 @@ html.dark .btn-terracotta {
   color: #faf9f5;
 }
 html.dark .btn-terracotta:hover {
-  background: #d97757;
+  background: var(--color-coral);
 }
 
 html.dark .btn-dark {
@@ -939,7 +939,7 @@ html.dark .input-warm::placeholder {
   color: var(--color-warm-silver);
 }
 html.dark .input-warm:focus {
-  border-color: #4da8fc;
+  border-color: var(--color-focus-blue, #4da8fc);
   box-shadow: 0 0 0 2px rgba(77, 168, 252, 0.15);
 }
 
@@ -951,7 +951,7 @@ html.dark .badge {
 
 html.dark .badge-terracotta {
   background: rgba(201, 100, 66, 0.18);
-  color: #d97757;
+  color: var(--color-coral);
 }
 
 html.dark .badge-success {
