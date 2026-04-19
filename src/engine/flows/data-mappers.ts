@@ -162,14 +162,14 @@ export interface SocialPostData {
 export function mapSocialPostData(aiResponse: string): SocialPostData {
   const lines = aiResponse.trim().split('\n');
 
-  // 提取 hashtag
+  // 提取 hashtag（从末尾查找以 # 开头的标签行）
   const hashtags: string[] = [];
   let contentEndIdx = lines.length;
 
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim();
     if (!line) continue;
-    const tagMatches = line.match(/#[\u4e00-\u9fa5a-zA-Z0-9_]+/g);
+    const tagMatches = line.match(/^#[\u4e00-\u9fa5a-zA-Z0-9_]+/g);
     if (tagMatches && tagMatches.length >= 2) {
       hashtags.push(...tagMatches.map((t) => t.replace(/^#/, '')));
       contentEndIdx = i;
@@ -178,10 +178,23 @@ export function mapSocialPostData(aiResponse: string): SocialPostData {
     }
   }
 
-  const content = lines.slice(0, contentEndIdx).join('\n').trim();
+  // 去掉末尾空行
+  while (contentEndIdx > 0 && !lines[contentEndIdx - 1].trim()) {
+    contentEndIdx--;
+  }
+
+  // 提取正文：跳过 AI 引导语前缀（--- 分隔线之前的内容）
+  let contentLines = lines.slice(0, contentEndIdx);
+  const dashIdx = contentLines.findIndex(l => l.trim() === '---');
+  if (dashIdx >= 0) {
+    contentLines = contentLines.slice(dashIdx + 1);
+  }
+
+  // 如果提取后为空但有 hashtag，则使用全部内容
+  const content = contentLines.join('\n').trim();
 
   if (hashtags.length === 0) {
-    const inlineTags = content.match(/#[\u4e00-\u9fa5a-zA-Z0-9_]+/g);
+    const inlineTags = content.match(/^#[\u4e00-\u9fa5a-zA-Z0-9_]+/gm);
     if (inlineTags) {
       hashtags.push(...inlineTags.slice(0, 8).map((t) => t.replace(/^#/, '')));
     }

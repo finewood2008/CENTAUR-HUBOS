@@ -36,6 +36,8 @@ export function useHarnessChat(employeeId: string): UseHarnessChatReturn {
   const runnerRef = useRef<HarnessRunner | null>(null);
   const pendingStepRef = useRef<HarnessStep | null>(null);
   const messagesRef = useRef<ChatMsg[]>([]);
+  // 追踪每个 step 的原始 AI 文本（用于 context 注入，避免 confirmCard 解析后的对象干扰）
+  const rawTextByStep = useRef<Record<string, string>>({});
   const { saveMessages, loadMessages } = useChatPersistence(employeeId);
 
   // 初始化时加载历史消息
@@ -137,6 +139,7 @@ export function useHarnessChat(employeeId: string): UseHarnessChatReturn {
         setCurrentStepLabel(step.label);
 
         // 从上一步的 AI 回复中提取数据
+        // previousData 包含所有已完成 step 的结果（包括原始 AI 文本）
         const prevStepIds = Object.keys(previousData);
         const lastAiResult = prevStepIds.length > 0
           ? previousData[prevStepIds[prevStepIds.length - 1]]
@@ -152,47 +155,64 @@ export function useHarnessChat(employeeId: string): UseHarnessChatReturn {
           editable: true,
         };
         addCardMessage(card);
+
+        // 同时把原始 AI 文本也存一份，让后续 context 注入能取到
+        if (typeof lastAiResult === 'string' && lastAiResult.trim()) {
+          rawTextByStep.current[step.id] = lastAiResult;
+        }
       },
       onMessage: (prompt, step) => {
         // AI 步骤：调用 LLM
         pendingStepRef.current = step;
 
-        // 将前面步骤的关键结果注入 prompt（精简版，避免 token 爆炸）
+        // 构建上下文注入：只使用原始 AI 文本，跳过 confirm-card keys
+        // 原因：confirmCard() 存的是 mapXXX() 解析后的对象（不是原始 JSON + 说明文字）
+        // downstream AI step 需要的是原始 AI 响应，而非已解析的数据
         const state = runner.getState();
         const contextParts: string[] = [];
+
         for (const [key, val] of Object.entries(state.stepResults)) {
           if (key === step.id) continue;
           if (key.endsWith('_user')) continue;
           if (val == null) continue;
 
-          // 对象类型（如 confirmCard 存的 parsed card data）→ JSON.stringify
-          if (typeof val === 'object') {
-            const json = JSON.stringify(val, null, 0);
-            if (json.length > 800) {
-              contextParts.push(`[${key}]:\n${json.slice(0, 800)}...`);
-            } else {
-              contextParts.push(`[${key}]:\n${json}`);
-            }
-            continue;
-          }
+          // 跳过 confirm-* 类型的 key（它们存的是卡片数据对象，不是 AI 原始文本）
+          // 原因：confirm-card 的 stepResults[key] = parsed data object
+          // 使用它会导致 downstream AI 看到 "{"title":"文章大纲",...}" 而非原始 AI 回复
+          if (key.startsWith('confirm-')) continue;
 
-          if (typeof val !== 'string' || val.length === 0) continue;
-          // 对于长文本（如大纲步骤的 AI 回复），只提取 JSON 部分
-          const jsonMatch = val.match(/```json\s*([\s\S]*?)```/);
-          if (jsonMatch) {
-            contextParts.push(`[${key}]:\n${jsonMatch[1].trim()}`);
-          } else if (val.length > 500) {
-            // 超长文本截断
-            contextParts.push(`[${key}]:\n${val.slice(0, 500)}...`);
-          } else {
-            contextParts.push(`[${key}]:\n${val}`);
+          if (typeof val === 'string' && val.length > 0) {
+            // 优先使用已存储的原始 AI 文本中的 JSON 部分
+            const jsonMatch = val.match(/```json\s*([\s\S]*?)```/);
+            if (jsonMatch) {
+              contextParts.push(`[${key}]:\n${jsonMatch[1].trim()}`);
+            } else if (val.length > 500) {
+              contextParts.push(`[${key}]:\n${val.slice(0, 500)}...`);
+            } else {
+              contextParts.push(`[${key}]:\n${val}`);
+            }
+          } else if (typeof val === 'object') {
+            // 对象类型：使用 rawTextByStep 中存储的原始文本（如有）
+            const raw = rawTextByStep.current[key];
+            if (raw) {
+              const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/);
+              if (jsonMatch) {
+                contextParts.push(`[${key}]:\n${jsonMatch[1].trim()}`);
+              } else {
+                contextParts.push(`[${key}]:\n${raw.slice(0, 500)}...`);
+              }
+            }
+            // 没有 raw text 则跳过（避免注入 "[object Object]" 式的垃圾数据）
           }
         }
+
         const enrichedPrompt = contextParts.length > 0
           ? prompt + '\n\n--- 前序上下文 ---\n' + contextParts.join('\n\n')
           : prompt;
 
         callLLM(enrichedPrompt, (fullText) => {
+          // 追踪原始 AI 文本，供后续 confirm step 注入使用
+          rawTextByStep.current[step.id] = fullText;
           runner.provideStepResult(step.id, fullText);
         });
       },

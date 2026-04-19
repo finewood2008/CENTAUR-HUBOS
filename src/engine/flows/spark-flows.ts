@@ -96,9 +96,9 @@ export const SPARK_WRITE_XIAOHONGSHU: HarnessFlow = {
       id: 'understand',
       type: 'ai',
       label: '理解需求',
-      waitForUser: true,
+      waitForUser: false,  // 跳过追问，直接推进到 write（让演示更流畅）
       prompt:
-        '你是一位小红书内容专家。分析用户的需求，提 1-2 个问题了解产品/话题、目标受众和风格偏好。简洁对话式，中文回复。',
+        '你是一位温暖专业的小红书内容专家。认真阅读用户的需求，简要总结你理解到的关键信息（产品/话题、受众、风格），然后直接进入创作环节，不要提问。用简洁友好的语气，中文回复。',
       next: 'write',
     },
     {
@@ -107,9 +107,11 @@ export const SPARK_WRITE_XIAOHONGSHU: HarnessFlow = {
       label: '撰写笔记',
       prompt:
         '根据对话内容，创作一篇小红书笔记。要求：\n' +
+        '- 直接输出笔记内容，开头即正文，不要加任何引导语、问候语或署名\n' +
         '- 标题吸引眼球（可用 emoji）\n' +
         '- 正文 300-600 字，生活化口吻\n' +
         '- 分段清晰，重点用 emoji 标注\n' +
+        '- 开头有代入感，结尾有行动号召\n' +
         '- 末尾加 5-8 个热门话题标签（#xxx 格式）',
       next: 'confirm-post',
     },

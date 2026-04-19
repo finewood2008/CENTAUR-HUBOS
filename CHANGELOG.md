@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.9.0] - 2026-04-19
+
+### 🔥 火花工作台端到端跑通 + Harness 引擎关键 Bug 修复
+
+#### Bug Fix：Context 注入垃圾数据导致 Write Step 失效
+- **根因**：`HarnessRunner.confirmCard()` 存储的是 `mapXXX()` 解析后的卡片数据对象，而非原始 AI 响应
+- **影响**：后续 AI 步骤（write step）收到的上下文是被解析后的对象，而非 `outline` JSON + 说明文字
+- **修复**：
+  - `useHarnessChat.ts`：新增 `rawTextByStep` 追踪每个 step 的原始 AI 文本
+  - Context 注入逻辑：跳过 `confirm-*` keys，优先使用原始 AI 文本中的 JSON
+  - `onCardRender` 回调：同时存储原始 AI 文本供后续 context 使用
+
+#### UX 优化：小红书流程更顺畅
+- `SPARK_WRITE_XIAOHONGSHU`：`understand` 步骤 `waitForUser: false`，跳过追问直接推进到 write
+- Write step prompt：明确要求"直接输出笔记内容，不要加引导语/署名"
+- `mapSocialPostData`：`---` 分隔符处理，去除 AI 引导语前缀
+
+#### SocialPostCard 健壮性
+- 正则修正：`/^#[\u4e00-\u9fa5a-zA-Z0-9_]+/g` 确保匹配行首 hashtag
+- 空行裁剪：hashtag 提取后正确裁剪末尾空行
+
+### 🎯 端到端验证通过
+- 火花工作台 → "写小红书笔记"快捷按钮 → AI 理解需求 → 用户回复 → 流式生成完整文章 → SocialPostCard 渲染 ✅
+- 全流程通过 CF Worker 代理 Gemini 2.5 Flash API ✅
+
 ## [0.8.0] - 2026-04-18
 
 ### 🏗️ Builder V2 三栏构建工作台 + 团队页精简
