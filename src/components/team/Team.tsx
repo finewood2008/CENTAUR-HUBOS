@@ -348,9 +348,39 @@ export default function Team({ isConnected }: TeamProps) {
     return emp;
   });
 
-  // 团队只展示 DIGITAL_EMPLOYEES 预设的核心员工 + 用户自建的员工
-  // SDK 额外 agent 不追加到团队列表（避免演示时出现多余卡片）
-  const allEmployees = [...employees, ...customEmployees];
+  // 生成预设员工的名称集合，用于过滤 SDK 中额外创建的员工
+  const presetNames = new Set(DIGITAL_EMPLOYEES.map(e => e.name.toLowerCase()));
+  const presetEnNames = new Set(DIGITAL_EMPLOYEES.map(e => e.englishName.toLowerCase()));
+
+  // 把不属于内置集的真实 SDK agent 也包装成卡片展现
+  const sdkExtraEmployees: DigitalEmployee[] = sdkData.agents
+    .filter(a => !presetNames.has(a.name.toLowerCase()) && !presetEnNames.has(a.name.toLowerCase()))
+    .map(a => ({
+      id: a.id,
+      name: a.name,
+      englishName: `Agent-${a.id.slice(0, 4)}`,
+      avatar: a.avatar || '🤖',
+      color: 'from-slate-100 to-slate-200',
+      accentColor: 'text-stone-gray',
+      role: a.role || '自定义员工',
+      status: 'active' as ActivationStatus,
+      tagline: a.todaySummary || 'SDK 同步的数字员工',
+      capabilities: a.skills || ['基本交互'],
+      introduction: a.todaySummary || '这是通过 SDK 部署或自定义添加的数字员工。',
+      model: a.model,
+      modelInfo: { base: a.model || '-', reasoning: '-', context: '-', specialization: '-' },
+      skills: [],
+      tools: [],
+      memorySystem: { description: '默认记忆层', layers: [] },
+      workspace: { type: 'chat', label: '标准工作台', description: '基础对话交互', comingSoon: true },
+      stats: { monthlyTasks: a.todayTasks || 0, hoursSaved: 0, satisfaction: 100 },
+      harness: [],
+      onboardingPreferences: [],
+      trainingDataSources: a.dataSources || [],
+    }));
+
+  // 团队展示: 预设的核心员工 + SDK 获取的新员工 + 尚未存入后端的当前状态创建员工
+  const allEmployees = [...employees, ...sdkExtraEmployees, ...customEmployees];
   const activeCount = allEmployees.filter((e) => e.status === 'active').length;
 
   const handleAddEmployee = (employee: DigitalEmployee) => {
