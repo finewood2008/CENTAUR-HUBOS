@@ -1,135 +1,169 @@
-import { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
-import CentaurIndex from './CentaurIndex';
-import EmployeeCards from './EmployeeCards';
-import FeedStream from './FeedStream';
-import { FinanceSnapshotWidget } from './WidgetsRight';
-import { PendingTasksWidget } from './WidgetsLeft';
-import { useToast } from '../shared/Toast';
+import { useState, useCallback } from 'react';
+import PartnerChat from './PartnerChat';
+import SidePanel from './SidePanel';
 import type { NavTab } from '../../types';
+import type { DashboardCardType } from '../../data/partner';
 import {
-  useConnection,
-  useEnhancedDashboardData,
-  useAgentManagement,
-  useApprovalData,
-  useFinanceData,
-} from '../../hooks/useQeeClaw';
-import { getApprovalModule } from '../../services/qeeclaw';
+  DEFAULT_PARTNER,
+  MOCK_MORNING_BRIEFING,
+  MOCK_REPORTS,
+  ALL_DASHBOARD_CARDS,
+  TEAM_MEMBERS,
+} from '../../data/partner';
+import type { ChatMessage, ReportItem, DashboardCard, PartnerProfile } from '../../data/partner';
 
 interface CockpitProps {
   onNav?: (tab: NavTab) => void;
 }
 
 export default function Cockpit({ onNav }: CockpitProps) {
-  // SDK hooks
-  const { connected } = useConnection();
-  const { data: dashData, refresh: refreshDash } = useEnhancedDashboardData(connected);
-  const { data: agentData, loading: agentLoading } = useAgentManagement(connected);
-  const { approvals, loading: approvalLoading, refresh: refreshApprovals } = useApprovalData(connected);
-  const { data: financeData, loading: financeLoading } = useFinanceData(connected);
+  // Partner state
+  const [partner] = useState<PartnerProfile>({
+    ...DEFAULT_PARTNER,
+    name: '阿拓',
+    isConfigured: true,
+  });
 
-  // Toast
-  const { toast } = useToast();
-  const [refreshing, setRefreshing] = useState(false);
+  // Chat messages
+  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MORNING_BRIEFING);
 
-  // 全局刷新
-  const handleRefreshAll = async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([refreshDash(), refreshApprovals()]);
-      toast('success', '数据已刷新');
-    } catch {
-      toast('error', '刷新失败');
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  // Reports
+  const [reports, setReports] = useState<ReportItem[]>(MOCK_REPORTS);
 
-  // 审批操作回调
-  const handleApprovalAction = async (id: string | number, action: 'approved' | 'rejected') => {
-    const label = action === 'approved' ? '已通过' : '已驳回';
-    if (connected) {
-      try {
-        await getApprovalModule().resolve(String(id), { approved: action === 'approved' });
-        toast(action === 'approved' ? 'success' : 'info', `审批项${label}`);
-        await refreshApprovals();
-      } catch (err) {
-        toast('error', `审批操作失败: ${err instanceof Error ? err.message : '未知错误'}`);
+  // Dashboard cards
+  const [cards, setCards] = useState<DashboardCard[]>(ALL_DASHBOARD_CARDS);
+
+  // ── Handlers ──
+
+  const handleSendMessage = useCallback((text: string) => {
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: { type: 'user' },
+      content: text,
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+    };
+    setMessages(prev => [...prev, userMsg]);
+
+    // Mock partner reply after short delay
+    setTimeout(() => {
+      // Check if message contains @employee
+      const mentionMatch = text.match(/@(\S+)/);
+      const member = mentionMatch
+        ? TEAM_MEMBERS.find(m => m.name === mentionMatch[1])
+        : null;
+
+      let replyContent = '收到，我来安排。';
+      if (member && !member.locked) {
+        replyContent = `好的，我让${member.name}来处理。`;
+      } else if (member && member.locked) {
+        replyContent = `${member.name}还在入职准备中，暂时由我来处理这个需求。`;
+      } else if (text.includes('数据') || text.includes('报表')) {
+        replyContent = '好的，我来帮你拉一下数据。';
+      } else if (text.includes('文章') || text.includes('内容')) {
+        replyContent = '内容相关的事我交给火花来处理。';
+      } else if (text.includes('客户') || text.includes('线索')) {
+        replyContent = '获客的事我交给小可来跟进。';
       }
-    } else {
-      toast(action === 'approved' ? 'success' : 'info', `审批项 ${id} ${label}（演示模式）`);
-    }
-  };
 
-  // 员工对话 — 跳转到团队页（后续接入工作台）
-  const handleChat = (agentId: string) => {
-    toast('info', `正在连接 ${agentId}...`);
-    onNav?.('team');
-  };
+      const partnerReply: ChatMessage = {
+        id: `partner-${Date.now()}`,
+        sender: { type: 'partner' },
+        content: replyContent,
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages(prev => [...prev, partnerReply]);
+
+      // If mentioning an unlocked employee, add their reply too
+      if (member && !member.locked) {
+        setTimeout(() => {
+          const employeeReply: ChatMessage = {
+            id: `emp-${Date.now()}`,
+            sender: {
+              type: 'employee',
+              id: member.id,
+              name: member.name,
+              avatar: member.avatar,
+              color: member.color,
+            },
+            content: `收到，我来处理。有进展会及时汇报。`,
+            time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+          };
+          setMessages(prev => [...prev, employeeReply]);
+        }, 800);
+      }
+    }, 600);
+  }, []);
+
+  const handleMemberClick = useCallback((id: string) => {
+    const member = TEAM_MEMBERS.find(m => m.id === id);
+    if (member && member.locked) {
+      // Navigate to team page for locked members
+      onNav?.('team');
+    }
+  }, [onNav]);
+
+  const handleApprove = useCallback((id: string) => {
+    setReports(prev =>
+      prev.map(r => (r.id === id ? { ...r, status: 'approved' as const } : r))
+    );
+    // Add partner notification in chat
+    const report = reports.find(r => r.id === id);
+    if (report) {
+      const msg: ChatMessage = {
+        id: `sys-${Date.now()}`,
+        sender: { type: 'system' },
+        content: `已批准：${report.employeeName}的「${report.title}」`,
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages(prev => [...prev, msg]);
+    }
+  }, [reports]);
+
+  const handleReject = useCallback((id: string) => {
+    setReports(prev =>
+      prev.map(r => (r.id === id ? { ...r, status: 'rejected' as const } : r))
+    );
+    const report = reports.find(r => r.id === id);
+    if (report) {
+      const msg: ChatMessage = {
+        id: `sys-${Date.now()}`,
+        sender: { type: 'system' },
+        content: `已驳回：${report.employeeName}的「${report.title}」`,
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages(prev => [...prev, msg]);
+    }
+  }, [reports]);
+
+  const handleToggleCard = useCallback((type: DashboardCardType) => {
+    setCards(prev =>
+      prev.map(c => (c.type === type ? { ...c, enabled: !c.enabled } : c))
+    );
+  }, []);
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
-      {/* Top bar — 极简 */}
-      <div className="flex items-center justify-between px-5 py-2.5 border-b border-border-cream bg-white/40 backdrop-blur-sm">
-        <h1 className="heading-section text-[17px]">超级工作台</h1>
-        <button
-          onClick={handleRefreshAll}
-          disabled={refreshing}
-          className="flex items-center gap-1.5 text-[12px] text-stone-gray hover:text-terracotta transition-colors disabled:opacity-50"
-        >
-          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
-          刷新
-        </button>
+    <div className="flex-1 flex h-full overflow-hidden">
+      {/* Left: Partner Chat (main area) */}
+      <div className="flex-1 min-w-0 flex flex-col border-r border-border-cream">
+        <PartnerChat
+          messages={messages}
+          partner={partner}
+          onSendMessage={handleSendMessage}
+          onMemberClick={handleMemberClick}
+        />
       </div>
 
-      {/* Main content — 单列滚动 */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="max-w-[1200px] mx-auto px-5 py-4 space-y-4">
-          {/* 1. 半人马指数 */}
-          <CentaurIndex />
-
-          {/* 2. 员工卡片区 */}
-          <div>
-            <h2 className="text-[13px] font-semibold text-near-black mb-2">你的 AI 团队</h2>
-            <EmployeeCards
-              agents={agentData.agents || []}
-              onChat={handleChat}
-            />
-          </div>
-
-          {/* 3. 下方两栏：信息流 + 侧边统计 */}
-          <div className="flex gap-4 min-h-[400px]">
-            {/* 信息流 — 主区域 */}
-            <div className="flex-1 min-w-0 card-glass rounded-xl overflow-hidden">
-              <FeedStream
-                activities={dashData.activities}
-                alerts={dashData.alerts}
-                isConnected={connected}
-                onNav={onNav}
-                onApprovalAction={handleApprovalAction}
-              />
-            </div>
-
-            {/* 右侧统计栏 */}
-            <aside className="w-[240px] shrink-0 space-y-3 max-md:hidden">
-              <PendingTasksWidget
-                approvals={approvals}
-                loading={approvalLoading}
-                isConnected={connected}
-                activities={dashData.activities}
-                onNav={onNav}
-                onAction={handleApprovalAction}
-              />
-              <FinanceSnapshotWidget
-                data={financeData}
-                loading={financeLoading}
-                isConnected={connected}
-                onNav={onNav}
-              />
-            </aside>
-          </div>
-        </div>
-      </div>
+      {/* Right: Side Panel (reports + dashboard) */}
+      <aside className="w-[340px] shrink-0 bg-white/20 backdrop-blur-sm max-lg:w-[300px] max-md:hidden">
+        <SidePanel
+          reports={reports}
+          cards={cards}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onToggleCard={handleToggleCard}
+          onNav={onNav}
+        />
+      </aside>
     </div>
   );
 }
