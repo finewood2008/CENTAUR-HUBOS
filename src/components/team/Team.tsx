@@ -14,6 +14,8 @@ import { getAgentModule } from '../../services/qeeclaw';
 import { useToast } from '../shared/Toast';
 import EmployeeBuilderV2 from '../builder';
 import SparkWorkspaceV2 from '../spark-workspace/SparkWorkspaceV2';
+import XiaokeWorkspace from '../xiaoke-workspace/XiaokeWorkspace';
+import EmployeeConfigPanel from './EmployeeConfigPanel';
 import { registerAllCards } from '../cards';
 
 interface TeamProps {
@@ -378,8 +380,8 @@ export default function Team({ isConnected }: TeamProps) {
 
   const handleWorkbench = (emp?: DigitalEmployee) => {
     const target = emp || selectedEmployee;
-    if (target?.id === 'spark') {
-      setActiveWorkspace('spark');
+    if (target?.id === 'spark' || target?.id === 'xiaoke') {
+      setActiveWorkspace(target.id);
       setSelectedEmployee(null);
     } else {
       toast('info', `${target?.name || '该员工'}工作台即将上线`);
@@ -394,6 +396,11 @@ export default function Team({ isConnected }: TeamProps) {
             key="spark-workspace"
             onBack={() => setActiveWorkspace(null)}
           />
+        ) : activeWorkspace === 'xiaoke' ? (
+          <XiaokeWorkspace
+            key="xiaoke-workspace"
+            onBack={() => setActiveWorkspace(null)}
+          />
         ) : showBuilder ? (
           <EmployeeBuilderV2
             key="builder"
@@ -401,9 +408,10 @@ export default function Team({ isConnected }: TeamProps) {
             onComplete={handleAddEmployee}
           />
         ) : selectedEmployee ? (
-          <DetailPanel
-            key="detail"
+          <EmployeeConfigPanel
+            key="config"
             emp={selectedEmployee}
+            isConnected={isConnected}
             onBack={() => setSelectedEmployee(null)}
             onActivate={handleActivate}
             onWorkbench={handleWorkbench}
