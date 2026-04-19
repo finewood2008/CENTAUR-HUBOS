@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.10.0] - 2026-04-20
+
+### 🧩 完整数字员工配置页 — 7 模块二栏配置面板
+
+#### 新增：EmployeeConfigPanel — 二栏配置页取代 DetailPanel
+- **左侧 Tab 导航 + 右侧内容区**的二栏布局，取代原有 DetailPanel 单页滚动
+- **7 个配置模块**：概览 / 模型 / Harness / 技能Skills / 知识库RAG / 个人记忆 / 工作台
+- 组件路径: `src/components/team/EmployeeConfigPanel.tsx` + `src/components/team/tabs/Tab*.tsx`
+
+#### 新增：员工 Harness 配置数据
+- `src/data/employee-harness.ts`：5 名员工各自定制的 Harness 配置
+- 包含 agent-loop / context-map / memory-protocol / standards / security 五大维度
+- 每位员工独立的 agent 循环策略、上下文窗口、记忆协议、合规标准、安全策略
+
+#### 新增：员工技能映射数据
+- `src/data/employee-skills.ts`：5 名员工从 clawhub.ai 映射的技能库
+- 每个技能包含启用/禁用状态 + 调用统计（总次数/成功率/平均耗时）
+- 技能分类：内容创作、社媒运营、获客转化、法务合规、财税管理、安全审计等
+
+#### 新增：useEmployeeConfig Hook
+- `src/hooks/useEmployeeConfig.ts`：SDK/mock 双模式数据接口
+- 自动检测 SDK 连接状态，无 SDK 时降级到 mock 数据
+- 提供 harness/skills/knowledge/memory 等配置的统一访问接口
+
+#### 交互逻辑
+- **火花/小可**（status=active）：全部 7 个模块可交互编辑
+- **书熙/税宝/绿安**（status=inactive）：所有模块只读预览，带锁定提示
+- 小可工作台 Tab 已接通 `XiaokeWorkspace` 入口
+
+#### Bug Fix
+- 补充 `zustand` 依赖到 package.json（小可记忆模块 store 依赖）
+
+#### 相关 Commits
+- `d943de0` fix: add zustand dependency for xiaoke memory store
+- `729d0ef` feat(team): 完整数字员工配置页 — 7模块(概览/模型/Harness/技能/RAG/记忆/工作台)
+
+---
+
 ## [0.9.0] - 2026-04-19
 
 ### 🔥 火花工作台端到端跑通 + Harness 引擎关键 Bug 修复

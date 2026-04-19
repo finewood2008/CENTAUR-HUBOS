@@ -1,7 +1,27 @@
 # Hub OS 数字员工平台 · 开发计划
 
-**版本目标**: v0.9.0 → v1.0.0
+**版本目标**: v0.10.0 → v1.0.0
 **核心理念**: 数字员工 = LLM + Harness + Skills + RAG + Memory + GUI卡片
+
+---
+
+## ✅ 已完成：数字员工配置页（v0.10.0）
+
+> 2026-04-20 完成。EmployeeConfigPanel 二栏配置面板 + 7 个 Tab 模块。
+
+- [x] EmployeeConfigPanel 二栏布局（左Tab导航 + 右内容区）
+- [x] TabOverview — 员工概览（基本信息+状态）
+- [x] TabModel — 模型配置（绑定的 LLM）
+- [x] TabHarness — Harness 配置（agent-loop/context/memory/standards/security）
+- [x] TabSkills — 技能管理（clawhub.ai 映射，启用/禁用+调用统计）
+- [x] TabKnowledge — 知识库/RAG 配置
+- [x] TabMemory — 个人记忆系统
+- [x] TabWorkspace — 工作台入口（小可已接通 XiaokeWorkspace）
+- [x] employee-harness.ts — 5员工 Harness 数据
+- [x] employee-skills.ts — 5员工 Skills 数据
+- [x] useEmployeeConfig hook — SDK/mock 双模式
+- [x] 锁定逻辑（active 可编辑 / inactive 只读）
+- [x] zustand 依赖补充
 
 ---
 
@@ -133,14 +153,15 @@
 
 ## 里程碑
 
-| 里程碑 | 内容 | 预计 |
-|-------|------|------|
-| M0 | Phase 0 完成，卡片系统 + 对话流 + 双栏工作台基础可用 | 第1周 |
-| M1 | Phase 1 完成，8个卡片模板可渲染 | 第2周 |
-| M2 | Phase 2 完成，火花+小可的核心 harness 跑通 | 第3周 |
-| M3 | Phase 3 完成，4个员工全部有看板 | 第4周 |
-| M4 | Phase 4 + 5，Channel 对接 + 记忆系统 | 第5-6周 |
-| v1.0 | 端到端演示：用户在 Hub OS 找火花写文章，全流程卡片交互 | 第6周末 |
+| 里程碑 | 内容 | 预计 | 状态 |
+|-------|------|------|------|
+| M-1 | 数字员工配置页 (EmployeeConfigPanel + 7 Tabs) | — | ✅ v0.10 完成 |
+| M0 | Phase 0 完成，卡片系统 + 对话流 + 双栏工作台基础可用 | 第1周 | 🔜 下一步 |
+| M1 | Phase 1 完成，8个卡片模板可渲染 | 第2周 | |
+| M2 | Phase 2 完成，火花+小可的核心 harness 跑通 | 第3周 | |
+| M3 | Phase 3 完成，4个员工全部有看板 | 第4周 | |
+| M4 | Phase 4 + 5，Channel 对接 + 记忆系统 | 第5-6周 | |
+| v1.0 | 端到端演示：用户在 Hub OS 找火花写文章，全流程卡片交互 | 第6周末 | |
 
 ---
 

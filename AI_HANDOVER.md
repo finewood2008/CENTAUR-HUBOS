@@ -1,7 +1,7 @@
 # AI_HANDOVER.md — Hub OS 项目交接文档
 
 > 给其他 AI 开发者（Claude Code / Codex / OpenCode 等）的项目状态说明
-> 最后更新: 2026-04-18 v0.8.0
+> 最后更新: 2026-04-20 v0.10.0
 
 ---
 
@@ -23,7 +23,8 @@ Hub OS 是半人马 AI 的数字员工操作系统前端。把大模型 Agent �
 |------|---------|------|------|
 | 超级工作台 | `components/cockpit/` | v0.7 | 三栏布局，左侧面板(团队/待办/财务/通讯/知识库) + 右侧信息流 |
 | 信息流 | `components/dashboard/` | v0.7 | 语义化 Feed 卡片，按类型/员工筛选，审批操作按钮 |
-| 数字团队 | `components/team/` | v0.8 | 5 名预设核心员工 + Builder V2 对话式创建，不再追加 SDK 额外 agent |
+| 数字团队 | `components/team/` | v0.10 | 5 名预设核心员工 + Builder V2 + EmployeeConfigPanel 二栏配置页 |
+| 员工配置面板 | `components/team/EmployeeConfigPanel.tsx` | v0.10 | 左导航+右内容二栏布局，7 Tab(概览/模型/Harness/技能/RAG/记忆/工作台) |
 | 员工构建工作台 | `components/builder/` | v0.8 | 三栏布局(Chat+Canvas+Detail)，Gemini AI 对话驱动，三层可视化画布 |
 | 财务中心 | `components/finance/` | v0.4 | API Key 管理 + 员工用量明细 + 月度预算 |
 | 通讯中心 | `components/channels/` | v0.3 | 渠道监控大盘（企微/飞书/Telegram/钉钉/邮件） |
@@ -50,11 +51,15 @@ src/
 ├── App.tsx                        # 路由入口，NavTab 切换 6 个页面
 ├── types/index.ts                 # 所有 TypeScript 类型定义
 ├── services/qeeclaw.ts            # SDK 适配层（双模式：真实 SDK / Proxy stub）
-├── hooks/useQeeClaw.ts            # 17 个 hooks，每个对应一组 SDK 调用
+├── hooks/
+│   ├── useQeeClaw.ts              # 17 个 hooks，每个对应一组 SDK 调用
+│   └── useEmployeeConfig.ts       # ★ v0.10 员工配置 hook（SDK/mock 双模式）
 ├── stores/useAppStore.tsx         # Zustand 全局状态
 ├── data/
 │   ├── mock.ts                    # 工作台/信息流 mock 数据
-│   └── digital-employees.ts       # 数字员工档案 + 财务 mock 数据
+│   ├── digital-employees.ts       # 数字员工档案 + 财务 mock 数据
+│   ├── employee-harness.ts        # ★ v0.10 5员工 Harness 配置（agent-loop/context/memory/standards/security）
+│   └── employee-skills.ts         # ★ v0.10 5员工 Skills 映射（clawhub.ai 技能库+调用统计）
 ├── gateway/
 │   ├── auth.ts                    # 鉴权桩
 │   └── event-bus.ts               # 事件总线
@@ -70,7 +75,17 @@ src/
     │   ├── BuilderCanvas.tsx       #   中栏：三层可视化画布（身份/能力/工作流）
     │   └── NodeDetailPanel.tsx     #   右栏：节点详情编辑面板
     ├── dashboard/Dashboard.tsx    # 信息流 Feed
-    ├── team/Team.tsx              # 数字团队（引用 builder/）
+    ├── team/                      # ★ v0.10 数字团队（重大更新）
+    │   ├── Team.tsx               #   团队主页（DetailPanel → EmployeeConfigPanel）
+    │   ├── EmployeeConfigPanel.tsx #   ★ 二栏配置面板（左Tab导航+右内容）
+    │   └── tabs/                  #   ★ 7 个配置 Tab 组件
+    │       ├── TabOverview.tsx     #     概览：员工基本信息+状态
+    │       ├── TabModel.tsx        #     模型：绑定的 LLM 配置
+    │       ├── TabHarness.tsx      #     Harness：agent-loop/context/memory/standards/security
+    │       ├── TabSkills.tsx       #     技能：clawhub.ai 映射技能库+启用状态+调用统计
+    │       ├── TabKnowledge.tsx    #     知识库：RAG 数据源配置
+    │       ├── TabMemory.tsx       #     记忆：个人记忆系统配置
+    │       └── TabWorkspace.tsx    #     工作台：入口配置（小可已接通 XiaokeWorkspace）
     ├── finance/Finance.tsx        # 财务中心
     ├── channels/Channels.tsx      # 通讯中心
     ├── knowledge/Knowledge.tsx    # 知识库
@@ -305,9 +320,50 @@ const { data } = useNewFeatureData(connected);
 
 ---
 
-## 八、v0.8 待办 / 已知问题
+## 八、v0.10 关键设计决策
 
+### 为什么用二栏配置页（EmployeeConfigPanel）取代原有 DetailPanel？
+- DetailPanel 是单页滚动，信息密度低，7 个模块挤在一起用户难以聚焦
+- 二栏布局（左Tab导航+右内容区）让每个模块独立呈现，信息层级清晰
+- Tab 切换比滚动更适合配置型界面，用户可快速跳转到目标模块
+- 为后续模块扩展（如日志、监控）预留空间，只需新增 Tab
+
+### Harness 数据结构设计（employee-harness.ts）
+- 每位员工独立的 Harness 配置对象，包含 5 个维度：
+  - `agentLoop`: agent 循环策略（最大轮次、超时、重试策略）
+  - `contextMap`: 上下文窗口管理（token 限制、优先级排序）
+  - `memoryProtocol`: 记忆读写协议（存储策略、召回阈值）
+  - `standards`: 合规标准（输出格式、审核规则）
+  - `security`: 安全策略（权限边界、敏感信息过滤）
+- 数据结构为静态 mock，预留后端 API 对接接口
+
+### Skills 来源（employee-skills.ts）
+- 技能定义来自 clawhub.ai 技能市场的映射
+- 每个技能包含：名称、描述、启用状态、调用统计（总次数/成功率/平均耗时）
+- 不同员工根据角色绑定不同技能集
+- 统计数据为 mock，真实环境从 SDK billing/usage 模块获取
+
+### 锁定逻辑
+- 火花(Spark)和小可(Xiaoke) status=active → 全模块可交互
+- 书熙/税宝/绿安 status=inactive → 所有模块只读预览 + 锁定提示
+- 锁定状态在 EmployeeConfigPanel 层统一控制，各 Tab 通过 props 接收 `readonly` 标志
+
+---
+
+## 九、已知问题 & 下一步
+
+### 已知问题
 1. **Builder V2 Gemini 依赖** — BuilderChat 通过 CF Worker 代理调用 Gemini 2.5 Flash，需要网络可用。离线时 AI 对话不可用，但画布和手动编辑仍可操作。
 2. **旧版 EmployeeBuilder 未删除** — `components/agents/EmployeeBuilder.tsx` 仍保留，但已无入口引用。可安全删除。
 3. **Builder 演示数据** — 当前 Builder 打开时所有节点为空（status='empty'），投资人演示时需手动走完对话流程或考虑加入预填充 mock 数据。
 4. **mock.ts 中的 AGENTS** — 仍包含 Linda/Helen/老张，这些数据被 Cockpit/Dashboard 使用，与团队页的 `DIGITAL_EMPLOYEES` 是两套独立数据源。如需统一，需重构数据层。
+5. **Tab 组件 mock 数据硬编码** — TabHarness/TabSkills/TabKnowledge/TabMemory 的数据来自静态文件，需要后续接入 SDK 真实 API。
+6. **inactive 员工解锁流程** — 当前只有只读预览，尚未实现激活付费/解锁交互。
+
+### 下一步优先级
+1. **P0** — Phase 0 卡片系统 + 对话流引擎（所有工作台的基础）
+2. **P0** — 统一工作台外壳 WorkspaceShell（对话+看板双栏）
+3. **P1** — 火花/小可 Harness 工作流跑通（从配置页直接进入）
+4. **P1** — TabHarness/TabSkills 接入真实 SDK API
+5. **P2** — 书熙/税宝/绿安激活流程 + 解锁交互
+6. **P2** — Channel 对接层（飞书/企微 bot 配置）
