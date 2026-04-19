@@ -13,6 +13,8 @@ import { useAgentManagement } from '../../hooks/useQeeClaw';
 import { getAgentModule } from '../../services/qeeclaw';
 import { useToast } from '../shared/Toast';
 import EmployeeBuilderV2 from '../builder';
+import SparkWorkspaceV2 from '../spark-workspace/SparkWorkspaceV2';
+import { registerAllCards } from '../cards';
 
 interface TeamProps {
   isConnected: boolean;
@@ -36,7 +38,7 @@ const statusConfig: Record<ActivationStatus, { label: string; dot: string; bg: s
 // ── sub: EmployeeCard ──
 function EmployeeCard({
   emp, index, onClick, onActivate, onWorkbench,
-}: { emp: DigitalEmployee; index: number; onClick: () => void; onActivate: (emp: DigitalEmployee) => void; onWorkbench: () => void }) {
+}: { emp: DigitalEmployee; index: number; onClick: () => void; onActivate: (emp: DigitalEmployee) => void; onWorkbench: (emp?: DigitalEmployee) => void }) {
   const st = statusConfig[emp.status];
   return (
     <motion.div
@@ -95,7 +97,7 @@ function EmployeeCard({
       {/* action hint */}
       <div className="mt-3 flex items-center justify-between">
         {emp.status === 'active' ? (
-          <button onClick={(e) => { e.stopPropagation(); onWorkbench(); }} className="btn-terracotta text-[11px] px-3 py-1.5 gap-1">
+          <button onClick={(e) => { e.stopPropagation(); onWorkbench(emp); }} className="btn-terracotta text-[11px] px-3 py-1.5 gap-1">
             <Play size={12} /> 进入工作台
           </button>
         ) : emp.status === 'activating' ? (
@@ -114,7 +116,7 @@ function EmployeeCard({
 }
 
 // ── sub: DetailPanel ──
-function DetailPanel({ emp, onBack, onActivate, onWorkbench }: { emp: DigitalEmployee; onBack: () => void; onActivate: (emp: DigitalEmployee) => void; onWorkbench: () => void }) {
+function DetailPanel({ emp, onBack, onActivate, onWorkbench }: { emp: DigitalEmployee; onBack: () => void; onActivate: (emp: DigitalEmployee) => void; onWorkbench: (emp?: DigitalEmployee) => void }) {
   return (
     <motion.div
       className="flex-1 overflow-y-auto"
@@ -297,7 +299,7 @@ function DetailPanel({ emp, onBack, onActivate, onWorkbench }: { emp: DigitalEmp
         {/* action button */}
         <div className="pt-2 pb-4">
           {emp.status === 'active' ? (
-            <button onClick={onWorkbench} className="btn-terracotta w-full py-3 text-sm gap-2">
+            <button onClick={() => onWorkbench(emp)} className="btn-terracotta w-full py-3 text-sm gap-2">
               <Play size={16} /> 进入 {emp.name} 工作台
             </button>
           ) : emp.workspace.comingSoon ? (
@@ -319,10 +321,14 @@ function DetailPanel({ emp, onBack, onActivate, onWorkbench }: { emp: DigitalEmp
 export default function Team({ isConnected }: TeamProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<DigitalEmployee | null>(null);
   const [showBuilder, setShowBuilder] = useState(false);
+  const [activeWorkspace, setActiveWorkspace] = useState<string | null>(null);
   const [customEmployees, setCustomEmployees] = useState<DigitalEmployee[]>([]);
   const { data: sdkData, loading, refresh } = useAgentManagement(isConnected);
   const { toast } = useToast();
   const [activating, setActivating] = useState(false);
+
+  // 注册卡片模板（幂等）
+  registerAllCards();
 
   // SDK agents 按 name 建立查询表，用于合并状态
   const sdkAgentMap = new Map(sdkData.agents.map(a => [a.name.toLowerCase(), a]));
@@ -370,14 +376,25 @@ export default function Team({ isConnected }: TeamProps) {
     }
   };
 
-  const handleWorkbench = () => {
-    toast('info', '工作台功能即将上线');
+  const handleWorkbench = (emp?: DigitalEmployee) => {
+    const target = emp || selectedEmployee;
+    if (target?.id === 'spark') {
+      setActiveWorkspace('spark');
+      setSelectedEmployee(null);
+    } else {
+      toast('info', `${target?.name || '该员工'}工作台即将上线`);
+    }
   };
 
   return (
     <div className="flex-1 overflow-y-auto bg-parchment">
       <AnimatePresence mode="wait">
-        {showBuilder ? (
+        {activeWorkspace === 'spark' ? (
+          <SparkWorkspaceV2
+            key="spark-workspace"
+            onBack={() => setActiveWorkspace(null)}
+          />
+        ) : showBuilder ? (
           <EmployeeBuilderV2
             key="builder"
             onBack={() => setShowBuilder(false)}

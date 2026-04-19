@@ -1,5 +1,6 @@
-// spark-ai.ts — Gemini 流式客户端 (OpenAI 兼容格式)
+// spark-ai.ts — Gemini 客户端 (OpenAI 兼容格式)
 // 代理地址: Cloudflare Worker → Gemini 2.5 Flash
+// 注意：CF Worker 代理暂不支持 SSE 流式，使用非流式 + 模拟逐字输出
 
 const PROXY_URL = 'https://spark-gemini-proxy.finewood2008.workers.dev/v1/chat/completions';
 const MODEL = 'gemini-2.5-flash';
@@ -9,46 +10,34 @@ export interface ChatMessage {
   content: string;
 }
 
-// ── SSE 流式解析 ──────────────────────────────
-async function processSSEStream(
-  resp: Response,
+// ── 模拟流式输出（非流式 API + 逐字推送）──────────
+async function simulateStream(
+  fullText: string,
   onDelta: (text: string) => void,
   onDone: () => void,
 ) {
-  if (!resp.body) { onDone(); return; }
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let streamDone = false;
-
-  while (!streamDone) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    let newlineIdx: number;
-    while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
-      let line = buffer.slice(0, newlineIdx);
-      buffer = buffer.slice(newlineIdx + 1);
-      if (line.endsWith('\r')) line = line.slice(0, -1);
-      if (line.startsWith(':') || line.trim() === '') continue;
-      if (!line.startsWith('data: ')) continue;
-      const jsonStr = line.slice(6).trim();
-      if (jsonStr === '[DONE]') { streamDone = true; break; }
-      try {
-        const parsed = JSON.parse(jsonStr);
-        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-        if (content) onDelta(content);
-      } catch {
-        buffer = line + '\n' + buffer;
-        break;
-      }
+  // 按句子/标点切分，逐块推送，模拟流式效果
+  const chunks: string[] = [];
+  let current = '';
+  for (const char of fullText) {
+    current += char;
+    // 在标点或每 3-8 字推送一次
+    if (/[。！？，；：、\n.!?,;:]/.test(char) || current.length >= 5) {
+      chunks.push(current);
+      current = '';
     }
+  }
+  if (current) chunks.push(current);
+
+  for (const chunk of chunks) {
+    onDelta(chunk);
+    // 每块之间加 30-60ms 延迟
+    await new Promise(r => setTimeout(r, 30 + Math.random() * 30));
   }
   onDone();
 }
 
-// ── 流式对话 ──────────────────────────────
+// ── 对话调用 ──────────────────────────────
 export async function streamChat({
   messages,
   systemPrompt,
@@ -75,7 +64,7 @@ export async function streamChat({
       body: JSON.stringify({
         model: MODEL,
         messages: allMessages,
-        stream: true,
+        stream: false,
         temperature: 0.8,
         max_tokens: 4096,
       }),
@@ -86,7 +75,15 @@ export async function streamChat({
       throw new Error(`API error ${resp.status}: ${errText}`);
     }
 
-    await processSSEStream(resp, onDelta, onDone);
+    const data = await resp.json();
+    const content = data.choices?.[0]?.message?.content || '';
+
+    if (!content) {
+      throw new Error('API returned empty content');
+    }
+
+    // 模拟流式输出
+    await simulateStream(content, onDelta, onDone);
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     if (onError) onError(error);

@@ -44,9 +44,9 @@ export const DIGITAL_EMPLOYEES: DigitalEmployee[] = [
       layers: ['品牌风格指南', '历史设计偏好', '客户反馈记录', '竞品视觉库'],
     },
     workspace: {
-      type: 'three-panel',
-      label: '创意工作台',
-      description: '左侧素材库 / 中间画布 / 右侧对话',
+      type: 'chat-board',
+      label: '火花工作台',
+      description: '对话驱动 + 内容看板',
     },
     onboardingPreferences: [
       { key: 'industry', label: '所在行业', type: 'select', options: ['科技', '消费', '教育', '金融', '医疗', '其他'] },
@@ -99,9 +99,9 @@ export const DIGITAL_EMPLOYEES: DigitalEmployee[] = [
       layers: ['客户画像库', '投放策略历史', '转化漏斗数据', '行业基准数据'],
     },
     workspace: {
-      type: 'dashboard',
-      label: '增长仪表盘',
-      description: '实时数据看板 + 线索管理 + 策略对话',
+      type: 'chat-board',
+      label: '小可工作台',
+      description: '对话驱动 + 线索看板',
     },
     onboardingPreferences: [
       { key: 'target_audience', label: '目标客户', type: 'textarea', placeholder: '描述你的理想客户...' },
@@ -154,9 +154,9 @@ export const DIGITAL_EMPLOYEES: DigitalEmployee[] = [
       layers: ['合同模板库', '审核意见历史', '企业合规规则', '法律法规更新'],
     },
     workspace: {
-      type: 'document',
+      type: 'chat-board',
       label: '法务工作台',
-      description: '文档审阅 + 批注 + 法规对照',
+      description: '对话驱动 + 文档看板',
       comingSoon: true,
     },
     onboardingPreferences: [
@@ -209,9 +209,9 @@ export const DIGITAL_EMPLOYEES: DigitalEmployee[] = [
       layers: ['企业税务档案', '历史报表', '费用规则', '税收政策更新'],
     },
     workspace: {
-      type: 'dashboard',
+      type: 'chat-board',
       label: '财税工作台',
-      description: '票据处理 + 报表看板 + 税务对话',
+      description: '对话驱动 + 财税看板',
       comingSoon: true,
     },
     onboardingPreferences: [
@@ -264,9 +264,9 @@ export const DIGITAL_EMPLOYEES: DigitalEmployee[] = [
       layers: ['威胁情报库', '安全事件历史', '权限策略集', '合规规则库'],
     },
     workspace: {
-      type: 'dashboard',
+      type: 'chat-board',
       label: '安全中心',
-      description: '安全态势 + 告警列表 + 处置对话',
+      description: '对话驱动 + 安全看板',
       comingSoon: true,
     },
     onboardingPreferences: [
