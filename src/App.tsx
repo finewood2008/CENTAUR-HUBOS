@@ -67,11 +67,13 @@ function AppInner() {
       <div className="h-screen w-screen bg-parchment text-near-black flex overflow-hidden">
         <Sidebar active={tab} onNav={setTab} />
         <main className={`flex-1 flex flex-col overflow-hidden bg-parchment ${BG_CLASS_MAP[bgStyle] || ''}`}>
-          {/* 连接状态指示 */}
-          {!checking && (
-            <div className={`px-4 py-1 text-[10px] flex items-center gap-1.5 border-b border-border-cream ${connected ? 'text-success-green' : 'text-yellow-600'}`}>
-              <span className={`status-dot ${connected ? 'status-dot-active' : 'bg-yellow-500'}`} />
-              {connected ? 'SDK 已连接 · 控制面在线' : 'SDK 离线 · 控制面断开连接'}
+          {/* 连接状态指示 — 仅在工作台页面显示，极简化 */}
+          {!checking && tab === 'dashboard' && (
+            <div className="px-8 pt-2 pb-0">
+              <div className={`text-[10px] flex items-center gap-1.5 ${connected ? 'text-stone-gray/50' : 'text-yellow-600/70'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400/60' : 'bg-yellow-500/60'}`} />
+                {connected ? '已连接' : '离线'}
+              </div>
             </div>
           )}
 

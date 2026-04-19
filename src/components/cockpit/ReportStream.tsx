@@ -24,9 +24,9 @@ function ApprovalCard({
 
   return (
     <div
-      className={`card-glass p-0 overflow-hidden transition-all ${
-        isHandled ? 'opacity-60' : 'ring-1 ring-terracotta/20'
-      }`}
+      className={`rounded-xl overflow-hidden transition-all ${
+        isHandled ? 'opacity-60' : 'shadow-[0_1px_3px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.04)]'
+      } bg-white/80 border border-border-cream/30`}
     >
       {/* Left color border */}
       <div className={`flex ${item.employeeColor}`}>
@@ -90,7 +90,7 @@ function ApprovalCard({
               </button>
               <button
                 onClick={onApprove}
-                className="text-[12px] py-1.5 px-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                className="text-[12px] py-1.5 px-4 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all shadow-sm font-medium"
               >
                 批准
               </button>
@@ -105,7 +105,7 @@ function ApprovalCard({
 // ── 汇报卡片 ──
 function ReportCard({ item }: { item: ReportItem }) {
   return (
-    <div className="card-glass p-0 overflow-hidden">
+    <div className="rounded-xl overflow-hidden bg-white/80 border border-border-cream/30 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
       <div className={`flex ${item.employeeColor}`}>
         <div className="w-1 shrink-0 self-stretch bg-current" />
         <div className="flex-1 p-3">

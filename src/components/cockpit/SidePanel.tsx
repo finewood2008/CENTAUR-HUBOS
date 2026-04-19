@@ -31,42 +31,44 @@ export default function SidePanel({
   return (
     <div className="flex flex-col h-full">
       {/* Tab switcher */}
-      <div className="flex border-b border-border-cream bg-white/30 backdrop-blur-sm shrink-0">
+      <div className="flex items-center gap-1 px-5 pt-4 pb-0 border-b border-border-cream/30 shrink-0">
         <button
           onClick={() => setActiveTab('reports')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-medium transition-colors relative ${
+          className={`flex items-center gap-1.5 pb-3 px-3 text-[13px] font-medium transition-colors relative ${
             activeTab === 'reports'
-              ? 'text-terracotta'
-              : 'text-stone-gray hover:text-charcoal-warm'
+              ? 'text-near-black'
+              : 'text-stone-gray hover:text-near-black'
           }`}
         >
-          <FileText size={13} />
+          <FileText size={14} />
           汇报
           {pendingCount > 0 && (
-            <span className="absolute top-1.5 right-[calc(50%-28px)] w-1.5 h-1.5 rounded-full bg-red-500" />
+            <span className="ml-0.5 w-4 h-4 rounded-full bg-terracotta text-white text-[10px] flex items-center justify-center font-semibold shrink-0">
+              {pendingCount}
+            </span>
           )}
           {activeTab === 'reports' && (
-            <span className="absolute bottom-0 left-1/4 right-1/4 h-[2px] bg-terracotta rounded-t-full" />
+            <span className="absolute bottom-0 left-1 right-1 h-[2px] bg-terracotta rounded-t-full" />
           )}
         </button>
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[12px] font-medium transition-colors relative ${
+          className={`flex items-center gap-1.5 pb-3 px-3 text-[13px] font-medium transition-colors relative ${
             activeTab === 'dashboard'
-              ? 'text-terracotta'
-              : 'text-stone-gray hover:text-charcoal-warm'
+              ? 'text-near-black'
+              : 'text-stone-gray hover:text-near-black'
           }`}
         >
-          <LayoutGrid size={13} />
+          <LayoutGrid size={14} />
           看板
           {activeTab === 'dashboard' && (
-            <span className="absolute bottom-0 left-1/4 right-1/4 h-[2px] bg-terracotta rounded-t-full" />
+            <span className="absolute bottom-0 left-1 right-1 h-[2px] bg-terracotta rounded-t-full" />
           )}
         </button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4">
         {activeTab === 'reports' ? (
           <ReportStream
             reports={reports}
