@@ -17,8 +17,8 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-if ! command -v npm &> /dev/null; then
-    echo "❌ 错误: 未找到 npm"
+if ! command -v node &> /dev/null; then
+    echo "❌ 错误: 未找到 node"
     exit 1
 fi
 
@@ -30,7 +30,7 @@ if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
     echo ""
 fi
 
-# 启动 bridge_server
+# ── 启动 bridge_server ─────────────────
 echo "🚀 启动 bridge_server (21747)..."
 cd "$PROJECT_ROOT/qeeclaw-sdk/packages/hermes-bridge"
 
@@ -53,7 +53,30 @@ fi
 
 echo ""
 
-# 启动前端
+# ── 启动 HubOS 产品后端 ────────────────
+echo "🚀 启动 HubOS 产品后端 (3456)..."
+cd "$SCRIPT_DIR"
+
+if lsof -Pi :3456 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo "   ⚠️  端口 3456 已被占用，跳过启动"
+else
+    node server/index.cjs > /tmp/hubos_api.log 2>&1 &
+    HUBOS_PID=$!
+    echo "   ✅ HubOS API 已启动 (PID: $HUBOS_PID)"
+    sleep 2
+
+    # 验证启动
+    if curl -s http://127.0.0.1:3456/api/hubos/health > /dev/null 2>&1; then
+        echo "   ✅ HubOS API 健康检查通过"
+    else
+        echo "   ❌ HubOS API 启动失败，查看日志: /tmp/hubos_api.log"
+        exit 1
+    fi
+fi
+
+echo ""
+
+# ── 启动前端 ───────────────────────────
 echo "🚀 启动前端开发服务器 (5173)..."
 cd "$SCRIPT_DIR"
 

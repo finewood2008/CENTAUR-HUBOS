@@ -220,8 +220,7 @@ export function useAgentActions(isConnected: boolean, onSuccess?: () => void) {
       if (!isConnected) return null;
       setSubmitting(true);
       try {
-        const client = await getClientAsync();
-        const result = await client.agent.create({
+        const result = await getAgentModule().create({
           name,
           description,
           model,
@@ -274,8 +273,7 @@ export function useChannelsData(isConnected: boolean) {
       return;
     }
     try {
-      const client = await getClientAsync();
-      const overview = await client.channels.getOverview(1);
+      const overview = await getChannelsModule().getOverview(1);
       setData(overview as unknown as ChannelsData);
     } catch {
       setData(null);
@@ -325,10 +323,9 @@ export function useKnowledgeData(isConnected: boolean) {
       return;
     }
     try {
-      const client = await getClientAsync();
       const [listRes, statsRes] = await Promise.all([
-        client.knowledge.list({ teamId: 1 }).catch(() => null),
-        client.knowledge.stats({ teamId: 1 }).catch(() => null),
+        getKnowledgeModule().list({ teamId: 1 }).catch(() => null),
+        getKnowledgeModule().stats({ teamId: 1 }).catch(() => null),
       ]);
 
       // 后端返回 {documents: [...]} ，每个 document 有 source_name/chunk_count/total_chars 等
@@ -383,8 +380,7 @@ export function useQeeClawAgent(agentId: string) {
     async (prompt: string) => {
       setLoading(true);
       try {
-        const client = await getClientAsync();
-      const result = await client.models.invoke({ prompt });
+        const result = await getModelsModule().invoke({ prompt });
         return result;
       } catch (error) {
         console.error('Invoke error:', error);
@@ -409,10 +405,9 @@ export function useDevicesData(isConnected: boolean) {
     if (!isConnected) { setLoading(false); return; }
     setLoading(true);
     try {
-      const client = await getClientAsync();
       const [list, online] = await Promise.all([
-        client.devices.list().catch(() => []),
-        client.devices.getOnlineState().catch(() => null),
+        getDevicesModule().list().catch(() => []),
+        getDevicesModule().getOnlineState().catch(() => null),
       ]);
       setDevices(list);
       setOnlineState(online);
@@ -434,12 +429,12 @@ export function useAuditData(isConnected: boolean) {
     if (!isConnected) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [sumRes, evtsRes] = await Promise.all([
-        fetch('/api/hubos/audit/summary').then(r => r.json()).catch(() => null),
-        fetch('/api/hubos/audit/events?page=1&page_size=20').then(r => r.json()).catch(() => null),
+      const [sum, evts] = await Promise.all([
+        getAuditModule().getSummary().catch(() => null),
+        getAuditModule().listEvents({ page: 1, pageSize: 20 }).catch(() => null),
       ]);
-      setSummary(sumRes?.data ?? null);
-      setEvents(evtsRes?.data?.items ?? []);
+      setSummary(sum);
+      setEvents(evts?.items ?? []);
     } catch { /* fallback empty */ }
     finally { setLoading(false); }
   }, [isConnected]);
@@ -457,8 +452,8 @@ export function useApprovalData(isConnected: boolean) {
     if (!isConnected) { setLoading(false); return; }
     setLoading(true);
     try {
-      const result = await fetch('/api/hubos/approvals?page=1&page_size=20').then(r => r.json());
-      setApprovals(result?.data?.items ?? []);
+      const result = await getApprovalModule().list({ page: 1, pageSize: 20 });
+      setApprovals(result?.items ?? []);
     } catch { setApprovals([]); }
     finally { setLoading(false); }
   }, [isConnected]);
@@ -477,10 +472,9 @@ export function useApiKeyData(isConnected: boolean) {
     if (!isConnected) { setLoading(false); return; }
     setLoading(true);
     try {
-      const client = await getClientAsync();
       const [ak, lk] = await Promise.all([
-        client.apikey.list().catch(() => null),
-        client.apikey.listLLMKeys().catch(() => []),
+        getApiKeyModule().list().catch(() => null),
+        getApiKeyModule().listLLMKeys().catch(() => []),
       ]);
       setAppKeys(ak?.items ?? []);
       setLlmKeys(lk ?? []);
@@ -501,8 +495,7 @@ export function useWorkflowData(isConnected: boolean) {
     if (!isConnected) { setLoading(false); return; }
     setLoading(true);
     try {
-      const client = await getClientAsync();
-      const result = await client.workflow.list();
+      const result = await getWorkflowModule().list();
       setWorkflows(Array.isArray(result) ? result : []);
     } catch { setWorkflows([]); }
     finally { setLoading(false); }
@@ -522,8 +515,7 @@ export function useTenantContext(isConnected: boolean) {
     let cancelled = false;
     (async () => {
       try {
-        const client = await getClientAsync();
-      const result = await client.tenant.getCurrentContext();
+        const result = await getTenantModule().getCurrentContext();
         if (!cancelled) setContext(result);
       } catch { /* ignore */ }
       finally { if (!cancelled) setLoading(false); }
@@ -544,10 +536,9 @@ export function useConversationsData(isConnected: boolean) {
     if (!isConnected) { setLoading(false); return; }
     setLoading(true);
     try {
-      const client = await getClientAsync();
       const [s, g] = await Promise.all([
-        client.conversations.getStats(1).catch(() => null),
-        client.conversations.listGroups({ teamId: 1 }).catch(() => []),
+        getConversationsModule().getStats(1).catch(() => null),
+        getConversationsModule().listGroups({ teamId: 1 }).catch(() => []),
       ]);
       setStats(s);
       setGroups(Array.isArray(g) ? g : []);
@@ -589,15 +580,14 @@ export function useFinanceData(isConnected: boolean) {
     }
     setLoading(true);
     try {
-      const client = await getClientAsync();
       const [wallet, quota, appKeysResult, llmKeys, usageSummary, costSummary, billingResult] = await Promise.all([
-        client.billing.getWallet().catch(() => null),
-        client.models.getQuota().catch(() => null),
-        client.apikey.list().catch(() => null),
-        client.apikey.listLLMKeys().catch(() => []),
-        client.models.getUsage({ days: 7 }).catch(() => null),
-        client.models.getCost({ days: 7 }).catch(() => null),
-        client.billing.listRecords({ page: 1, pageSize: 50 }).catch(() => null),
+        getBillingModule().getWallet().catch(() => null),
+        getModelsModule().getQuota().catch(() => null),
+        getApiKeyModule().list().catch(() => null),
+        getApiKeyModule().listLLMKeys().catch(() => []),
+        getModelsModule().getUsage({ days: 7 }).catch(() => null),
+        getModelsModule().getCost({ days: 7 }).catch(() => null),
+        getBillingModule().listRecords({ page: 1, pageSize: 50 }).catch(() => null),
       ]);
 
       setData({
@@ -627,8 +617,7 @@ export function useChatConversation(isConnected: boolean) {
     if (!isConnected) return;
     setLoading(true);
     try {
-      const client = await getClientAsync();
-      const result = await client.conversations.listHistory({ teamId: 1, limit: 50 });
+      const result = await getConversationsModule().listHistory({ teamId: 1, limit: 50 });
       setMessages(result);
     } catch { /* fallback empty */ }
     finally { setLoading(false); }
@@ -638,8 +627,7 @@ export function useChatConversation(isConnected: boolean) {
     if (!isConnected || !content.trim()) return null;
     setSending(true);
     try {
-      const client = await getClientAsync();
-      const userMsg = await client.conversations.sendMessage({
+      const userMsg = await getConversationsModule().sendMessage({
         teamId: 1,
         content,
         agentId,
@@ -647,8 +635,8 @@ export function useChatConversation(isConnected: boolean) {
       });
       setMessages(prev => [...prev, userMsg]);
 
-      const aiResult = await client.models.invoke({ prompt: content });
-      const aiMsg = await client.conversations.sendMessage({
+      const aiResult = await getModelsModule().invoke({ prompt: content });
+      const aiMsg = await getConversationsModule().sendMessage({
         teamId: 1,
         content: aiResult.text,
         agentId,
@@ -689,13 +677,12 @@ export function useEnhancedDashboardData(isConnected: boolean) {
     }
     setExtraLoading(true);
     try {
-      const client = await getClientAsync();
       const [auditResult, billingResult] = await Promise.all([
-        fetch('/api/hubos/audit/events?page=1&page_size=20').then(r => r.json()).catch(() => null),
-        client.billing.listRecords({ page: 1, pageSize: 10 }).catch(() => null),
+        getAuditModule().listEvents({ page: 1, pageSize: 20 }).catch(() => null),
+        getBillingModule().listRecords({ page: 1, pageSize: 10 }).catch(() => null),
       ]);
       setExtra({
-        auditEvents: auditResult?.data?.items ?? [],
+        auditEvents: auditResult?.data ?? [],
         billingRecords: billingResult?.data ?? [],
       });
     } catch {

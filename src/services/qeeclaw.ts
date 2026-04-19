@@ -43,13 +43,13 @@ async function tryLoadRealSDK(): Promise<boolean> {
   if (_loadAttempted) return _realCreateClient !== null;
   _loadAttempted = true;
   try {
-    // 只在 node_modules 有真实 SDK 时才成功 (dev 环境)
-    // @ts-ignore - dynamic import may fail at build time
-    const mod = await (Function('return import("@qeeclaw/core-sdk")')());
+    // 直接导入，Vite 会处理路径解析
+    const mod = await import('@qeeclaw/core-sdk');
     _realCreateClient = mod.createQeeClawClient;
+    console.log('[QeeClaw SDK] 真实 SDK 加载成功');
     return true;
-  } catch {
-    console.log('[QeeClaw SDK] 真实 SDK 不可用，使用 stub 模式');
+  } catch (err) {
+    console.log('[QeeClaw SDK] 真实 SDK 不可用，使用 stub 模式', err);
     return false;
   }
 }
@@ -57,16 +57,42 @@ async function tryLoadRealSDK(): Promise<boolean> {
 // ── 本地开发环境配置 ──────────────────────────────
 const isDev = import.meta.env.DEV;
 const BASE_URL = isDev
-  ? '' // 相对路径，走 Vite proxy
+  ? window.location.origin
   : (import.meta.env.VITE_BRIDGE_URL || 'http://127.0.0.1:21747');
 
 console.log('[QeeClaw SDK] 初始化配置:', { isDev, BASE_URL });
 
 // ── 创建客户端单例 ─────────────────────────────────
 let _client: QeeClawCoreSDK | null = null;
+let _clientPromise: Promise<QeeClawCoreSDK> | null = null;
 
+// 异步版本：等待 SDK 加载完成后再创建客户端（推荐使用）
+export async function getClientAsync(): Promise<QeeClawCoreSDK> {
+  if (!_clientPromise) {
+    _clientPromise = (async () => {
+      await tryLoadRealSDK();
+
+      if (!_client) {
+        if (_realCreateClient) {
+          _client = _realCreateClient({ baseUrl: BASE_URL });
+          console.log('[QeeClaw SDK] 客户端已创建 (真实)');
+        } else {
+          _client = createStubClient();
+          console.log('[QeeClaw SDK] 客户端已创建 (stub)');
+        }
+      }
+
+      return _client;
+    })();
+  }
+
+  return _clientPromise;
+}
+
+// 同步版本：立即返回（可能是 stub，不推荐直接使用）
 export function getClient(): QeeClawCoreSDK {
   if (!_client) {
+    console.trace('[QeeClaw SDK] getClient() 被同步调用，调用栈：');
     if (_realCreateClient) {
       _client = _realCreateClient({ baseUrl: BASE_URL });
       console.log('[QeeClaw SDK] 客户端已创建 (真实)');
@@ -77,14 +103,6 @@ export function getClient(): QeeClawCoreSDK {
   }
   return _client;
 }
-
-// 启动时尝试加载真实 SDK
-tryLoadRealSDK().then(ok => {
-  if (ok && !_client) {
-    // 如果还没创建 client，下次 getClient() 会用真实 SDK
-    console.log('[QeeClaw SDK] 真实 SDK 已就绪');
-  }
-});
 
 // 运行时上下文
 export const globalRuntimeContext = {
@@ -98,7 +116,7 @@ export async function checkConnection(): Promise<{
   error?: string;
 }> {
   try {
-    const client = getClient();
+    const client = await getClientAsync();
     await client.billing.getWallet();
     console.log('[QeeClaw SDK] 连接检查成功');
     return { connected: true };

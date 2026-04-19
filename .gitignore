@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# HubOS 产品后端数据（SQLite）
+server/data/
