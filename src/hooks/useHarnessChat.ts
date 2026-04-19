@@ -1,6 +1,6 @@
 // useHarnessChat.ts — 将 Harness 引擎与 ChatFlow 对话组件桥接的 React Hook
 // 管理对话消息、LLM 流式调用、Harness 流程推进
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ChatMsg, CardMessage } from '../components/chat-engine/types';
 import type { HarnessFlow, HarnessStep, FlowState } from '../engine/types';
 import { HarnessRunner } from '../engine/HarnessRunner';
@@ -8,6 +8,7 @@ import { matchSparkFlow } from '../engine/flows/spark-flows';
 import { mapOutlineData, mapArticleData, mapSocialPostData } from '../engine/flows/data-mappers';
 import { streamChat, type ChatMessage } from '../lib/spark-ai';
 import { nextMsgId } from '../components/chat-engine/types';
+import { useChatPersistence } from './useChatPersistence';
 
 // 数据映射函数注册表
 const DATA_MAPPERS: Record<string, (ai: string) => any> = {
@@ -35,15 +36,26 @@ export function useHarnessChat(employeeId: string): UseHarnessChatReturn {
   const runnerRef = useRef<HarnessRunner | null>(null);
   const pendingStepRef = useRef<HarnessStep | null>(null);
   const messagesRef = useRef<ChatMsg[]>([]);
+  const { saveMessages, loadMessages } = useChatPersistence(employeeId);
 
-  // 保持 ref 与 state 同步
+  // 初始化时加载历史消息
+  useEffect(() => {
+    const saved = loadMessages();
+    if (saved.length > 0) {
+      setMessages(saved);
+      messagesRef.current = saved;
+    }
+  }, [loadMessages]);
+
+  // 保持 ref 与 state 同步 + 持久化保存
   const updateMessages = useCallback((updater: (prev: ChatMsg[]) => ChatMsg[]) => {
     setMessages(prev => {
       const next = updater(prev);
       messagesRef.current = next;
+      saveMessages(next);
       return next;
     });
-  }, []);
+  }, [saveMessages]);
 
   // 添加助手消息（初始为空，流式填充）
   const addAssistantMessage = useCallback((): string => {
@@ -70,11 +82,14 @@ export function useHarnessChat(employeeId: string): UseHarnessChatReturn {
     setIsStreaming(true);
     let fullContent = '';
 
-    // 构建消息历史（最近 20 条）
+    // 构建消息历史（最近 10 条非卡片消息，精简 token）
     const historyMsgs: ChatMessage[] = messagesRef.current
       .filter(m => m.role !== 'system' && !m.card)
-      .slice(-20)
-      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+      .slice(-10)
+      .map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content.length > 800 ? m.content.slice(0, 800) + '...' : m.content,
+      }));
 
     const systemPrompt =
       '你是火花，一个温暖专业的品牌创意总监，服务中小企业。\n' +
@@ -142,22 +157,29 @@ export function useHarnessChat(employeeId: string): UseHarnessChatReturn {
         // AI 步骤：调用 LLM
         pendingStepRef.current = step;
 
-        // 将前面步骤的结果注入 prompt，让 LLM 有上下文
+        // 将前面步骤的关键结果注入 prompt（精简版，避免 token 爆炸）
         const state = runner.getState();
         const contextParts: string[] = [];
         for (const [key, val] of Object.entries(state.stepResults)) {
-          if (key === step.id) continue; // 跳过当前步骤
-          if (key.endsWith('_user')) continue; // 跳过用户输入（已在聊天历史中）
-          if (typeof val === 'string' && val.length > 0) {
-            contextParts.push(`[${key} 步骤结果]:\n${val}`);
+          if (key === step.id) continue;
+          if (key.endsWith('_user')) continue;
+          if (typeof val !== 'string' || val.length === 0) continue;
+          // 对于长文本（如大纲步骤的 AI 回复），只提取 JSON 部分
+          const jsonMatch = val.match(/```json\s*([\s\S]*?)```/);
+          if (jsonMatch) {
+            contextParts.push(`[${key}]:\n${jsonMatch[1].trim()}`);
+          } else if (val.length > 500) {
+            // 超长文本截断
+            contextParts.push(`[${key}]:\n${val.slice(0, 500)}...`);
+          } else {
+            contextParts.push(`[${key}]:\n${val}`);
           }
         }
         const enrichedPrompt = contextParts.length > 0
-          ? prompt + '\n\n--- 前序步骤上下文 ---\n' + contextParts.join('\n\n')
+          ? prompt + '\n\n--- 前序上下文 ---\n' + contextParts.join('\n\n')
           : prompt;
 
         callLLM(enrichedPrompt, (fullText) => {
-          // AI 完成后，将结果提供给 runner
           runner.provideStepResult(step.id, fullText);
         });
       },
