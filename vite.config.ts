@@ -12,6 +12,23 @@ export default defineConfig({
     tailwindcss(),
     apiMockPlugin(),
   ],
+  build: {
+    rollupOptions: {
+      external: [
+        '@qeeclaw/core-sdk',
+        '@qeeclaw/product-sdk',
+        '@qeeclaw/runtime-sidecar',
+      ],
+      output: {
+        // 外部模块作为全局空对象处理（SDK 离线时 fallback 逻辑已覆盖）
+        globals: {
+          '@qeeclaw/core-sdk': '{}',
+          '@qeeclaw/product-sdk': '{}',
+          '@qeeclaw/runtime-sidecar': '{}',
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       // /api/* 由 apiMockPlugin 处理（rewrite或mock）

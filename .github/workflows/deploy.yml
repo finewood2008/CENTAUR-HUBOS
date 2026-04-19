@@ -28,7 +28,18 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          # 创建 SDK stub（本地 file: 依赖在 CI 上不存在）
+          for pkg in core-sdk product-sdk runtime-sidecar; do
+            mkdir -p /tmp/qeeclaw-stubs/$pkg
+            echo '{"name":"@qeeclaw/'$pkg'","version":"0.0.0-stub","main":"index.js"}' > /tmp/qeeclaw-stubs/$pkg/package.json
+            echo 'module.exports = {};' > /tmp/qeeclaw-stubs/$pkg/index.js
+          done
+          # 替换 file: 引用为 stub 路径
+          sed -i 's|"file:../qeeclaw-sdk/packages/core-sdk"|"file:/tmp/qeeclaw-stubs/core-sdk"|g' package.json
+          sed -i 's|"file:../qeeclaw-sdk/packages/product-sdk"|"file:/tmp/qeeclaw-stubs/product-sdk"|g' package.json
+          sed -i 's|"file:../qeeclaw-sdk/packages/runtime-sidecar"|"file:/tmp/qeeclaw-stubs/runtime-sidecar"|g' package.json
+          npm install --ignore-scripts
 
       - name: Build
         run: npx vite build
