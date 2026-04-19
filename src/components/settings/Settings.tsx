@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useOrg, useTheme } from '../../stores/useAppStore';
 import type { OrgInfo, BackgroundStyle } from '../../stores/useAppStore';
+import { useFinanceData } from '../../hooks/useQeeClaw';
 
 // ─── 类型 ────────────────────────────────────────
 interface SettingsProps {
@@ -107,6 +108,7 @@ export default function Settings({ isConnected }: SettingsProps) {
   const [saved, setSaved] = useState(false);
   const { org, updateOrg } = useOrg();
   const { theme, setTheme, bgStyle, setBgStyle } = useTheme();
+  const { data: financeData } = useFinanceData(isConnected);
 
   // 加载
   useEffect(() => {
@@ -152,7 +154,15 @@ export default function Settings({ isConnected }: SettingsProps) {
             1. 设备信息
            ════════════════════════════════════════════ */}
         <motion.section variants={fadeUp} initial="hidden" animate="visible" custom={0}>
-          <SectionTitle icon={Monitor} label="设备信息" />
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Monitor size={16} className="text-terracotta" />
+              <h3 className="text-sm font-medium text-near-black">设备信息</h3>
+            </div>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-warm-sand text-stone-gray">
+              演示数据 · SDK 暂未提供设备接口
+            </span>
+          </div>
           <div className="card-glass-warm p-5 space-y-4">
             {/* 顶部：名称 + 型号 + 状态 */}
             <div className="flex items-center justify-between">
@@ -234,7 +244,9 @@ export default function Settings({ isConnected }: SettingsProps) {
               {hasKey && (
                 <div className="flex items-center gap-1.5 text-xs text-olive-gray">
                   <Zap size={12} className="text-terracotta" />
-                  剩余算力：<span className="font-medium text-near-black">¥5,280.00</span>
+                  剩余算力：<span className="font-medium text-near-black">
+                    ¥{(financeData.wallet?.balance ?? 5280).toFixed(2)}
+                  </span>
                 </div>
               )}
             </div>

@@ -14,6 +14,7 @@ import {
   useChannelsData,
   useKnowledgeData,
 } from '../../hooks/useQeeClaw';
+import { getApprovalModule } from '../../services/qeeclaw';
 
 interface CockpitProps {
   onNav?: (tab: NavTab) => void;
@@ -56,12 +57,18 @@ export default function Cockpit({ onNav }: CockpitProps) {
   };
 
   // 审批操作回调
-  const handleApprovalAction = (id: string | number, action: 'approved' | 'rejected') => {
+  const handleApprovalAction = async (id: string | number, action: 'approved' | 'rejected') => {
     const label = action === 'approved' ? '已通过' : '已驳回';
-    toast(action === 'approved' ? 'success' : 'info', `审批项 ${id} ${label}`);
-    // SDK 连接时尝试调用后端
     if (connected) {
-      refreshApprovals();
+      try {
+        await getApprovalModule().resolve(String(id), { approved: action === 'approved' });
+        toast(action === 'approved' ? 'success' : 'info', `审批项${label}`);
+        await refreshApprovals();
+      } catch (err) {
+        toast('error', `审批操作失败: ${err instanceof Error ? err.message : '未知错误'}`);
+      }
+    } else {
+      toast(action === 'approved' ? 'success' : 'info', `审批项 ${id} ${label}（演示模式）`);
     }
   };
 
@@ -114,7 +121,7 @@ export default function Cockpit({ onNav }: CockpitProps) {
 
         {/* Main feed */}
         <main className="flex-1 min-w-0 overflow-hidden">
-          <FeedStream activities={dashData.activities} alerts={dashData.alerts} isConnected={connected} onNav={onNav} />
+          <FeedStream activities={dashData.activities} alerts={dashData.alerts} isConnected={connected} onNav={onNav} onApprovalAction={handleApprovalAction} />
         </main>
       </div>
     </div>

@@ -58,6 +58,15 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, isConnected
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [appendToKb, setAppendToKb] = useState<string | null>(null);
+
+  const openAppend = (kbName: string) => {
+    if (!isConnected) { toast('info', 'SDK 离线，暂无法追加文件'); return; }
+    setAppendToKb(kbName);
+    setUploadName(kbName);
+    setUploadFile(null);
+    setShowUpload(true);
+  };
 
   const handleIngest = async () => {
     if (!isConnected) { toast('error', 'SDK 离线，无法上传'); return; }
@@ -70,10 +79,11 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, isConnected
         filename: uploadFile?.name,
         sourceName: uploadName.trim() || uploadFile?.name || '未命名知识库',
       });
-      toast('success', '知识库创建成功');
+      toast('success', appendToKb ? '文件已追加' : '知识库创建成功');
       setShowUpload(false);
       setUploadName('');
       setUploadFile(null);
+      setAppendToKb(null);
       onRefresh?.();
     } catch {
       toast('error', '创建失败，请稍后重试');
@@ -121,7 +131,7 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, isConnected
             </button>
           )}
           <button
-            onClick={() => setShowUpload(true)}
+            onClick={() => { setAppendToKb(null); setUploadName(''); setUploadFile(null); setShowUpload(true); }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors bg-terracotta/10 text-terracotta border border-terracotta/20"
           >
             <Plus size={14} /> 新建知识库
@@ -147,7 +157,7 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, isConnected
               className="card-glass p-6 w-[400px] shadow-2xl !rounded-2xl"
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-serif text-lg text-near-black">新建知识库</h3>
+                <h3 className="font-serif text-lg text-near-black">{appendToKb ? `追加文件到「${appendToKb}」` : '新建知识库'}</h3>
                 <button onClick={() => setShowUpload(false)} disabled={uploading} className="p-1 text-stone-gray hover:text-near-black">
                   <X size={16} />
                 </button>
@@ -230,6 +240,7 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, isConnected
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
                 className="flex items-center gap-4 p-3 rounded-lg transition-colors cursor-pointer group"
+                onClick={() => openAppend(kb.name)}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f0eee6')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
@@ -261,7 +272,11 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, isConnected
                     更新于 {formatTime(kb.updated_time)}
                   </div>
                 </div>
-                <Upload size={14} className="shrink-0 transition-colors text-stone-gray" />
+                <Upload
+                  size={14}
+                  className="shrink-0 transition-colors text-stone-gray hover:text-terracotta cursor-pointer"
+                  onClick={(e) => { e.stopPropagation(); openAppend(kb.name); }}
+                />
               </motion.div>
             ))}
           </div>

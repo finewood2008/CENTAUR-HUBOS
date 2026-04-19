@@ -68,11 +68,22 @@ function timeAgo(ts: string): string {
   return `${Math.floor(hrs / 24)} 天前`;
 }
 
-function FeedCard({ item, onNav }: { item: FeedItem; onNav?: (tab: NavTab) => void }) {
+function FeedCard({ item, onNav, onApprovalAction }: { item: FeedItem; onNav?: (tab: NavTab) => void; onApprovalAction?: (id: string | number, action: 'approved' | 'rejected') => Promise<void> }) {
   const [expanded, setExpanded] = useState(false);
   const [handled, setHandled] = useState<'approved' | 'rejected' | null>(null);
   const style = TYPE_STYLE[item.type];
   const Icon = style.icon;
+
+  const handleApprovalClick = async (action: 'approved' | 'rejected') => {
+    setHandled(action);
+    if (onApprovalAction) {
+      try {
+        await onApprovalAction(item.id, action);
+      } catch {
+        setHandled(null);
+      }
+    }
+  };
 
   // 未读 + 可操作 = 脉冲呼吸
   const pulse = !item.read && item.actionable && !handled ? 'feed-pulse' : '';
@@ -82,8 +93,8 @@ function FeedCard({ item, onNav }: { item: FeedItem; onNav?: (tab: NavTab) => vo
   // 操作按钮映射
   const actionMap: Record<string, { label: string; tab?: NavTab; handler?: () => void }[]> = {
     approval: [
-      { label: '通过', handler: () => setHandled('approved') },
-      { label: '驳回', handler: () => setHandled('rejected') },
+      { label: '通过', handler: () => handleApprovalClick('approved') },
+      { label: '驳回', handler: () => handleApprovalClick('rejected') },
       { label: '查看详情', tab: 'team' },
     ],
     alert: [
@@ -250,9 +261,10 @@ interface FeedStreamProps {
   alerts?: Alert[];
   isConnected?: boolean;
   onNav?: (tab: NavTab) => void;
+  onApprovalAction?: (id: string | number, action: 'approved' | 'rejected') => Promise<void>;
 }
 
-export default function FeedStream({ activities, alerts, isConnected, onNav }: FeedStreamProps) {
+export default function FeedStream({ activities, alerts, isConnected, onNav, onApprovalAction }: FeedStreamProps) {
   const [filter, setFilter] = useState<FilterType>('all');
   const [agentFilter, setAgentFilter] = useState<string>('all');
 
@@ -366,7 +378,7 @@ export default function FeedStream({ activities, alerts, isConnected, onNav }: F
             暂无匹配的消息
           </div>
         ) : (
-          filtered.map(item => <FeedCard key={item.id} item={item} onNav={onNav} />)
+          filtered.map(item => <FeedCard key={item.id} item={item} onNav={onNav} onApprovalAction={onApprovalAction} />)
         )}
       </div>
     </div>

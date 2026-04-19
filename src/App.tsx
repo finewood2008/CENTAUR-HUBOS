@@ -10,9 +10,10 @@ import Finance from './components/finance/Finance';
 import Channels from './components/channels/Channels';
 import Knowledge from './components/knowledge/Knowledge';
 import Settings from './components/settings/Settings';
-import { ToastProvider } from './components/shared/Toast';
+import { ToastProvider, useToast } from './components/shared/Toast';
 import { AppProvider, useTheme } from './stores/useAppStore';
 import { useConnection, useEnhancedDashboardData, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
+import { getAgentModule } from './services/qeeclaw';
 
 // 背景样式映射
 const BG_CLASS_MAP: Record<string, string> = {
@@ -27,11 +28,38 @@ function AppInner() {
   const [building, setBuilding] = useState(false);
   const { connected, checking } = useConnection();
   const { bgStyle } = useTheme();
+  const { toast } = useToast();
 
   // 数据加载
   const { data: dashData, refresh: refreshDashboard } = useEnhancedDashboardData(connected);
   const { data: channelsData, loading: channelsLoading, refresh: refreshChannels } = useChannelsData(connected);
   const { data: knowledgeData, loading: knowledgeLoading, refresh: refreshKnowledge } = useKnowledgeData(connected);
+
+  const handleBuilderComplete = async (spec: any) => {
+    try {
+      const raw = localStorage.getItem('hubos_custom_employees');
+      const list = raw ? JSON.parse(raw) : [];
+      list.push(spec);
+      localStorage.setItem('hubos_custom_employees', JSON.stringify(list));
+    } catch { /* ignore */ }
+
+    if (connected) {
+      try {
+        await getAgentModule().create({
+          name: spec?.name || '自定义员工',
+          description: spec?.description || spec?.role || '',
+          model: spec?.layers?.capability?.model || 'gpt-4o',
+          runtimeType: 'hermes',
+        });
+        toast('success', `${spec?.name || '员工'} 已创建并入职`);
+      } catch (err) {
+        toast('error', `创建失败：${err instanceof Error ? err.message : '未知错误'}`);
+      }
+    } else {
+      toast('info', '已保存到本地，SDK 离线暂未落库');
+    }
+    setBuilding(false);
+  };
 
   return (
     <>
@@ -54,15 +82,7 @@ function AppInner() {
           {tab === 'team' && building && (
             <EmployeeBuilderV2
               onBack={() => setBuilding(false)}
-              onComplete={(spec) => {
-                try {
-                  const raw = localStorage.getItem('hubos_custom_employees');
-                  const list = raw ? JSON.parse(raw) : [];
-                  list.push(spec);
-                  localStorage.setItem('hubos_custom_employees', JSON.stringify(list));
-                } catch { /* ignore */ }
-                setBuilding(false);
-              }}
+              onComplete={handleBuilderComplete}
             />
           )}
           {tab === 'finance' && <Finance isConnected={connected} />}
