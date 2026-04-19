@@ -1,26 +1,9 @@
 import { useState } from 'react';
 import { Users, Clock, Zap, CheckCircle, X, Cpu, Calendar, FileText } from 'lucide-react';
 import type { Agent, ActivityItem, NavTab } from '../../types';
-import { AGENTS as MOCK_FULL_AGENTS } from '../../data/mock';
-
-// ── Mock fallback 数据 ──
-const MOCK_AGENTS = [
-  { name: '火花 Spark',  emoji: '🔥', status: 'working' as const },
-  { name: 'HR 助理',     emoji: '👤', status: 'idle' as const },
-  { name: '数据分析师',   emoji: '📊', status: 'working' as const },
-  { name: '客服专员',     emoji: '💬', status: 'waiting' as const },
-];
-
-const MOCK_TASKS = [
-  { id: 1, text: '审批：新员工张三入职', agent: '🔥', urgent: true, detail: '入职日期：2026-04-20，岗位：前端工程师，薪资方案已按模板生成。' },
-  { id: 2, text: '确认：本周内容排期表', agent: '📊', urgent: false, detail: '包含5篇小红书文章、2条抖音视频、1篇公众号长文。' },
-  { id: 3, text: '回复：3条客户咨询', agent: '💬', urgent: true, detail: '来自微信公众号，客户询问定价和服务范围，超过2小时未回复。' },
-];
 
 // ── 员工快捷详情面板 ──
 function AgentDetailPopover({ agent, onClose, onNav }: { agent: Agent; onClose: () => void; onNav?: (tab: NavTab) => void }) {
-  // 找到 mock 数据中的完整信息
-  const fullAgent = MOCK_FULL_AGENTS.find(a => a.name === agent.name) || agent;
   const statusColor = agent.status === 'running' ? 'text-success-green' : agent.status === 'error' ? 'text-red-500' : 'text-stone-gray';
   const statusLabel = agent.status === 'running' ? '🟢 工作中' : agent.status === 'error' ? '🔴 异常' : '⚪ 空闲';
 
@@ -48,39 +31,39 @@ function AgentDetailPopover({ agent, onClose, onNav }: { agent: Agent; onClose: 
         {/* Model */}
         <div className="flex items-center gap-2 text-[12px] text-charcoal-warm">
           <Cpu size={12} className="text-stone-gray shrink-0" />
-          <span className="truncate">{fullAgent.model}</span>
+          <span className="truncate">{agent.model}</span>
         </div>
 
         {/* Tasks */}
         <div className="flex items-center gap-2 text-[12px] text-charcoal-warm">
           <FileText size={12} className="text-stone-gray shrink-0" />
-          <span>今日任务: {fullAgent.todayTasks} 项</span>
+          <span>今日任务: {agent.todayTasks} 项</span>
         </div>
 
         {/* Hire Date */}
-        {fullAgent.hireDate && (
+        {agent.hireDate && (
           <div className="flex items-center gap-2 text-[12px] text-charcoal-warm">
             <Calendar size={12} className="text-stone-gray shrink-0" />
-            <span>入职: {fullAgent.hireDate}</span>
+            <span>入职: {agent.hireDate}</span>
           </div>
         )}
 
         {/* Today Summary */}
-        {fullAgent.todaySummary && (
+        {agent.todaySummary && (
           <div className="mt-2 p-2 bg-parchment rounded-lg">
             <div className="text-[11px] text-stone-gray mb-1">今日摘要</div>
-            <p className="text-[12px] text-charcoal-warm leading-relaxed">{fullAgent.todaySummary}</p>
+            <p className="text-[12px] text-charcoal-warm leading-relaxed">{agent.todaySummary}</p>
           </div>
         )}
 
         {/* Skills */}
-        {fullAgent.skills && fullAgent.skills.length > 0 && (
+        {agent.skills && agent.skills.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
-            {fullAgent.skills.slice(0, 4).map(s => (
+            {agent.skills.slice(0, 4).map(s => (
               <span key={s} className="text-[10px] px-1.5 py-0.5 bg-border-cream rounded-full text-olive-gray">{s}</span>
             ))}
-            {fullAgent.skills.length > 4 && (
-              <span className="text-[10px] px-1.5 py-0.5 text-stone-gray">+{fullAgent.skills.length - 4}</span>
+            {agent.skills.length > 4 && (
+              <span className="text-[10px] px-1.5 py-0.5 text-stone-gray">+{agent.skills.length - 4}</span>
             )}
           </div>
         )}
@@ -89,12 +72,12 @@ function AgentDetailPopover({ agent, onClose, onNav }: { agent: Agent; onClose: 
         <div className="mt-2">
           <div className="flex justify-between text-[11px] text-stone-gray mb-1">
             <span>预算使用</span>
-            <span>{fullAgent.budgetUsed}% / {fullAgent.budgetPercent}%</span>
+            <span>{agent.budgetUsed}% / {agent.budgetPercent}%</span>
           </div>
           <div className="h-1.5 bg-border-cream rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${fullAgent.budgetUsed > fullAgent.budgetPercent * 0.9 ? 'bg-red-400' : 'bg-terracotta/60'}`}
-              style={{ width: `${Math.min(100, (fullAgent.budgetUsed / Math.max(fullAgent.budgetPercent, 1)) * 100)}%` }}
+              className={`h-full rounded-full transition-all ${agent.budgetUsed > agent.budgetPercent * 0.9 ? 'bg-red-400' : 'bg-terracotta/60'}`}
+              style={{ width: `${Math.min(100, (agent.budgetUsed / Math.max(agent.budgetPercent, 1)) * 100)}%` }}
             />
           </div>
         </div>
@@ -149,16 +132,14 @@ export function TeamOverviewWidget({ agents, loading, isConnected, onNav }: Team
     );
   }
 
-  const items = useSDK
-    ? agents!.map(a => ({
+  const items = (useSDK ? agents! : []).map(a => ({
         name: a.name,
         emoji: a.avatar || '🤖',
         status: a.status === 'running' ? 'working' : a.status === 'error' ? 'error' : 'idle',
-      }))
-    : MOCK_AGENTS;
+      }));
 
-  // 需要完整 Agent 对象用于详情面板
-  const fullAgents = useSDK ? agents! : MOCK_FULL_AGENTS;
+  // 完整 Agent 对象用于详情面板
+  const fullAgents = useSDK ? agents! : [];
 
   const workingCount = items.filter(a =>
     a.status === 'working' || a.status === 'running'
@@ -264,7 +245,7 @@ export function PendingTasksWidget({ approvals, activities, loading, isConnected
         detail: '',
       }));
   } else {
-    tasks = MOCK_TASKS;
+    tasks = [];
   }
 
   const handleAction = (id: string | number, action: 'approved' | 'rejected') => {

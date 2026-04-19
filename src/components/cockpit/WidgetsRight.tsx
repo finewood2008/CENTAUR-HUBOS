@@ -2,22 +2,6 @@ import { Wallet, Radio, Database, TrendingDown, CheckCircle, XCircle, AlertTrian
 import type { FinanceData, ChannelsData, ChannelItem, KnowledgeData } from '../../hooks/useQeeClaw';
 import type { NavTab } from '../../types';
 
-// ── Mock fallback ──
-const MOCK_FINANCE = { balance: 128.50, monthSpent: 42.30, budgetPercent: 33 };
-const MOCK_CHANNELS = [
-  { name: '企业微信',   status: 'online' as const },
-  { name: '飞书',       status: 'online' as const },
-  { name: '微信公众号',  status: 'online' as const },
-  { name: 'Telegram',   status: 'offline' as const },
-  { name: '邮件',       status: 'online' as const },
-];
-const MOCK_DOCS = [
-  { name: '品牌VI手册 v3', time: '3分钟前', agent: '🔥' },
-  { name: '3月财务报表', time: '2小时前', agent: '📊' },
-  { name: '客户FAQ更新', time: '5小时前', agent: '💬' },
-  { name: 'HR政策文档', time: '1天前', agent: '👤' },
-];
-
 // ── 财务快照 ──
 interface FinanceSnapshotProps {
   data?: FinanceData;
@@ -42,15 +26,15 @@ export function FinanceSnapshotWidget({ data, loading, isConnected, onNav }: Fin
   }
 
   const useSDK = isConnected && data?.wallet;
-  const balance = useSDK ? (data!.wallet!.balance ?? 0) : MOCK_FINANCE.balance;
-  const monthSpent = useSDK ? (data!.wallet!.currentMonthSpent ?? 0) : MOCK_FINANCE.monthSpent;
+  const balance = useSDK ? (data!.wallet!.balance ?? 0) : 0;
+  const monthSpent = useSDK ? (data!.wallet!.currentMonthSpent ?? 0) : 0;
   // 7日消耗趋势 — SDK有costSummary时用真实数据
   const weeklySpent = useSDK && data!.costSummary
     ? (data!.costSummary as any).totalCost ?? monthSpent * 0.25
     : monthSpent * 0.25;
   const budgetPercent = useSDK
     ? Math.min(100, Math.round((monthSpent / Math.max(balance + monthSpent, 1)) * 100))
-    : MOCK_FINANCE.budgetPercent;
+    : 0;
 
   return (
     <div className="card-glass p-4 cursor-pointer hover:ring-1 hover:ring-terracotta/30 transition-all" onClick={() => onNav?.('finance')}>
@@ -123,7 +107,19 @@ export function ChannelStatusWidget({ data, loading, isConnected, onNav }: Chann
       status: ch.enabled && ch.configured ? 'online' : 'offline',
     }));
   } else {
-    channels = MOCK_CHANNELS;
+    channels = [];
+  }
+
+  if (channels.length === 0 && !loading) {
+    return (
+      <div className="card-glass p-4 cursor-pointer hover:ring-1 hover:ring-terracotta/30 transition-all" onClick={() => onNav?.('channels')}>
+        <div className="flex items-center gap-2 mb-3">
+          <Radio size={15} className="text-terracotta" />
+          <h3 className="text-[13px] font-semibold text-near-black">通讯状态</h3>
+        </div>
+        <div className="text-[12px] text-stone-gray py-2">暂无配置渠道</div>
+      </div>
+    );
   }
 
   const onlineCount = channels.filter(c => c.status === 'online').length;
@@ -218,7 +214,7 @@ export function KnowledgeRecentWidget({ data, loading, isConnected, onNav }: Kno
       agent: '📚',
     }));
   } else {
-    docs = MOCK_DOCS;
+    docs = [];
   }
 
   return (

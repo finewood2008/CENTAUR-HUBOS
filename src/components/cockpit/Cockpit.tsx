@@ -37,11 +37,11 @@ export default function Cockpit({ onNav }: CockpitProps) {
   // 摘要指标
   const pendingApprovalCount = connected && approvals.length > 0
     ? approvals.length
-    : dashData.activities.filter(a => a.type === 'approval_needed').length || 3;
+    : dashData.activities.filter(a => a.type === 'approval_needed').length;
   const alertCount = dashData.alerts.filter(a => a.severity === 'critical' || a.type === 'error').length || dashData.activities.filter(a => a.type === 'alert').length;
   const todaySpent = financeData.wallet
     ? financeData.wallet.currentMonthSpent ?? 0
-    : 42.3;
+    : 0;
 
   // 全局刷新
   const handleRefreshAll = async () => {

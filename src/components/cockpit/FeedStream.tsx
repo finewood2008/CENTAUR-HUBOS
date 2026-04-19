@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { MOCK_FEED } from './cockpitData';
 import type { FeedItem } from './cockpitData';
 import type { ActivityItem, Alert, NavTab } from '../../types';
 import {
@@ -232,7 +231,7 @@ function activityToFeedItem(a: ActivityItem): FeedItem {
     type: typeMap[a.type] || 'report',
     content: a.title,
     detail: a.detail,
-    timestamp: a.time || new Date(a.timestamp).toISOString(),
+    timestamp: new Date(a.timestamp).toISOString(),
     read: false,
     actionable: a.actionType === 'approve' || a.actionType === 'reply',
     actionLabel: a.actionLabel,
@@ -270,16 +269,16 @@ export default function FeedStream({ activities, alerts, isConnected, onNav, onA
 
   // 合并数据源
   const feedItems: FeedItem[] = useMemo(() => {
-    if (isConnected && activities && activities.length > 0) {
-      const items = activities.map(activityToFeedItem);
-      if (alerts && alerts.length > 0) {
-        items.push(...alerts.map(alertToFeedItem));
-      }
-      items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      return items;
+    const items: FeedItem[] = [];
+    if (activities && activities.length > 0) {
+      items.push(...activities.map(activityToFeedItem));
     }
-    return MOCK_FEED;
-  }, [isConnected, activities, alerts]);
+    if (alerts && alerts.length > 0) {
+      items.push(...alerts.map(alertToFeedItem));
+    }
+    items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return items;
+  }, [activities, alerts]);
 
   const agents = Array.from(new Set(feedItems.map(f => f.agentId)));
   const agentNames: Record<string, string> = {};

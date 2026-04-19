@@ -123,7 +123,9 @@ export default function apiMockPlugin(): Plugin {
           return proxyToBridge(url, req, res);
         }
 
-        // ─── 4. 线上平台 (billing, models 费用统计) ───
+        // ─── 4. Billing / Models 费用 → Bridge Server (本地优先) ───
+        // 注: billing 走本地 bridge_server，bridge 内置了 wallet/records 端点
+        // 如需对接线上平台，可改回 proxyToPlatform
         if (
           path.startsWith('/api/billing') ||
           path.startsWith('/api/platform/models/cost') ||
@@ -132,7 +134,7 @@ export default function apiMockPlugin(): Plugin {
           path === '/api/platform/models' ||
           path.startsWith('/api/platform/models/list')
         ) {
-          return proxyToPlatform(url, req, res);
+          return proxyToBridge(url, req, res);
         }
 
         // ─── 5. 其余 /api/* → bridge_server ───

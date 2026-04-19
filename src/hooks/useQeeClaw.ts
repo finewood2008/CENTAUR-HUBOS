@@ -1,11 +1,11 @@
 // Hub OS - QeeClaw 数据加载 hooks
-// 策略：先尝试 SDK 真实调用，失败则 fallback 到 mock 数据
+// 策略：全部使用 SDK 真实数据，无 mock fallback
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   checkConnection,
   getClientAsync,
 } from '../services/qeeclaw';
-import { AGENTS, TEMPLATES, ALERTS, USAGE_7DAYS, ACTIVITY_FEED } from '../data/mock';
+// mock 数据已移除，全部使用 SDK 真实数据
 import type { Agent, Template, Alert, UsageStat, ActivityItem } from '../types';
 import type {
   MyAgent, AgentTemplate,
@@ -99,10 +99,10 @@ export interface DashboardData {
 
 export function useDashboardData(isConnected: boolean) {
   const [data, setData] = useState<DashboardData>({
-    agents: AGENTS,
-    alerts: ALERTS,
-    usage: USAGE_7DAYS,
-    activities: ACTIVITY_FEED,
+    agents: [],
+    alerts: [],
+    usage: [],
+    activities: [],
     wallet: null,
   });
   const [loading, setLoading] = useState(true);
@@ -110,7 +110,7 @@ export function useDashboardData(isConnected: boolean) {
 
   const refresh = useCallback(async () => {
     if (!isConnected) {
-      setData({ agents: AGENTS, alerts: ALERTS, usage: USAGE_7DAYS, activities: ACTIVITY_FEED, wallet: null });
+      setData({ agents: [], alerts: [], usage: [], activities: [], wallet: null });
       setLoading(false);
       return;
     }
@@ -125,13 +125,13 @@ export function useDashboardData(isConnected: boolean) {
 
       const agents = agentList
         ? agentList.map(sdkAgentToHubAgent)
-        : AGENTS;
+        : [];
 
       setData({
-        agents: agents.length > 0 ? agents : AGENTS,
-        alerts: ALERTS,
-        usage: USAGE_7DAYS,
-        activities: ACTIVITY_FEED,
+        agents,
+        alerts: [],
+        usage: [],
+        activities: [],
         wallet: wallet
           ? {
               balance: wallet.balance,
@@ -142,7 +142,7 @@ export function useDashboardData(isConnected: boolean) {
           : null,
       });
     } catch {
-      setData({ agents: AGENTS, alerts: ALERTS, usage: USAGE_7DAYS, activities: ACTIVITY_FEED, wallet: null });
+      setData({ agents: [], alerts: [], usage: [], activities: [], wallet: null });
     } finally {
       setLoading(false);
     }
@@ -165,14 +165,14 @@ export interface AgentManagementData {
 
 export function useAgentManagement(isConnected: boolean) {
   const [data, setData] = useState<AgentManagementData>({
-    agents: AGENTS,
-    templates: TEMPLATES,
+    agents: [],
+    templates: [],
   });
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!isConnected) {
-      setData({ agents: AGENTS, templates: TEMPLATES });
+      setData({ agents: [], templates: [] });
       setLoading(false);
       return;
     }
@@ -187,18 +187,15 @@ export function useAgentManagement(isConnected: boolean) {
 
       const agents = agentList
         ? agentList.map(sdkAgentToHubAgent)
-        : AGENTS;
+        : [];
 
       const templates = templateList
         ? templateList.map(sdkTemplateToHubTemplate)
-        : TEMPLATES;
+        : [];
 
-      setData({
-        agents: agents.length > 0 ? agents : AGENTS,
-        templates: templates.length > 0 ? templates : TEMPLATES,
-      });
+      setData({ agents, templates });
     } catch {
-      setData({ agents: AGENTS, templates: TEMPLATES });
+      setData({ agents: [], templates: [] });
     } finally {
       setLoading(false);
     }
@@ -732,7 +729,7 @@ export function useEnhancedDashboardData(isConnected: boolean) {
         type: evt.category === 'approval' ? 'approval_needed' as const : 'task_done' as const,
         title: evt.title,
         detail: evt.summary ?? undefined,
-        time: evt.createdAt ? new Date(evt.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '',
+        time: '', // 不再使用 time 显示字段，由 timestamp 驱动
         timestamp: evt.createdAt ? new Date(evt.createdAt).getTime() : Date.now(),
         actionLabel: evt.category === 'approval' ? '审批' : '查看',
         actionType: evt.category === 'approval' ? 'approve' as const : 'view' as const,
