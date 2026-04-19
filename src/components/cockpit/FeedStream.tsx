@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import type { FeedItem } from './cockpitData';
-import { MOCK_FEED } from './cockpitData';
 import type { ActivityItem, Alert, NavTab } from '../../types';
 import {
   CheckCircle, AlertTriangle, FileText, Lightbulb,
@@ -278,7 +277,7 @@ export default function FeedStream({ activities, alerts, isConnected, onNav, onA
       items.push(...alerts.map(alertToFeedItem));
     }
     items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    return items.length > 0 ? items : MOCK_FEED;
+    return items;
   }, [activities, alerts]);
 
   const agents = Array.from(new Set(feedItems.map(f => f.agentId)));

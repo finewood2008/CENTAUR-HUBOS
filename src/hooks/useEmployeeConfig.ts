@@ -142,12 +142,8 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
     } catch (err) {
       console.error('[EmployeeConfig] load error:', err);
       setError(err instanceof Error ? err.message : 'unknown error');
-      // 使用 mock 数据 fallback
-      setData({
-        ...EMPTY_CONFIG,
-        currentModel: employee.model || 'Claude Sonnet 4',
-        availableModels: MOCK_MODELS,
-      });
+      // 移除 mock，直接置空
+      setData({ ...EMPTY_CONFIG, currentModel: employee.model || '' });
     } finally {
       setLoading(false);
     }
@@ -157,19 +153,8 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
     if (employee && isConnected) {
       loadConfig();
     } else if (employee) {
-      // 离线模式：使用 mock
-      setData({
-        ...EMPTY_CONFIG,
-        currentModel: employee.model || 'Claude Sonnet 4',
-        availableModels: MOCK_MODELS,
-        memoryStats: MOCK_MEMORY_STATS[employee.id] || EMPTY_CONFIG.memoryStats,
-        knowledgeDocs: MOCK_KNOWLEDGE[employee.id] || [],
-        knowledgeStats: {
-          totalDocs: (MOCK_KNOWLEDGE[employee.id] || []).length,
-          totalChunks: 0,
-          indexStatus: 'demo',
-        },
-      });
+      // 离线模式：由于无 mock，直接用空配置
+      setData({ ...EMPTY_CONFIG, currentModel: employee.model || '' });
     }
   }, [employee?.id, isConnected, loadConfig]);
 
@@ -245,32 +230,4 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
   };
 }
 
-// ── Mock 数据 ──────────────────────────────────────
 
-const MOCK_MODELS: ModelOption[] = [
-  { id: 1, providerName: 'Anthropic', modelName: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', isPreferred: true, status: 'available', unitPrice: 3, outputUnitPrice: 15, currency: 'USD' },
-  { id: 2, providerName: 'Anthropic', modelName: 'claude-opus-4-20250514', label: 'Claude Opus 4', isPreferred: false, status: 'available', unitPrice: 15, outputUnitPrice: 75, currency: 'USD' },
-  { id: 3, providerName: 'OpenAI', modelName: 'gpt-4o', label: 'GPT-4o', isPreferred: false, status: 'available', unitPrice: 2.5, outputUnitPrice: 10, currency: 'USD' },
-  { id: 4, providerName: 'OpenAI', modelName: 'gpt-4o-mini', label: 'GPT-4o Mini', isPreferred: false, status: 'available', unitPrice: 0.15, outputUnitPrice: 0.6, currency: 'USD' },
-  { id: 5, providerName: 'Google', modelName: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', isPreferred: false, status: 'available', unitPrice: 1.25, outputUnitPrice: 10, currency: 'USD' },
-  { id: 6, providerName: 'DeepSeek', modelName: 'deepseek-r1', label: 'DeepSeek R1', isPreferred: false, status: 'available', unitPrice: 0.55, outputUnitPrice: 2.19, currency: 'USD' },
-];
-
-const MOCK_MEMORY_STATS: Record<string, MemoryStats> = {
-  spark: { total: 47, categories: { preference: 12, fact: 18, decision: 8, entity: 9 } },
-  xiaoke: { total: 31, categories: { preference: 8, fact: 14, decision: 5, entity: 4 } },
-};
-
-const MOCK_KNOWLEDGE: Record<string, KnowledgeDoc[]> = {
-  spark: [
-    { name: '品牌手册-半人马AI.pdf', size: 2400000, status: 'indexed', createdAt: '2026-04-10' },
-    { name: 'Logo设计规范.md', size: 15000, status: 'indexed', createdAt: '2026-04-08' },
-    { name: '竞品视觉分析.pdf', size: 1800000, status: 'indexed', createdAt: '2026-04-05' },
-    { name: '色彩心理学参考.pdf', size: 980000, status: 'indexed', createdAt: '2026-03-28' },
-  ],
-  xiaoke: [
-    { name: '目标客户画像.md', size: 28000, status: 'indexed', createdAt: '2026-04-12' },
-    { name: '获客渠道ROI分析.xlsx', size: 450000, status: 'indexed', createdAt: '2026-04-09' },
-    { name: '行业转化率基准.pdf', size: 1200000, status: 'indexed', createdAt: '2026-04-01' },
-  ],
-};

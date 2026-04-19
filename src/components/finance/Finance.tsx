@@ -198,7 +198,6 @@ function ApiKeySection({ data, hasSdkData, isConnected, onRefresh, toast }: {
 
   const appKeys = hasSdkData ? data.appKeys : [];
   const llmKeys = hasSdkData ? data.llmKeys : [];
-  const mockKeys = !hasSdkData ? FINANCE_DATA.keys : [];
 
   return (
     <motion.div
@@ -239,42 +238,7 @@ function ApiKeySection({ data, hasSdkData, isConnected, onRefresh, toast }: {
             {llmKeys.map((k, idx) => (
               <LLMKeyRow key={`llm-${k.id}`} record={k} idx={appKeys.length + idx} revealed={revealedKeys.has(`llm-${k.id}`)} onToggle={() => toggleReveal(`llm-${k.id}`)} onDelete={() => handleDeleteLLMKey(k.id, k.name || `LLM Key #${k.id}`)} />
             ))}
-            {/* Mock fallback */}
-            {mockKeys.map((k, idx) => (
-              <motion.tr
-                key={k.id}
-                className="border-b border-warm-sand/50 hover:bg-ivory/60 transition-colors"
-                variants={fadeUp}
-                initial="hidden"
-                animate="visible"
-                custom={idx + 3}
-              >
-                <td className="py-3 pr-4"><span className="text-near-black font-medium">{k.name}</span></td>
-                <td className="py-3 pr-4">
-                  <code className="text-xs bg-warm-sand/50 px-2 py-0.5 rounded font-mono text-olive-gray">
-                    {revealedKeys.has(k.id) ? k.key.replace('****', 'abcd') : k.key}
-                  </code>
-                </td>
-                <td className="py-3 pr-4 text-olive-gray text-xs">App</td>
-                <td className="py-3 pr-4">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${k.status === 'active' ? 'bg-success-green/15 text-success-green' : k.status === 'disabled' ? 'bg-stone-gray/15 text-stone-gray' : 'bg-error-crimson/15 text-error-crimson'}`}>
-                    {k.status === 'active' ? '运行中' : k.status === 'disabled' ? '已禁用' : '已过期'}
-                  </span>
-                </td>
-                <td className="py-3 pr-4 text-xs text-stone-gray">{k.createdAt}</td>
-                <td className="py-3">
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => toggleReveal(k.id)} className="p-1.5 rounded-md hover:bg-warm-sand/60 text-olive-gray transition-colors">
-                      {revealedKeys.has(k.id) ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                    <button onClick={() => toast('info', '演示模式不支持删除')} className="p-1.5 rounded-md hover:bg-error-crimson/10 text-stone-gray hover:text-error-crimson transition-colors">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </td>
-              </motion.tr>
-            ))}
-            {appKeys.length === 0 && llmKeys.length === 0 && mockKeys.length === 0 && (
+            {appKeys.length === 0 && llmKeys.length === 0 && (
               <tr><td colSpan={6} className="py-8 text-center text-stone-gray text-sm">暂无密钥</td></tr>
             )}
           </tbody>

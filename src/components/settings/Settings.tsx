@@ -159,9 +159,7 @@ export default function Settings({ isConnected }: SettingsProps) {
               <Monitor size={16} className="text-terracotta" />
               <h3 className="text-sm font-medium text-near-black">设备信息</h3>
             </div>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-warm-sand text-stone-gray">
-              演示数据 · SDK 暂未提供设备接口
-            </span>
+
           </div>
           <div className="card-glass-warm p-5 space-y-4">
             {/* 顶部：名称 + 型号 + 状态 */}
@@ -491,7 +489,7 @@ export default function Settings({ isConnected }: SettingsProps) {
           <div className="text-center pt-4 pb-2 space-y-1.5">
             <p className="text-[10px] text-stone-gray">
               <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${isConnected ? 'bg-success-green' : 'bg-yellow-500'}`} />
-              {isConnected ? '控制面已连接' : '离线模式 · 使用演示数据'}
+              {isConnected ? '控制面已连接' : '离线模式 · 控制面断开连接'}
             </p>
             <p className="text-[10px] text-warm-silver">
               Hub OS {DEVICE.firmware} · QeeClaw Runtime

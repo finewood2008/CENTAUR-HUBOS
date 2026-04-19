@@ -71,7 +71,7 @@ function AppInner() {
           {!checking && (
             <div className={`px-4 py-1 text-[10px] flex items-center gap-1.5 border-b border-border-cream ${connected ? 'text-success-green' : 'text-yellow-600'}`}>
               <span className={`status-dot ${connected ? 'status-dot-active' : 'bg-yellow-500'}`} />
-              {connected ? 'SDK 已连接 · 控制面在线' : 'SDK 离线 · 使用演示数据'}
+              {connected ? 'SDK 已连接 · 控制面在线' : 'SDK 离线 · 控制面断开连接'}
             </div>
           )}
 

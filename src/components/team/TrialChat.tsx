@@ -17,27 +17,10 @@ interface TrialMessage {
 
 // Mock responses based on employee role
 function getMockReply(employee: DigitalEmployee, userMsg: string, msgCount: number): string {
-  const name = employee.name;
-  const role = employee.role;
-  const caps = employee.capabilities.slice(0, 3).join('、');
-
-  const greetings = [
-    `你好！我是${name}，很高兴认识你。作为你的${role}，我可以帮你处理${caps}等方面的工作。有什么想了解的吗？`,
-    `嗨！${name}正式向你报到 🙌 我的专长是${caps}。你可以先给我一个小任务试试？`,
-  ];
-
-  const responses = [
-    `明白了！这个需求属于我的核心能力范围。让我简单分析一下：基于你描述的情况，我建议从以下几个方面入手...\n\n1. 首先梳理现有资源和优先级\n2. 制定分阶段的执行计划\n3. 建立反馈和迭代机制\n\n正式入职后，我可以更深入地分析并给出具体方案。`,
-    `好问题！这正是我擅长的领域。在${caps}方面，我可以提供系统化的解决方案。\n\n实际工作中，我会：\n• 先了解你的具体业务场景\n• 然后匹配最佳实践方案\n• 最后持续优化和迭代\n\n现在是试用阶段，正式激活后能力会更完整哦！`,
-    `收到！这个任务我可以拆解为几个步骤来完成。在我的工具集中，有专门用于处理这类工作的能力模块。\n\n给我一点时间，我先整理一个初步方案给你看看... 对了，如果你觉得满意，可以点击"确认加入团队"把我正式留下来 😊`,
-    `非常感谢你的信任！作为${role}，我会全力以赴。\n\n目前试用模式下，我可以展示基本的交互和思维方式。正式入职后，我的记忆系统会逐步学习你的业务偏好，服务会越来越精准。\n\n还有其他想测试的吗？`,
-  ];
-
   if (msgCount === 0) {
-    return greetings[Math.floor(Math.random() * greetings.length)];
+    return `你好！我是即将入职的 ${employee.name}。由于当前为【预览试用模式】，真实模型推理服务尚未激活。\n请点击右上角「确认加入团队」进行部署后，前往工作台与我进行真实的交互测试。`;
   }
-
-  return responses[Math.min(msgCount - 1, responses.length - 1)];
+  return `(预览模式不支持多轮对话交互，请先确认加入团队)`;
 }
 
 export default function TrialChat({ employee, onBack, onConfirm }: Props) {
