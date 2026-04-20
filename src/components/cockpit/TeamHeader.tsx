@@ -1,12 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
-import { Crown, Lock, Edit2, Sparkles } from 'lucide-react';
-import { TEAM_MEMBERS, CENTAUR_LEVELS, type TeamMember, type PartnerProfile, type CentaurIndex } from '../../data/partner';
+import { Crown, Lock, Edit2, Sparkles, Plus, X } from 'lucide-react';
+import { CENTAUR_LEVELS, ALL_EMPLOYEES, type TeamMember, type PartnerProfile, type CentaurIndex } from '../../data/partner';
+import type { DigitalEmployeeId } from '../../types';
 
 interface TeamHeaderProps {
   partner: PartnerProfile;
   centaur: CentaurIndex;
+  teamMembers: TeamMember[];
   onPartnerNameChange?: (name: string) => void;
   onMemberClick?: (id: string) => void;
+  onAddMember?: (id: DigitalEmployeeId) => void;
+  onRemoveMember?: (id: DigitalEmployeeId) => void;
 }
 
 const STATUS_DOT: Record<TeamMember['status'], string> = {
@@ -28,12 +32,17 @@ const CURRENT_TASKS: Record<string, string> = {
 export default function TeamHeader({
   partner,
   centaur,
+  teamMembers,
   onPartnerNameChange,
   onMemberClick,
+  onAddMember,
+  onRemoveMember,
 }: TeamHeaderProps) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(partner.name || '管家');
+  const [showPicker, setShowPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -41,6 +50,18 @@ export default function TeamHeader({
       inputRef.current.select();
     }
   }, [editing]);
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!showPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPicker]);
 
   const handleNameConfirm = () => {
     const trimmed = editName.trim();
@@ -53,6 +74,10 @@ export default function TeamHeader({
   };
 
   const levelInfo = CENTAUR_LEVELS[centaur.level];
+
+  // Employees available to add (in ALL_EMPLOYEES but not in teamMembers)
+  const teamIds = new Set(teamMembers.map(m => m.id));
+  const availableToAdd = ALL_EMPLOYEES.filter(e => !teamIds.has(e.id));
 
   return (
     <div className="shrink-0 bg-white/70 backdrop-blur-sm border-b border-border-cream/30">
@@ -98,42 +123,89 @@ export default function TeamHeader({
 
         {/* ── Team Members Row ── */}
         <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto">
-          {TEAM_MEMBERS.map(m => (
+          {teamMembers.map(m => (
             <button
               key={m.id}
               onClick={() => onMemberClick?.(m.id)}
-              disabled={m.locked}
-              className={`flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl transition-all shrink-0 ${
-                m.locked ? 'opacity-35 cursor-not-allowed' : 'hover:bg-warm-sand/50 cursor-pointer'
-              }`}
-              title={m.locked ? `${m.name} — 未激活` : `${m.name} — ${m.role}`}
+              className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl transition-all shrink-0 hover:bg-warm-sand/50 cursor-pointer group"
+              title={`${m.name} — ${m.role}`}
             >
               <div className="relative">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-lg ${
-                  m.locked ? 'bg-gray-100' : 'bg-gradient-to-br from-parchment to-warm-sand'
-                }`}>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg bg-gradient-to-br from-parchment to-warm-sand">
                   {m.avatar}
-                  {m.locked && (
-                    <div className="absolute inset-0 rounded-full bg-white/60 flex items-center justify-center">
-                      <Lock size={12} className="text-stone-gray/60" />
-                    </div>
-                  )}
                 </div>
-                {!m.locked && (
-                  <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-[1.5px] border-white ${STATUS_DOT[m.status]}`} />
+                <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-[1.5px] border-white ${STATUS_DOT[m.status]}`} />
+                {/* Remove button on hover */}
+                {onRemoveMember && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRemoveMember(m.id); }}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-400 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                    title={`移除${m.name}`}
+                  >
+                    <X size={10} />
+                  </button>
                 )}
               </div>
-              <span className={`text-[10px] leading-tight ${m.locked ? 'text-stone-gray/50' : 'text-charcoal-warm'}`}>
+              <span className="text-[10px] leading-tight text-charcoal-warm">
                 {m.name}
               </span>
-              {!m.locked && m.status === 'working' && CURRENT_TASKS[m.id] && (
+              {m.status === 'working' && CURRENT_TASKS[m.id] && (
                 <span className="text-[9px] text-amber-600/70 truncate max-w-[60px]">{CURRENT_TASKS[m.id]}</span>
               )}
-              {!m.locked && m.status !== 'working' && (
+              {m.status !== 'working' && (
                 <span className="text-[9px] text-stone-gray/50">{STATUS_TEXT[m.status]}</span>
               )}
             </button>
           ))}
+
+          {/* ── Add Member Button ── */}
+          {availableToAdd.length > 0 && (
+            <div className="relative shrink-0" ref={pickerRef}>
+              <button
+                onClick={() => setShowPicker(p => !p)}
+                className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl transition-all hover:bg-warm-sand/50 cursor-pointer"
+                title="添加团队成员"
+              >
+                <div className="w-9 h-9 rounded-full flex items-center justify-center border-2 border-dashed border-stone-gray/30 hover:border-terracotta/50 transition-colors">
+                  <Plus size={16} className="text-stone-gray/50" />
+                </div>
+                <span className="text-[10px] leading-tight text-stone-gray/50">添加</span>
+              </button>
+
+              {/* ── Picker Popover ── */}
+              {showPicker && (
+                <div
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-[200px] rounded-xl border border-border-cream/60 bg-white shadow-lg py-2"
+                  style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)' }}
+                >
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-stone-gray border-b border-border-cream/30 mb-1">
+                    选择员工加入团队
+                  </div>
+                  {availableToAdd.map(emp => (
+                    <button
+                      key={emp.id}
+                      onClick={() => {
+                        onAddMember?.(emp.id);
+                        if (availableToAdd.length <= 1) setShowPicker(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2 hover:bg-parchment/60 transition-colors text-left"
+                    >
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-base bg-gradient-to-br from-parchment to-warm-sand">
+                        {emp.avatar}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-medium text-near-black">{emp.name}</div>
+                        <div className="text-[10px] text-stone-gray">{emp.role}</div>
+                      </div>
+                      {emp.locked && (
+                        <Lock size={12} className="text-stone-gray/40 ml-auto shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── Divider ── */}

@@ -102,13 +102,19 @@ export interface TeamMember {
   locked: boolean;
 }
 
-export const TEAM_MEMBERS: TeamMember[] = [
+export const ALL_EMPLOYEES: TeamMember[] = [
   { id: 'spark', name: '火花', avatar: '🔥', color: 'border-l-orange-400', role: '品牌设计', status: 'working', locked: false },
   { id: 'xiaoke', name: '小可', avatar: '🎯', color: 'border-l-blue-400', role: '获客增长', status: 'online', locked: false },
   { id: 'shuxi', name: '书熙', avatar: '📚', color: 'border-l-emerald-400', role: '商业策划', status: 'offline', locked: true },
   { id: 'shuibao', name: '税宝', avatar: '💰', color: 'border-l-amber-400', role: '税务财务', status: 'offline', locked: true },
   { id: 'lvan', name: '绿安', avatar: '🛡', color: 'border-l-teal-400', role: '合规法务', status: 'offline', locked: true },
 ];
+
+// Backward compat alias
+export const TEAM_MEMBERS = ALL_EMPLOYEES;
+
+// Default team: only active (unlocked) employees
+export const DEFAULT_TEAM_IDS: DigitalEmployeeId[] = ['spark', 'xiaoke'];
 
 // ── Mock 对话数据 ──
 export const MOCK_MORNING_BRIEFING: ChatMessage[] = [

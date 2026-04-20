@@ -11,8 +11,11 @@ import {
   MOCK_TASKS,
   MOCK_CENTAUR_INDEX,
   TEAM_MEMBERS,
+  ALL_EMPLOYEES,
+  DEFAULT_TEAM_IDS,
 } from '../../data/partner';
 import type { ChatMessage, Task, PartnerProfile } from '../../data/partner';
+import type { DigitalEmployeeId } from '../../types';
 
 interface CockpitProps {
   onNav?: (tab: NavTab) => void;
@@ -31,6 +34,12 @@ export default function Cockpit({ onNav }: CockpitProps) {
 
   // Tasks
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+
+  // Team members (dynamic — users can add/remove)
+  const [teamIds, setTeamIds] = useState<DigitalEmployeeId[]>([...DEFAULT_TEAM_IDS]);
+  const teamMembers = teamIds
+    .map(id => ALL_EMPLOYEES.find(e => e.id === id))
+    .filter(Boolean) as typeof ALL_EMPLOYEES;
 
   // ── Derived ──
   const reviewTasks = tasks.filter(t => t.status === 'review');
@@ -144,14 +153,25 @@ export default function Cockpit({ onNav }: CockpitProps) {
     handleSendMessage(action);
   }, [handleSendMessage]);
 
+  const handleAddMember = useCallback((id: DigitalEmployeeId) => {
+    setTeamIds(prev => prev.includes(id) ? prev : [...prev, id]);
+  }, []);
+
+  const handleRemoveMember = useCallback((id: DigitalEmployeeId) => {
+    setTeamIds(prev => prev.filter(tid => tid !== id));
+  }, []);
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-parchment">
       {/* ── Top: Team Header ── */}
       <TeamHeader
         partner={partner}
         centaur={MOCK_CENTAUR_INDEX}
+        teamMembers={teamMembers}
         onPartnerNameChange={handlePartnerNameChange}
         onMemberClick={handleMemberClick}
+        onAddMember={handleAddMember}
+        onRemoveMember={handleRemoveMember}
       />
 
       {/* ── Main: Three-column layout — chat is center stage ── */}
