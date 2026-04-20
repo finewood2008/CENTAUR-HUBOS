@@ -6,7 +6,7 @@ import {
   Shield, Database, Wrench, Zap, Bot, ArrowLeft, Radio, Plus, Check, AlertCircle,
   Sparkles, Bell,
 } from 'lucide-react';
-import { getAgentModule } from '../../services/qeeclaw';
+import { getClientAsync } from '../../services/qeeclaw';
 import type { Agent, Template } from '../../types';
 import AgentBuilder from './AgentBuilder';
 import { useToast } from '../shared/Toast';
@@ -39,7 +39,8 @@ export default function AgentManagement({ agents, templates, isConnected }: Agen
     setHireResult(null);
     try {
       if (!isConnected) throw new Error('SDK 离线，无法创建员工');
-      await getAgentModule().create({
+      const client = await getClientAsync();
+      await client.agent.create({
         name: tpl.name,
         description: tpl.desc,
         model: tpl.model,

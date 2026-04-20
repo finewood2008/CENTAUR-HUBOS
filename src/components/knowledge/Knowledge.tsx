@@ -3,7 +3,7 @@ import { useState, useRef } from 'react';
 import { Database, FolderOpen, FileText, Upload, Search, Plus, HardDrive, RefreshCw, User, Globe, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { KnowledgeData } from '../../hooks/useQeeClaw';
-import { getKnowledgeModule } from '../../services/qeeclaw';
+import { getClientAsync } from '../../services/qeeclaw';
 import { useToast } from '../shared/Toast';
 
 // 知识库图标映射（按关键词匹配）
@@ -73,7 +73,8 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, isConnected
     if (!uploadFile && !uploadName.trim()) { toast('error', '请输入知识库名称或选择文件'); return; }
     setUploading(true);
     try {
-      await getKnowledgeModule().ingest({
+      const client = await getClientAsync();
+      await client.knowledge.ingest({
         teamId: 1,
         file: uploadFile || undefined,
         filename: uploadFile?.name,

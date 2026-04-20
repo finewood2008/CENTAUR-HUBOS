@@ -82,12 +82,16 @@ function ArticlePreviewAttachment({ att }: { att: Extract<MessageAttachment, { t
   );
 }
 
-function ActionButtonsAttachment({ att }: { att: Extract<MessageAttachment, { type: 'action-buttons' }> }) {
+function ActionButtonsAttachment({ att, onAction }: {
+  att: Extract<MessageAttachment, { type: 'action-buttons' }>;
+  onAction?: (action: string) => void;
+}) {
   return (
     <div className="flex gap-2 mt-2 flex-wrap">
       {att.buttons.map((b, i) => (
         <button
           key={i}
+          onClick={() => onAction?.(b.action)}
           className={`text-[12px] px-3 py-1.5 rounded-lg transition-colors ${
             i === 0
               ? 'bg-terracotta text-ivory hover:bg-terracotta/90'
@@ -196,7 +200,7 @@ function VoiceAttachment({ att }: { att: Extract<MessageAttachment, { type: 'voi
   );
 }
 
-function AttachmentRenderer({ attachment }: { attachment: MessageAttachment }) {
+function AttachmentRenderer({ attachment, onAction }: { attachment: MessageAttachment; onAction?: (action: string) => void }) {
   switch (attachment.type) {
     case 'data-card':
       return <DataCardAttachment att={attachment} />;
@@ -205,7 +209,7 @@ function AttachmentRenderer({ attachment }: { attachment: MessageAttachment }) {
     case 'article-preview':
       return <ArticlePreviewAttachment att={attachment} />;
     case 'action-buttons':
-      return <ActionButtonsAttachment att={attachment} />;
+      return <ActionButtonsAttachment att={attachment} onAction={onAction} />;
     case 'task-card':
       return <TaskCardAttachment att={attachment} />;
     case 'image':
@@ -221,7 +225,7 @@ function AttachmentRenderer({ attachment }: { attachment: MessageAttachment }) {
 
 // ── Message bubble ──
 
-function MessageBubble({ msg, partner }: { msg: ChatMessage; partner: PartnerProfile }) {
+function MessageBubble({ msg, partner, onAction }: { msg: ChatMessage; partner: PartnerProfile; onAction?: (action: string) => void }) {
   const { sender } = msg;
 
   // System message — centered
@@ -252,7 +256,7 @@ function MessageBubble({ msg, partner }: { msg: ChatMessage; partner: PartnerPro
         <div className="max-w-[75%]">
           <div className="bg-terracotta/10 rounded-2xl rounded-br-md px-3.5 py-2.5">
             <p className="text-[13px] text-near-black leading-relaxed">{msg.content}</p>
-            {msg.attachment && <AttachmentRenderer attachment={msg.attachment} />}
+            {msg.attachment && <AttachmentRenderer attachment={msg.attachment} onAction={onAction} />}
           </div>
           {msg.time && (
             <p className="text-[10px] text-stone-gray text-right mt-1 mr-1">{msg.time}</p>
@@ -283,7 +287,7 @@ function MessageBubble({ msg, partner }: { msg: ChatMessage; partner: PartnerPro
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl rounded-tl-md px-3.5 py-2.5 border border-border-cream/50">
             <p className="text-[13px] text-charcoal-warm leading-relaxed">{msg.content}</p>
-            {msg.attachment && <AttachmentRenderer attachment={msg.attachment} />}
+            {msg.attachment && <AttachmentRenderer attachment={msg.attachment} onAction={onAction} />}
           </div>
           {msg.time && (
             <p className="text-[10px] text-stone-gray mt-1 ml-1">{msg.time}</p>
@@ -322,7 +326,7 @@ function MessageBubble({ msg, partner }: { msg: ChatMessage; partner: PartnerPro
             className={`border-l-[3px] ${sender.color} bg-white/50 backdrop-blur-sm rounded-r-xl px-3.5 py-2.5`}
           >
             <p className="text-[13px] text-charcoal-warm leading-relaxed">{msg.content}</p>
-            {msg.attachment && <AttachmentRenderer attachment={msg.attachment} />}
+            {msg.attachment && <AttachmentRenderer attachment={msg.attachment} onAction={onAction} />}
           </div>
           {msg.time && (
             <p className="text-[10px] text-stone-gray mt-1 ml-1">{msg.time}</p>
@@ -796,7 +800,7 @@ export default function PartnerChat({
           </div>
         ) : (
           messages.map((msg) => (
-            <MessageBubble key={msg.id} msg={msg} partner={partner} />
+            <MessageBubble key={msg.id} msg={msg} partner={partner} onAction={(action) => onSendMessage(action)} />
           ))
         )}
       </div>

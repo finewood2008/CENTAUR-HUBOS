@@ -13,7 +13,7 @@ import Settings from './components/settings/Settings';
 import { ToastProvider, useToast } from './components/shared/Toast';
 import { AppProvider, useTheme } from './stores/useAppStore';
 import { useConnection, useEnhancedDashboardData, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
-import { getAgentModule } from './services/qeeclaw';
+import { getClientAsync } from './services/qeeclaw';
 
 // 背景样式映射
 const BG_CLASS_MAP: Record<string, string> = {
@@ -45,7 +45,8 @@ function AppInner() {
 
     if (connected) {
       try {
-        await getAgentModule().create({
+        const client = await getClientAsync();
+        await client.agent.create({
           name: spec?.name || '自定义员工',
           description: spec?.description || spec?.role || '',
           model: spec?.layers?.capability?.model || 'gpt-4o',
