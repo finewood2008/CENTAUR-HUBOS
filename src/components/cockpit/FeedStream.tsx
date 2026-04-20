@@ -94,17 +94,17 @@ function FeedCard({ item, onNav, onApprovalAction }: { item: FeedItem; onNav?: (
     approval: [
       { label: '通过', handler: () => handleApprovalClick('approved') },
       { label: '驳回', handler: () => handleApprovalClick('rejected') },
-      { label: '查看详情', tab: 'team' },
+      { label: '查看详情', tab: 'employees' },
     ],
     alert: [
-      { label: '立即处理', tab: 'team' },
-      { label: '查看', tab: 'team' },
+      { label: '立即处理', tab: 'employees' },
+      { label: '查看', tab: 'employees' },
     ],
     insight: [
       { label: '查看报告', tab: 'finance' },
     ],
     task_done: [
-      { label: '查看', tab: 'team' },
+      { label: '查看', tab: 'employees' },
     ],
     report: [
       { label: '查看报告', tab: 'finance' },

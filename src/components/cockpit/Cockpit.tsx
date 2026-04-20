@@ -1,17 +1,17 @@
-import { useState, useCallback, useMemo } from 'react';
-import { Calendar, Users, CheckCircle2, Star } from 'lucide-react';
+import { useState, useCallback } from 'react';
 import PartnerChat from './PartnerChat';
-import SidePanel from './SidePanel';
+import TeamHeader from './TeamHeader';
+import LeftPanel from './LeftPanel';
+import RightPanel from './RightPanel';
 import type { NavTab } from '../../types';
-import type { DashboardCardType } from '../../data/partner';
 import {
   DEFAULT_PARTNER,
   MOCK_MORNING_BRIEFING,
-  MOCK_REPORTS,
-  ALL_DASHBOARD_CARDS,
+  MOCK_TASKS,
+  MOCK_CENTAUR_INDEX,
   TEAM_MEMBERS,
 } from '../../data/partner';
-import type { ChatMessage, ReportItem, DashboardCard, PartnerProfile } from '../../data/partner';
+import type { ChatMessage, Task, PartnerProfile } from '../../data/partner';
 
 interface CockpitProps {
   onNav?: (tab: NavTab) => void;
@@ -19,7 +19,7 @@ interface CockpitProps {
 
 export default function Cockpit({ onNav }: CockpitProps) {
   // Partner state
-  const [partner] = useState<PartnerProfile>({
+  const [partner, setPartner] = useState<PartnerProfile>({
     ...DEFAULT_PARTNER,
     name: '阿拓',
     isConfigured: true,
@@ -28,13 +28,17 @@ export default function Cockpit({ onNav }: CockpitProps) {
   // Chat messages
   const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MORNING_BRIEFING);
 
-  // Reports
-  const [reports, setReports] = useState<ReportItem[]>(MOCK_REPORTS);
+  // Tasks
+  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
 
-  // Dashboard cards
-  const [cards, setCards] = useState<DashboardCard[]>(ALL_DASHBOARD_CARDS);
+  // ── Derived ──
+  const reviewTasks = tasks.filter(t => t.status === 'review');
 
   // ── Handlers ──
+
+  const handlePartnerNameChange = useCallback((name: string) => {
+    setPartner(prev => ({ ...prev, name }));
+  }, []);
 
   const handleSendMessage = useCallback((text: string) => {
     const userMsg: ChatMessage = {
@@ -47,7 +51,6 @@ export default function Cockpit({ onNav }: CockpitProps) {
 
     // Mock partner reply after short delay
     setTimeout(() => {
-      // Check if message contains @employee
       const mentionMatch = text.match(/@(\S+)/);
       const member = mentionMatch
         ? TEAM_MEMBERS.find(m => m.name === mentionMatch[1])
@@ -74,7 +77,6 @@ export default function Cockpit({ onNav }: CockpitProps) {
       };
       setMessages(prev => [...prev, partnerReply]);
 
-      // If mentioning an unlocked employee, add their reply too
       if (member && !member.locked) {
         setTimeout(() => {
           const employeeReply: ChatMessage = {
@@ -86,7 +88,7 @@ export default function Cockpit({ onNav }: CockpitProps) {
               avatar: member.avatar,
               color: member.color,
             },
-            content: `收到，我来处理。有进展会及时汇报。`,
+            content: '收到，我来处理。有进展会及时汇报。',
             time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
           };
           setMessages(prev => [...prev, employeeReply]);
@@ -98,185 +100,86 @@ export default function Cockpit({ onNav }: CockpitProps) {
   const handleMemberClick = useCallback((id: string) => {
     const member = TEAM_MEMBERS.find(m => m.id === id);
     if (member && member.locked) {
-      // Navigate to team page for locked members
-      onNav?.('team');
+      onNav?.('employees');
     }
   }, [onNav]);
 
-  const handleApprove = useCallback((id: string) => {
-    setReports(prev =>
-      prev.map(r => (r.id === id ? { ...r, status: 'approved' as const } : r))
+  const handleApproveTask = useCallback((taskId: string) => {
+    setTasks(prev =>
+      prev.map(t => (t.id === taskId ? { ...t, status: 'completed' as const, progress: 100 } : t))
     );
-    // Add partner notification in chat
-    const report = reports.find(r => r.id === id);
-    if (report) {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
       const msg: ChatMessage = {
         id: `sys-${Date.now()}`,
         sender: { type: 'system' },
-        content: `已批准：${report.employeeName}的「${report.title}」`,
+        content: `已批准：${task.assigneeName}的「${task.title}」`,
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages(prev => [...prev, msg]);
     }
-  }, [reports]);
+  }, [tasks]);
 
-  const handleReject = useCallback((id: string) => {
-    setReports(prev =>
-      prev.map(r => (r.id === id ? { ...r, status: 'rejected' as const } : r))
+  const handleRejectTask = useCallback((taskId: string) => {
+    setTasks(prev =>
+      prev.map(t => (t.id === taskId ? { ...t, status: 'pending' as const } : t))
     );
-    const report = reports.find(r => r.id === id);
-    if (report) {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
       const msg: ChatMessage = {
         id: `sys-${Date.now()}`,
         sender: { type: 'system' },
-        content: `已驳回：${report.employeeName}的「${report.title}」`,
+        content: `已驳回：${task.assigneeName}的「${task.title}」，已退回修改`,
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages(prev => [...prev, msg]);
     }
-  }, [reports]);
+  }, [tasks]);
 
-  const handleToggleCard = useCallback((type: DashboardCardType) => {
-    setCards(prev =>
-      prev.map(c => (c.type === type ? { ...c, enabled: !c.enabled } : c))
-    );
-  }, []);
-
-  // ── Derived header data ──
-
-  const onlineCount = useMemo(
-    () => TEAM_MEMBERS.filter(m => m.status === 'online' || m.status === 'working').length,
-    []
-  );
-
-  const pendingCount = useMemo(
-    () => reports.filter(r => r.type === 'approval' && r.status === 'pending').length,
-    [reports]
-  );
-
-  const timeGreeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 6) return '夜深了';
-    if (hour < 12) return '早上好';
-    if (hour < 14) return '中午好';
-    if (hour < 18) return '下午好';
-    return '晚上好';
-  }, []);
-
-  const dateLabel = useMemo(() => {
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const day = now.getDate();
-    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    const weekday = weekdays[now.getDay()];
-    return `${month}月${day}日 · ${weekday}`;
-  }, []);
-
-  // ── Active (non-locked) team avatars for header ──
-  const activeMembers = useMemo(
-    () => TEAM_MEMBERS.filter(m => !m.locked),
-    []
-  );
+  const handleQuickAction = useCallback((action: string) => {
+    handleSendMessage(action);
+  }, [handleSendMessage]);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-parchment">
-      {/* ── Welcome Header ── */}
-      <header className="shrink-0 pt-5 pb-3 px-8 flex items-end justify-between">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-2xl font-bold text-near-black tracking-tight">
-            {timeGreeting}
-          </h1>
-          <div className="flex items-center gap-2 text-[13px] text-stone-gray/70">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>{dateLabel}</span>
-          </div>
-        </div>
+      {/* ── Top: Team Header ── */}
+      <TeamHeader
+        partner={partner}
+        centaur={MOCK_CENTAUR_INDEX}
+        onPartnerNameChange={handlePartnerNameChange}
+        onMemberClick={handleMemberClick}
+      />
 
-        {/* Right: compact team summary */}
-        <div className="flex items-center gap-5">
-          <div className="flex items-center gap-4 text-[13px] text-olive-gray/80">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-400/70" />
-              <span>{onlineCount} 员工在线</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-terracotta/50" />
-              <span>{pendingCount} 待办</span>
-            </div>
-          </div>
+      {/* ── Main: Three-column layout — chat is center stage ── */}
+      <div className="flex-1 overflow-hidden flex">
 
-          {/* Mini avatar stack */}
-          <div className="flex -space-x-1.5">
-            {activeMembers.map(m => (
-              <span
-                key={m.id}
-                className="w-7 h-7 rounded-full bg-warm-sand border-2 border-parchment flex items-center justify-center text-xs shadow-sm"
-                title={m.name}
-              >
-                {m.avatar}
-              </span>
-            ))}
-          </div>
-        </div>
-      </header>
+        {/* Left Panel: Action Queue + Quick Actions */}
+        <aside className="w-[240px] min-w-[240px] border-r border-border-cream/30 bg-white/30 backdrop-blur-sm flex flex-col overflow-hidden max-lg:hidden">
+          <LeftPanel
+            reviewTasks={reviewTasks}
+            onApprove={handleApproveTask}
+            onReject={handleRejectTask}
+            onQuickAction={handleQuickAction}
+          />
+        </aside>
 
-      {/* ── Main Content ── */}
-      <div className="flex-1 overflow-hidden px-6 pb-6">
-        <div className="grid grid-cols-[1fr_380px] gap-6 h-full max-lg:grid-cols-1">
-          {/* Chat Card */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.06)] border border-white/60 flex flex-col overflow-hidden">
-            {/* Card header — partner name + team avatars */}
-            <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-border-cream/20">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center text-lg ring-2 ring-amber-200/40">
-                  {partner.avatar || '🧑‍💼'}
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[14px] font-semibold text-near-black">{partner.name}</span>
-                    <Star size={12} className="text-amber-400 fill-amber-400" />
-                  </div>
-                  <span className="text-[11px] text-stone-gray/70">{partner.tagline}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-0.5">
-                {TEAM_MEMBERS.map(m => (
-                  <span
-                    key={m.id}
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] transition-all ${
-                      m.locked ? 'opacity-30 grayscale' : 'hover:scale-110'
-                    } ${(m.status === 'online' || m.status === 'working') && !m.locked ? 'ring-1.5 ring-green-400/40' : ''}`}
-                    title={`${m.name} — ${m.role}`}
-                  >
-                    {m.avatar}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Chat content */}
-            <div className="flex-1 min-h-0 flex flex-col">
-              <PartnerChat
-                messages={messages}
-                partner={partner}
-                onSendMessage={handleSendMessage}
-                onMemberClick={handleMemberClick}
-              />
-            </div>
-          </div>
-
-          {/* Panel Card */}
-          <aside className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.06)] border border-white/60 overflow-hidden flex flex-col max-lg:hidden">
-            <SidePanel
-              reports={reports}
-              cards={cards}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onToggleCard={handleToggleCard}
-              onNav={onNav}
+        {/* Center: THE Chat — absolute core */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col">
+            <PartnerChat
+              messages={messages}
+              partner={partner}
+              onSendMessage={handleSendMessage}
+              onMemberClick={handleMemberClick}
             />
-          </aside>
+          </div>
         </div>
+
+        {/* Right Panel: Centaur Index + Stats + Feed */}
+        <aside className="w-[280px] min-w-[280px] border-l border-border-cream/30 bg-white/30 backdrop-blur-sm flex flex-col overflow-hidden max-lg:hidden">
+          <RightPanel centaur={MOCK_CENTAUR_INDEX} />
+        </aside>
+
       </div>
     </div>
   );

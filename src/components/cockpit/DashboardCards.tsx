@@ -105,10 +105,10 @@ function EfficiencyContent() {
 
 function QuickActionsContent({ onNav }: { onNav?: (tab: string) => void }) {
   const actions = [
-    { label: '写文章', tab: 'team', emoji: '✍️' },
-    { label: '查线索', tab: 'team', emoji: '🔍' },
+    { label: '写文章', tab: 'employees', emoji: '✍️' },
+    { label: '查线索', tab: 'employees', emoji: '🔍' },
     { label: '看报表', tab: 'finance', emoji: '📊' },
-    { label: '管团队', tab: 'team', emoji: '👥' },
+    { label: '管团队', tab: 'employees', emoji: '👥' },
   ];
   return (
     <div className="grid grid-cols-2 gap-1.5">

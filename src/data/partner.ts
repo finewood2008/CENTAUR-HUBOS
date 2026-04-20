@@ -34,11 +34,14 @@ export interface ChatMessage {
   attachment?: MessageAttachment;
 }
 
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'review';
+
 export type MessageAttachment =
   | { type: 'data-card'; title: string; metrics: { label: string; value: string }[] }
   | { type: 'task-list'; tasks: { employee: string; avatar: string; task: string; deadline: string }[] }
   | { type: 'action-buttons'; buttons: { label: string; action: string }[] }
-  | { type: 'article-preview'; title: string; summary: string; reads: number; shares: number };
+  | { type: 'article-preview'; title: string; summary: string; reads: number; shares: number }
+  | { type: 'task-card'; taskId: string; title: string; assignee: string; assigneeAvatar: string; status: TaskStatus; progress?: number };
 
 // ── 汇报流 ──
 export interface ReportItem {
@@ -174,11 +177,28 @@ export const MOCK_MORNING_BRIEFING: ChatMessage[] = [
     content: '收到。文章的事我让火花安排了。展会物料我拆一下任务：',
     time: '09:05',
     attachment: {
-      type: 'task-list',
-      tasks: [
-        { employee: '火花', avatar: '🔥', task: '展会海报 + 宣传册设计', deadline: '周四' },
-        { employee: '小可', avatar: '🎯', task: '客户案例集 + 现场获客方案', deadline: '周三' },
-      ],
+      type: 'task-card',
+      taskId: 'task-1',
+      title: '展会海报设计',
+      assignee: '火花',
+      assigneeAvatar: '🔥',
+      status: 'in_progress' as TaskStatus,
+      progress: 65,
+    },
+  },
+  {
+    id: 'msg-8b',
+    sender: { type: 'partner' },
+    content: '',
+    time: '09:05',
+    attachment: {
+      type: 'task-card',
+      taskId: 'task-2',
+      title: '客户案例集整理',
+      assignee: '小可',
+      assigneeAvatar: '🎯',
+      status: 'in_progress' as TaskStatus,
+      progress: 40,
     },
   },
   {
@@ -259,3 +279,140 @@ export const ONBOARDING_MESSAGES: ChatMessage[] = [
     time: '',
   },
 ];
+
+// ── 任务数据模型 ──
+export interface Task {
+  id: string;
+  title: string;
+  assignee: DigitalEmployeeId;
+  assigneeName: string;
+  assigneeAvatar: string;
+  status: TaskStatus;
+  progress?: number;       // 0-100
+  createdAt: string;
+  deadline?: string;
+  description?: string;
+}
+
+export const MOCK_TASKS: Task[] = [
+  {
+    id: 'task-1',
+    title: '展会海报设计',
+    assignee: 'spark',
+    assigneeName: '火花',
+    assigneeAvatar: '🔥',
+    status: 'in_progress',
+    progress: 65,
+    createdAt: '09:05',
+    deadline: '周四',
+    description: '设计下周展会用的主视觉海报和易拉宝',
+  },
+  {
+    id: 'task-2',
+    title: '客户案例集整理',
+    assignee: 'xiaoke',
+    assigneeName: '小可',
+    assigneeAvatar: '🎯',
+    status: 'in_progress',
+    progress: 40,
+    createdAt: '09:05',
+    deadline: '周三',
+    description: '整理3个标杆客户案例，含数据和testimonial',
+  },
+  {
+    id: 'task-3',
+    title: '《AI趋势2026》续篇',
+    assignee: 'spark',
+    assigneeName: '火花',
+    assigneeAvatar: '🔥',
+    status: 'review',
+    progress: 100,
+    createdAt: '09:05',
+    description: '基于上篇高表现数据，撰写续篇文章',
+  },
+  {
+    id: 'task-4',
+    title: '4月增值税申报',
+    assignee: 'shuibao',
+    assigneeName: '税宝',
+    assigneeAvatar: '💰',
+    status: 'pending',
+    createdAt: '昨天',
+    deadline: '本周五',
+    description: '4月增值税纳税申报，金额¥12,450',
+  },
+  {
+    id: 'task-5',
+    title: '竞品分析报告',
+    assignee: 'xiaoke',
+    assigneeName: '小可',
+    assigneeAvatar: '🎯',
+    status: 'completed',
+    progress: 100,
+    createdAt: '昨天',
+    description: '分析3家主要竞品的获客策略和定价',
+  },
+];
+
+// ── 半人马指数 ──
+
+export type CentaurLevel = 'manual' | 'initial' | 'centaur' | 'deep' | 'auto';
+
+export interface CentaurDimension {
+  key: string;
+  label: string;
+  ai: number;
+  human: number;
+  weight: number;
+}
+
+export interface CentaurIndex {
+  overall: number;          // 0-100
+  dimensions: CentaurDimension[];
+  trend: number[];          // 最近7天
+  level: CentaurLevel;
+  levelLabel: string;
+}
+
+export const CENTAUR_LEVELS: Record<CentaurLevel, { label: string; color: string; range: string }> = {
+  manual:  { label: '手工时代', color: 'text-gray-500',    range: '0-20' },
+  initial: { label: '初步协作', color: 'text-blue-500',    range: '21-40' },
+  centaur: { label: '半人马状态', color: 'text-emerald-500', range: '41-60' },
+  deep:    { label: '深度融合', color: 'text-amber-500',   range: '61-80' },
+  auto:    { label: '全面自动', color: 'text-purple-500',  range: '81-100' },
+};
+
+function getCentaurLevel(score: number): CentaurLevel {
+  if (score <= 20) return 'manual';
+  if (score <= 40) return 'initial';
+  if (score <= 60) return 'centaur';
+  if (score <= 80) return 'deep';
+  return 'auto';
+}
+
+export function calcCentaurIndex(dims: CentaurDimension[]): CentaurIndex {
+  let overall = 0;
+  for (const d of dims) {
+    const total = d.ai + d.human;
+    const ratio = total > 0 ? (d.ai / total) * 100 : 0;
+    overall += ratio * d.weight;
+  }
+  overall = Math.round(overall);
+  const level = getCentaurLevel(overall);
+  return {
+    overall,
+    dimensions: dims,
+    trend: [54, 57, 59, 62, 64, 66, overall],
+    level,
+    levelLabel: CENTAUR_LEVELS[level].label,
+  };
+}
+
+export const MOCK_CENTAUR_DIMENSIONS: CentaurDimension[] = [
+  { key: 'tasks',         label: '任务执行', ai: 18, human: 5,  weight: 0.4 },
+  { key: 'content',       label: '内容生产', ai: 6,  human: 2,  weight: 0.25 },
+  { key: 'decisions',     label: '决策处理', ai: 30, human: 20, weight: 0.2 },
+  { key: 'communication', label: '沟通协调', ai: 50, human: 80, weight: 0.15 },
+];
+
+export const MOCK_CENTAUR_INDEX: CentaurIndex = calcCentaurIndex(MOCK_CENTAUR_DIMENSIONS);

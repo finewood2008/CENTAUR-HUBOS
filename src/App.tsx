@@ -24,7 +24,7 @@ const BG_CLASS_MAP: Record<string, string> = {
 };
 
 function AppInner() {
-  const [tab, setTab] = useState<NavTab>('dashboard');
+  const [tab, setTab] = useState<NavTab>('team');
   const [building, setBuilding] = useState(false);
   const { connected, checking } = useConnection();
   const { bgStyle } = useTheme();
@@ -67,8 +67,8 @@ function AppInner() {
       <div className="h-screen w-screen bg-parchment text-near-black flex overflow-hidden">
         <Sidebar active={tab} onNav={setTab} />
         <main className={`flex-1 flex flex-col overflow-hidden bg-parchment ${BG_CLASS_MAP[bgStyle] || ''}`}>
-          {/* 连接状态指示 — 仅在工作台页面显示，极简化 */}
-          {!checking && tab === 'dashboard' && (
+          {/* 连接状态指示 — 仅在团队页面显示，极简化 */}
+          {!checking && tab === 'team' && (
             <div className="px-8 pt-2 pb-0">
               <div className={`text-[10px] flex items-center gap-1.5 ${connected ? 'text-stone-gray/50' : 'text-yellow-600/70'}`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400/60' : 'bg-yellow-500/60'}`} />
@@ -77,11 +77,11 @@ function AppInner() {
             </div>
           )}
 
-          {tab === 'dashboard' && (
+          {tab === 'team' && (
             <Cockpit onNav={setTab} />
           )}
-          {tab === 'team' && !building && <Team isConnected={connected} />}
-          {tab === 'team' && building && (
+          {tab === 'employees' && !building && <Team isConnected={connected} />}
+          {tab === 'employees' && building && (
             <EmployeeBuilderV2
               onBack={() => setBuilding(false)}
               onComplete={handleBuilderComplete}

@@ -260,4 +260,4 @@ export interface ActivityItem {
   priority?: 'normal' | 'high' | 'urgent';
 }
 
-export type NavTab = 'dashboard' | 'team' | 'channels' | 'knowledge' | 'finance' | 'settings';
+export type NavTab = 'team' | 'employees' | 'channels' | 'knowledge' | 'finance' | 'settings';

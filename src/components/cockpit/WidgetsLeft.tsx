@@ -84,7 +84,7 @@ function AgentDetailPopover({ agent, onClose, onNav }: { agent: Agent; onClose: 
       </div>
 
       <button
-        onClick={() => { onClose(); onNav?.('team'); }}
+        onClick={() => { onClose(); onNav?.('employees'); }}
         className="w-full mt-3 text-[12px] py-1.5 rounded-lg bg-terracotta/10 text-terracotta hover:bg-terracotta/20 transition-colors"
       >
         查看详情 →
@@ -265,7 +265,7 @@ export function PendingTasksWidget({ approvals, activities, loading, isConnected
         <Clock size={15} className="text-terracotta" />
         <h3
           className="text-[13px] font-semibold text-near-black cursor-pointer hover:text-terracotta transition-colors"
-          onClick={() => onNav?.('team')}
+          onClick={() => onNav?.('employees')}
         >
           待办事项
         </h3>
@@ -357,7 +357,7 @@ interface QuickActionsProps {
 
 export function QuickActionsWidget({ onNav }: QuickActionsProps) {
   const actions: { label: string; emoji: string; tab: NavTab }[] = [
-    { label: '团队管理', emoji: '👥', tab: 'team' },
+    { label: '团队管理', emoji: '👥', tab: 'employees' },
     { label: '财务报表', emoji: '📊', tab: 'finance' },
     { label: '通讯渠道', emoji: '📣', tab: 'channels' },
     { label: '知识库',   emoji: '📚', tab: 'knowledge' },

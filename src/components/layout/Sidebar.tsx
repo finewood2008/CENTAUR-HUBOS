@@ -1,12 +1,12 @@
 // CENTAUR - 侧边导航栏 (Warm Anthropic Style + Dark Theme Support)
-import { LayoutDashboard, Users, Radio, Database, Settings, Wallet } from 'lucide-react';
+import { LayoutDashboard, Users, Radio, Database, Settings, Wallet, UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { NavTab } from '../../types';
 import { useOrg } from '../../stores/useAppStore';
 
 const navItems: { key: NavTab; icon: typeof LayoutDashboard; label: string }[] = [
-  { key: 'dashboard', icon: LayoutDashboard, label: '工作台' },
   { key: 'team', icon: Users, label: '团队' },
+  { key: 'employees', icon: UserCircle, label: '员工' },
   { key: 'channels', icon: Radio, label: '通讯' },
   { key: 'knowledge', icon: Database, label: '知识库' },
   { key: 'finance', icon: Wallet, label: '财务' },

@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SendHorizontal, Star, Lock, Users } from 'lucide-react';
 import type {
   ChatMessage,
@@ -7,6 +7,7 @@ import type {
   MessageAttachment,
   TeamMember,
   PartnerProfile,
+  TaskStatus,
 } from '../../data/partner';
 import { TEAM_MEMBERS, DEFAULT_PARTNER } from '../../data/partner';
 
@@ -98,6 +99,47 @@ function ActionButtonsAttachment({ att }: { att: Extract<MessageAttachment, { ty
   );
 }
 
+function TaskCardAttachment({ att }: { att: Extract<MessageAttachment, { type: 'task-card' }> }) {
+  const statusLabels: Record<TaskStatus, string> = {
+    pending: '待开始',
+    in_progress: '进行中',
+    completed: '已完成',
+    review: '待审批',
+  };
+  const statusColors: Record<TaskStatus, string> = {
+    pending: 'bg-gray-100 text-gray-600',
+    in_progress: 'bg-amber-50 text-amber-700',
+    completed: 'bg-emerald-50 text-emerald-700',
+    review: 'bg-orange-50 text-orange-700',
+  };
+
+  return (
+    <div className="mt-2 bg-white/80 rounded-xl border border-border-cream/50 p-3 shadow-sm">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-base shrink-0">{att.assigneeAvatar}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-semibold text-near-black truncate">{att.title}</p>
+          <p className="text-[11px] text-stone-gray">{att.assignee}</p>
+        </div>
+        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${statusColors[att.status]}`}>
+          {statusLabels[att.status]}
+        </span>
+      </div>
+      {att.progress != null && (
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1.5 rounded-full bg-border-cream/80 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-terracotta transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.max(0, att.progress))}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-stone-gray font-medium tabular-nums">{att.progress}%</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AttachmentRenderer({ attachment }: { attachment: MessageAttachment }) {
   switch (attachment.type) {
     case 'data-card':
@@ -108,6 +150,8 @@ function AttachmentRenderer({ attachment }: { attachment: MessageAttachment }) {
       return <ArticlePreviewAttachment att={attachment} />;
     case 'action-buttons':
       return <ActionButtonsAttachment att={attachment} />;
+    case 'task-card':
+      return <TaskCardAttachment att={attachment} />;
     default:
       return null;
   }
@@ -229,6 +273,105 @@ function MessageBubble({ msg, partner }: { msg: ChatMessage; partner: PartnerPro
   return null;
 }
 
+// ── Mention item type ──
+interface MentionItem {
+  id: string;
+  name: string;
+  avatar: string;
+  role: string;
+  isPartner?: boolean;
+}
+
+// ── @Mention popup ──
+
+function MentionPopup({
+  filter,
+  onSelect,
+  onClose,
+  partnerName,
+  partnerAvatar,
+  highlightIndex,
+}: {
+  filter: string;
+  onSelect: (name: string) => void;
+  onClose: () => void;
+  partnerName: string;
+  partnerAvatar: string;
+  highlightIndex: number;
+}) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Build mention list: partner first, then unlocked team members
+  const items: MentionItem[] = useMemo(() => {
+    const partnerItem: MentionItem = {
+      id: '__partner__',
+      name: partnerName || '合伙人',
+      avatar: partnerAvatar,
+      role: '管家',
+      isPartner: true,
+    };
+
+    const teamItems: MentionItem[] = TEAM_MEMBERS
+      .filter((m) => !m.locked)
+      .map((m) => ({
+        id: m.id,
+        name: m.name,
+        avatar: m.avatar,
+        role: m.role,
+      }));
+
+    const all = [partnerItem, ...teamItems];
+
+    if (!filter) return all;
+
+    const lowerFilter = filter.toLowerCase();
+    return all.filter(
+      (item) =>
+        item.name.toLowerCase().includes(lowerFilter) ||
+        item.role.toLowerCase().includes(lowerFilter)
+    );
+  }, [filter, partnerName, partnerAvatar]);
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (listRef.current && highlightIndex >= 0) {
+      const el = listRef.current.children[highlightIndex] as HTMLElement | undefined;
+      el?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlightIndex]);
+
+  if (items.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 6 }}
+      transition={{ duration: 0.12 }}
+      className="absolute bottom-full left-0 right-0 mb-1 bg-white rounded-xl shadow-lg border border-border-cream/50 max-h-[200px] overflow-y-auto z-50"
+      ref={listRef}
+    >
+      {items.map((item, idx) => (
+        <button
+          key={item.id}
+          className={`w-full flex items-center gap-2 py-2 px-3 text-left transition-colors ${
+            idx === highlightIndex ? 'bg-parchment' : 'hover:bg-parchment/60'
+          }`}
+          onMouseDown={(e) => {
+            e.preventDefault(); // prevent input blur
+            onSelect(item.name);
+          }}
+        >
+          <span className="text-base shrink-0">{item.avatar}</span>
+          <span className="text-[13px] font-medium text-near-black">{item.name}</span>
+          {item.isPartner && <Star size={10} className="text-amber-400 fill-amber-400 shrink-0" />}
+          <span className="text-[11px] text-stone-gray ml-auto shrink-0">{item.role}</span>
+        </button>
+      ))}
+    </motion.div>
+  );
+}
+
 // ── Team member bar (named export for use in Cockpit card header) ──
 
 export function TeamBar({
@@ -290,7 +433,24 @@ export default function PartnerChat({
   onMemberClick,
 }: PartnerChatProps) {
   const [inputText, setInputText] = useState('');
+  const [showMentionPopup, setShowMentionPopup] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
+  const [mentionStartIndex, setMentionStartIndex] = useState(-1);
+  const [mentionHighlight, setMentionHighlight] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Compute filtered mention count (needed for arrow key wrap-around)
+  const mentionItemCount = useMemo(() => {
+    const partnerItem = { name: partner.name || '合伙人', role: '管家' };
+    const teamItems = TEAM_MEMBERS.filter((m) => !m.locked).map((m) => ({ name: m.name, role: m.role }));
+    const all = [partnerItem, ...teamItems];
+    if (!mentionFilter) return all.length;
+    const lf = mentionFilter.toLowerCase();
+    return all.filter(
+      (item) => item.name.toLowerCase().includes(lf) || item.role.toLowerCase().includes(lf)
+    ).length;
+  }, [mentionFilter, partner.name]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -300,17 +460,118 @@ export default function PartnerChat({
     }
   }, [messages]);
 
+  const closeMention = useCallback(() => {
+    setShowMentionPopup(false);
+    setMentionFilter('');
+    setMentionStartIndex(-1);
+    setMentionHighlight(0);
+  }, []);
+
+  const handleMentionSelect = useCallback(
+    (name: string) => {
+      // Replace @partial with @name
+      const before = inputText.substring(0, mentionStartIndex);
+      const after = inputText.substring(
+        inputRef.current?.selectionStart ?? inputText.length
+      );
+      const newText = `${before}@${name} ${after}`;
+      setInputText(newText);
+      closeMention();
+
+      // Re-focus the input
+      requestAnimationFrame(() => {
+        if (inputRef.current) {
+          const cursorPos = before.length + name.length + 2; // +2 for @ and space
+          inputRef.current.focus();
+          inputRef.current.setSelectionRange(cursorPos, cursorPos);
+        }
+      });
+    },
+    [inputText, mentionStartIndex, closeMention]
+  );
+
   const handleSend = () => {
     const trimmed = inputText.trim();
     if (!trimmed) return;
     onSendMessage(trimmed);
     setInputText('');
+    closeMention();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // If mention popup is open, handle navigation keys
+    if (showMentionPopup && mentionItemCount > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionHighlight((prev) => (prev + 1) % mentionItemCount);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionHighlight((prev) => (prev - 1 + mentionItemCount) % mentionItemCount);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        // Find the highlighted item and select it
+        const partnerItem = { name: partner.name || '合伙人', role: '管家' };
+        const teamItems = TEAM_MEMBERS.filter((m) => !m.locked).map((m) => ({ name: m.name, role: m.role }));
+        const all = [partnerItem, ...teamItems];
+        const lf = mentionFilter.toLowerCase();
+        const filtered = !mentionFilter
+          ? all
+          : all.filter(
+              (item) =>
+                item.name.toLowerCase().includes(lf) || item.role.toLowerCase().includes(lf)
+            );
+        if (filtered[mentionHighlight]) {
+          handleMentionSelect(filtered[mentionHighlight].name);
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeMention();
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart ?? value.length;
+    setInputText(value);
+
+    // Detect @mention trigger
+    // Walk backwards from cursor to find the @ sign
+    let atIndex = -1;
+    for (let i = cursorPos - 1; i >= 0; i--) {
+      const ch = value[i];
+      if (ch === '@') {
+        // Valid if at start or preceded by a space
+        if (i === 0 || value[i - 1] === ' ') {
+          atIndex = i;
+        }
+        break;
+      }
+      if (ch === ' ') break; // stop at space before finding @
+    }
+
+    if (atIndex >= 0) {
+      const filterText = value.substring(atIndex + 1, cursorPos);
+      setShowMentionPopup(true);
+      setMentionFilter(filterText);
+      setMentionStartIndex(atIndex);
+      setMentionHighlight(0);
+    } else {
+      if (showMentionPopup) {
+        closeMention();
+      }
     }
   };
 
@@ -319,6 +580,8 @@ export default function PartnerChat({
       const prefix = prev.length > 0 && !prev.endsWith(' ') ? prev + ' ' : prev;
       return `${prefix}@${name} `;
     });
+    // Focus the input after inserting mention from TeamBar
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   return (
@@ -342,12 +605,26 @@ export default function PartnerChat({
 
       {/* BOTTOM: Input bar */}
       <div className="px-4 py-3 border-t border-border-cream/20">
-        <div className="bg-parchment/60 rounded-xl px-4 py-2.5 border border-border-cream/30 focus-within:border-terracotta/30 focus-within:ring-2 focus-within:ring-terracotta/5 transition-all">
+        <div className="relative bg-parchment/60 rounded-xl px-4 py-2.5 border border-border-cream/30 focus-within:border-terracotta/30 focus-within:ring-2 focus-within:ring-terracotta/5 transition-all">
+          {/* @mention popup */}
+          <AnimatePresence>
+            {showMentionPopup && (
+              <MentionPopup
+                filter={mentionFilter}
+                onSelect={handleMentionSelect}
+                onClose={closeMention}
+                partnerName={partner.name || '合伙人'}
+                partnerAvatar={partner.avatar}
+                highlightIndex={mentionHighlight}
+              />
+            )}
+          </AnimatePresence>
           <div className="flex items-center gap-2">
             <input
+              ref={inputRef}
               type="text"
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="给阿拓发消息..."
               className="flex-1 text-[13px] text-near-black bg-transparent outline-none placeholder:text-stone-gray/50"
