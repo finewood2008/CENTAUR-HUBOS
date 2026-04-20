@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SendHorizontal, Star, Lock, Users } from 'lucide-react';
+import { SendHorizontal, Star, Lock, Users, Paperclip, Mic, Clock, X, FileText, Image as ImageIcon } from 'lucide-react';
 import type {
   ChatMessage,
   MessageSender,
@@ -8,14 +8,18 @@ import type {
   TeamMember,
   PartnerProfile,
   TaskStatus,
+  InputFile,
+  ScheduledTask,
 } from '../../data/partner';
-import { TEAM_MEMBERS, DEFAULT_PARTNER } from '../../data/partner';
+import { TEAM_MEMBERS, DEFAULT_PARTNER, MOCK_SCHEDULED_TASKS } from '../../data/partner';
+import VoiceRecorder from './VoiceRecorder';
+import ScheduleTaskPopover from './ScheduleTaskPopover';
 
 // ── Props ──
 interface PartnerChatProps {
   messages: ChatMessage[];
   partner: PartnerProfile;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, files?: InputFile[]) => void;
   onMemberClick?: (id: string) => void;
 }
 
@@ -140,6 +144,60 @@ function TaskCardAttachment({ att }: { att: Extract<MessageAttachment, { type: '
   );
 }
 
+function ImageAttachment({ att }: { att: Extract<MessageAttachment, { type: 'image' }> }) {
+  return (
+    <div className="mt-2">
+      <img
+        src={att.url}
+        alt={att.name}
+        className="max-w-[280px] max-h-[200px] rounded-lg object-cover border border-border-cream/30 cursor-pointer hover:opacity-90 transition-opacity"
+        loading="lazy"
+      />
+      <p className="text-[10px] text-stone-gray mt-1 flex items-center gap-1">
+        <ImageIcon size={10} /> {att.name}
+      </p>
+    </div>
+  );
+}
+
+function FileAttachment({ att }: { att: Extract<MessageAttachment, { type: 'file' }> }) {
+  return (
+    <div className="mt-2 flex items-center gap-3 card-glass p-2.5 rounded-lg max-w-[260px] cursor-pointer hover:bg-parchment/80 transition-colors">
+      <div className="w-9 h-9 rounded-lg bg-terracotta/10 flex items-center justify-center shrink-0">
+        <FileText size={18} className="text-terracotta" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[12px] font-medium text-near-black truncate">{att.name}</p>
+        <p className="text-[10px] text-stone-gray">{att.size}</p>
+      </div>
+    </div>
+  );
+}
+
+function VoiceAttachment({ att }: { att: Extract<MessageAttachment, { type: 'voice' }> }) {
+  const mins = Math.floor(att.duration / 60);
+  const secs = att.duration % 60;
+  const barCount = Math.min(Math.max(Math.ceil(att.duration / 2), 6), 20);
+
+  return (
+    <div className="mt-2 flex items-center gap-2 card-glass px-3 py-2 rounded-full max-w-[200px] cursor-pointer hover:bg-parchment/80 transition-colors">
+      <Mic size={14} className="text-terracotta shrink-0" />
+      <div className="flex items-end gap-[2px] h-4 flex-1">
+        {Array.from({ length: barCount }).map((_, i) => (
+          <div
+            key={i}
+            className="w-[2px] rounded-full bg-terracotta/50"
+            style={{ height: `${4 + Math.sin(i * 0.7) * 8 + Math.random() * 4}px` }}
+          />
+        ))}
+      </div>
+      <span className="text-[11px] text-stone-gray tabular-nums shrink-0">
+        {mins}:{secs.toString().padStart(2, '0')}
+      </span>
+    </div>
+  );
+}
+
 function AttachmentRenderer({ attachment }: { attachment: MessageAttachment }) {
   switch (attachment.type) {
     case 'data-card':
@@ -152,6 +210,12 @@ function AttachmentRenderer({ attachment }: { attachment: MessageAttachment }) {
       return <ActionButtonsAttachment att={attachment} />;
     case 'task-card':
       return <TaskCardAttachment att={attachment} />;
+    case 'image':
+      return <ImageAttachment att={attachment} />;
+    case 'file':
+      return <FileAttachment att={attachment} />;
+    case 'voice':
+      return <VoiceAttachment att={attachment} />;
     default:
       return null;
   }
@@ -437,7 +501,13 @@ export default function PartnerChat({
   const [mentionFilter, setMentionFilter] = useState('');
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
   const [mentionHighlight, setMentionHighlight] = useState(0);
+  const [attachedFiles, setAttachedFiles] = useState<InputFile[]>([]);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [showSchedulePopover, setShowSchedulePopover] = useState(false);
+  const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>(MOCK_SCHEDULED_TASKS);
+  const [isDragOver, setIsDragOver] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Compute filtered mention count (needed for arrow key wrap-around)
@@ -490,11 +560,132 @@ export default function PartnerChat({
     [inputText, mentionStartIndex, closeMention]
   );
 
+  // ── File handling ──
+  const processFiles = useCallback((fileList: FileList | File[]) => {
+    const files = Array.from(fileList);
+    const newInputFiles: InputFile[] = files.map((file) => {
+      const isImage = file.type.startsWith('image/');
+      const inputFile: InputFile = {
+        id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file,
+        type: isImage ? 'image' : 'file',
+        name: file.name,
+        size: file.size,
+      };
+      if (isImage) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setAttachedFiles((prev) =>
+            prev.map((f) => (f.id === inputFile.id ? { ...f, preview: e.target?.result as string } : f))
+          );
+        };
+        reader.readAsDataURL(file);
+      }
+      return inputFile;
+    });
+    setAttachedFiles((prev) => [...prev, ...newInputFiles]);
+  }, []);
+
+  const removeFile = useCallback((id: string) => {
+    setAttachedFiles((prev) => prev.filter((f) => f.id !== id));
+  }, []);
+
+  const handleFileInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) {
+        processFiles(e.target.files);
+        e.target.value = ''; // reset so same file can be re-selected
+      }
+    },
+    [processFiles]
+  );
+
+  // ── Paste handler (Ctrl+V images) ──
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const imageFiles: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        processFiles(imageFiles);
+      }
+    },
+    [processFiles]
+  );
+
+  // ── Drag & drop ──
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      if (e.dataTransfer.files.length > 0) {
+        processFiles(e.dataTransfer.files);
+      }
+    },
+    [processFiles]
+  );
+
+  // ── Voice ──
+  const handleVoiceSend = useCallback(
+    (_audioBlob: Blob, duration: number) => {
+      // In real app, upload blob and get URL. For now mock it.
+      onSendMessage(`[语音消息 ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}]`);
+      setShowVoiceRecorder(false);
+    },
+    [onSendMessage]
+  );
+
+  // ── Schedule ──
+  const handleScheduleSubmit = useCallback(
+    (task: Omit<ScheduledTask, 'id' | 'createdAt'>) => {
+      const newTask: ScheduledTask = {
+        ...task,
+        id: `st-${Date.now()}`,
+        createdAt: new Date().toISOString().slice(0, 10),
+      };
+      setScheduledTasks((prev) => [...prev, newTask]);
+      setShowSchedulePopover(false);
+    },
+    []
+  );
+
+  const handleScheduleToggle = useCallback((id: string, enabled: boolean) => {
+    setScheduledTasks((prev) => prev.map((t) => (t.id === id ? { ...t, enabled } : t)));
+  }, []);
+
+  const handleScheduleDelete = useCallback((id: string) => {
+    setScheduledTasks((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  };
+
   const handleSend = () => {
     const trimmed = inputText.trim();
-    if (!trimmed) return;
-    onSendMessage(trimmed);
+    if (!trimmed && attachedFiles.length === 0) return;
+    onSendMessage(trimmed, attachedFiles.length > 0 ? attachedFiles : undefined);
     setInputText('');
+    setAttachedFiles([]);
     closeMention();
   };
 
@@ -584,8 +775,32 @@ export default function PartnerChat({
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
+  const canSend = inputText.trim() || attachedFiles.length > 0;
+
   return (
-    <div className="flex flex-col h-full">
+    <div
+      className="flex flex-col h-full relative"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      <AnimatePresence>
+        {isDragOver && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-40 bg-terracotta/5 border-2 border-dashed border-terracotta/30 rounded-2xl flex items-center justify-center pointer-events-none"
+          >
+            <div className="text-center">
+              <Paperclip size={32} className="text-terracotta mx-auto mb-2" />
+              <p className="text-[13px] text-terracotta font-medium">松开即可上传文件</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* MIDDLE: Chat flow */}
       <div
         ref={scrollRef}
@@ -603,9 +818,52 @@ export default function PartnerChat({
         )}
       </div>
 
-      {/* BOTTOM: Input bar */}
+      {/* BOTTOM: Input area */}
       <div className="px-4 py-3 border-t border-border-cream/20">
-        <div className="relative bg-parchment/60 rounded-xl px-4 py-2.5 border border-border-cream/30 focus-within:border-terracotta/30 focus-within:ring-2 focus-within:ring-terracotta/5 transition-all">
+        {/* File preview bar */}
+        <AnimatePresence>
+          {attachedFiles.length > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="overflow-hidden"
+            >
+              <div className="flex gap-2 pb-2 overflow-x-auto custom-scrollbar">
+                {attachedFiles.map((f) => (
+                  <div
+                    key={f.id}
+                    className="relative shrink-0 group"
+                  >
+                    {f.type === 'image' && f.preview ? (
+                      <div className="w-16 h-16 rounded-lg overflow-hidden border border-border-cream/30">
+                        <img src={f.preview} alt={f.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg border border-border-cream/30 bg-parchment/80 flex flex-col items-center justify-center gap-1">
+                        <FileText size={18} className="text-terracotta" />
+                        <span className="text-[9px] text-stone-gray truncate max-w-[56px] px-0.5">{f.name}</span>
+                      </div>
+                    )}
+                    {/* Remove button */}
+                    <button
+                      onClick={() => removeFile(f.id)}
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-stone-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X size={10} />
+                    </button>
+                    <p className="text-[9px] text-stone-gray mt-0.5 text-center truncate max-w-[64px]">
+                      {formatFileSize(f.size)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="relative bg-parchment/60 rounded-xl px-3 py-2 border border-border-cream/30 focus-within:border-terracotta/30 focus-within:ring-2 focus-within:ring-terracotta/5 transition-all">
           {/* @mention popup */}
           <AnimatePresence>
             {showMentionPopup && (
@@ -619,21 +877,80 @@ export default function PartnerChat({
               />
             )}
           </AnimatePresence>
-          <div className="flex items-center gap-2">
+
+          {/* Schedule task popover */}
+          <AnimatePresence>
+            {showSchedulePopover && (
+              <ScheduleTaskPopover
+                onClose={() => setShowSchedulePopover(false)}
+                onSubmit={handleScheduleSubmit}
+                onToggle={handleScheduleToggle}
+                onDelete={handleScheduleDelete}
+                existingTasks={scheduledTasks}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
+
+          {/* Input row: [📎 ⏰ | input | 🎤 ➤] */}
+          <div className="flex items-center gap-1.5">
+            {/* Left action buttons */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-1.5 rounded-lg text-stone-gray hover:text-terracotta hover:bg-terracotta/5 transition-colors"
+              title="上传附件"
+            >
+              <Paperclip size={16} />
+            </button>
+            <button
+              onClick={() => setShowSchedulePopover((prev) => !prev)}
+              className={`p-1.5 rounded-lg transition-colors ${
+                showSchedulePopover
+                  ? 'text-terracotta bg-terracotta/10'
+                  : 'text-stone-gray hover:text-terracotta hover:bg-terracotta/5'
+              }`}
+              title="定时任务"
+            >
+              <Clock size={16} />
+            </button>
+
+            {/* Divider */}
+            <div className="w-px h-5 bg-border-cream/50 mx-0.5" />
+
+            {/* Text input */}
             <input
               ref={inputRef}
               type="text"
               value={inputText}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder="给阿拓发消息..."
               className="flex-1 text-[13px] text-near-black bg-transparent outline-none placeholder:text-stone-gray/50"
             />
+
+            {/* Right action buttons */}
+            <button
+              onClick={() => setShowVoiceRecorder(true)}
+              className="p-1.5 rounded-lg text-stone-gray hover:text-terracotta hover:bg-terracotta/5 transition-colors"
+              title="语音输入"
+            >
+              <Mic size={16} />
+            </button>
             <button
               onClick={handleSend}
-              disabled={!inputText.trim()}
-              className={`p-2 rounded-lg transition-all ${
-                inputText.trim()
+              disabled={!canSend}
+              className={`p-1.5 rounded-lg transition-all ${
+                canSend
                   ? 'text-white bg-terracotta hover:bg-terracotta/90 shadow-sm'
                   : 'text-stone-gray/30 cursor-not-allowed'
               }`}
@@ -643,6 +960,16 @@ export default function PartnerChat({
           </div>
         </div>
       </div>
+
+      {/* Voice recorder overlay */}
+      <AnimatePresence>
+        {showVoiceRecorder && (
+          <VoiceRecorder
+            onClose={() => setShowVoiceRecorder(false)}
+            onSend={handleVoiceSend}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

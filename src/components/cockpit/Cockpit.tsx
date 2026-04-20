@@ -53,7 +53,7 @@ export default function Cockpit({ onNav }: CockpitProps) {
     setPartner(prev => ({ ...prev, name }));
   }, []);
 
-  const handleSendMessage = useCallback((text: string) => {
+  const handleSendMessage = useCallback((text: string, _files?: import('../../data/partner').InputFile[]) => {
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: { type: 'user' },

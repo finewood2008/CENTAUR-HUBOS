@@ -41,7 +41,41 @@ export type MessageAttachment =
   | { type: 'task-list'; tasks: { employee: string; avatar: string; task: string; deadline: string }[] }
   | { type: 'action-buttons'; buttons: { label: string; action: string }[] }
   | { type: 'article-preview'; title: string; summary: string; reads: number; shares: number }
-  | { type: 'task-card'; taskId: string; title: string; assignee: string; assigneeAvatar: string; status: TaskStatus; progress?: number };
+  | { type: 'task-card'; taskId: string; title: string; assignee: string; assigneeAvatar: string; status: TaskStatus; progress?: number }
+  | { type: 'image'; url: string; name: string; width?: number; height?: number }
+  | { type: 'file'; url: string; name: string; size: string; mimeType?: string }
+  | { type: 'voice'; url: string; duration: number };
+
+// ── 输入文件附件 ──
+export interface InputFile {
+  id: string;
+  file: File;
+  type: 'image' | 'file';
+  preview?: string; // data URL for image preview
+  name: string;
+  size: number;
+}
+
+// ── 定时任务 ──
+export interface ScheduledTask {
+  id: string;
+  title: string;
+  description?: string;
+  schedule: {
+    type: 'once' | 'daily' | 'weekly' | 'monthly' | 'cron';
+    time: string; // HH:mm
+    date?: string; // YYYY-MM-DD for 'once'
+    weekday?: number; // 0-6 for 'weekly'
+    dayOfMonth?: number; // 1-31 for 'monthly'
+    cronExpr?: string; // for 'cron'
+  };
+  action: string; // the instruction/prompt
+  assignee?: string; // employee id
+  enabled: boolean;
+  createdAt: string;
+  lastRun?: string;
+  nextRun?: string;
+}
 
 // ── 汇报流 ──
 export interface ReportItem {
@@ -357,6 +391,40 @@ export const MOCK_TASKS: Task[] = [
     progress: 100,
     createdAt: '昨天',
     description: '分析3家主要竞品的获客策略和定价',
+  },
+];
+
+// ── Mock 定时任务 ──
+export const MOCK_SCHEDULED_TASKS: ScheduledTask[] = [
+  {
+    id: 'st-1',
+    title: '每日晨报',
+    description: '汇总昨日数据，生成晨报',
+    schedule: { type: 'daily', time: '09:00' },
+    action: '生成昨日团队工作晨报',
+    enabled: true,
+    createdAt: '2026-04-15',
+    nextRun: '明天 09:00',
+  },
+  {
+    id: 'st-2',
+    title: '周五周报',
+    description: '汇总本周工作，生成周报',
+    schedule: { type: 'weekly', time: '17:00', weekday: 5 },
+    action: '生成本周团队工作周报',
+    enabled: true,
+    createdAt: '2026-04-10',
+    nextRun: '周五 17:00',
+  },
+  {
+    id: 'st-3',
+    title: '月度获客分析',
+    description: '分析本月获客数据',
+    schedule: { type: 'monthly', time: '10:00', dayOfMonth: 1 },
+    action: '分析上月获客数据并生成报告',
+    assignee: 'xiaoke',
+    enabled: false,
+    createdAt: '2026-04-01',
   },
 ];
 
