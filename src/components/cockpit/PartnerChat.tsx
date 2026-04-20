@@ -17,7 +17,7 @@ import VoiceRecorder from './VoiceRecorder';
 interface PartnerChatProps {
   messages: ChatMessage[];
   partner: PartnerProfile;
-  onSendMessage: (text: string, files?: InputFile[]) => void;
+  onSendMessage: (text: string, files?: InputFile[], voiceBlob?: { blob: Blob; duration: number }) => void;
   onMemberClick?: (id: string) => void;
 }
 
@@ -644,9 +644,8 @@ export default function PartnerChat({
 
   // ── Voice ──
   const handleVoiceSend = useCallback(
-    (_audioBlob: Blob, duration: number) => {
-      // In real app, upload blob and get URL. For now mock it.
-      onSendMessage(`[语音消息 ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}]`);
+    (audioBlob: Blob, duration: number) => {
+      onSendMessage('', undefined, { blob: audioBlob, duration });
       setShowVoiceRecorder(false);
     },
     [onSendMessage]

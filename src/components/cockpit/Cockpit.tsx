@@ -7,35 +7,35 @@ import RightPanel from './RightPanel';
 import type { NavTab } from '../../types';
 import {
   DEFAULT_PARTNER,
-  MOCK_MORNING_BRIEFING,
-  ONBOARDING_MESSAGES,
-  MOCK_TASKS,
   MOCK_CENTAUR_INDEX,
   TEAM_MEMBERS,
   ALL_EMPLOYEES,
   DEFAULT_TEAM_IDS,
-  MOCK_SCHEDULED_TASKS,
 } from '../../data/partner';
 import type { ChatMessage, Task, PartnerProfile, ScheduledTask } from '../../data/partner';
 import type { DigitalEmployeeId } from '../../types';
+import { useConnection } from '../../hooks/useQeeClaw';
+import { useCockpit } from '../../hooks/useCockpit';
 
 interface CockpitProps {
   onNav?: (tab: NavTab) => void;
 }
 
 export default function Cockpit({ onNav }: CockpitProps) {
-  // Partner state
-  const [partner, setPartner] = useState<PartnerProfile>({
-    ...DEFAULT_PARTNER,
-    name: '',
-    isConfigured: false,
-  });
-
-  // Chat messages
-  const [messages, setMessages] = useState<ChatMessage[]>(ONBOARDING_MESSAGES);
-
-  // Tasks
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+  const { connected } = useConnection();
+  const {
+    data,
+    loading,
+    sending,
+    sendMessage,
+    loadApprovals,
+    loadSchedule,
+    handlePartnerNameChange,
+    approveTask,
+    rejectTask,
+    toggleSchedule,
+    deleteSchedule
+  } = useCockpit(connected);
 
   // Team members (dynamic — users can add/remove)
   const [teamIds, setTeamIds] = useState<DigitalEmployeeId[]>([...DEFAULT_TEAM_IDS]);
@@ -44,97 +44,10 @@ export default function Cockpit({ onNav }: CockpitProps) {
     .filter(Boolean) as typeof ALL_EMPLOYEES;
 
   // ── Derived ──
-  const reviewTasks = tasks.filter(t => t.status === 'review');
-
-  // Scheduled tasks
-  const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>(MOCK_SCHEDULED_TASKS);
+  const reviewTasks = data.tasks.filter((t: Task) => t.status === 'review');
 
   // Right panel toggle (default closed)
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
-
-  // ── Handlers ──
-
-  const handlePartnerNameChange = useCallback((name: string) => {
-    setPartner(prev => ({ ...prev, name }));
-  }, []);
-
-  const handleSendMessage = useCallback((text: string, _files?: import('../../data/partner').InputFile[]) => {
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      sender: { type: 'user' },
-      content: text,
-      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMessages(prev => [...prev, userMsg]);
-
-    // Onboarding: treat first message as partner name
-    if (!partner.isConfigured) {
-      const partnerName = text.trim();
-      setPartner(prev => ({ ...prev, name: partnerName, isConfigured: true }));
-
-      const confirmMsg: ChatMessage = {
-        id: `sys-${Date.now()}`,
-        sender: { type: 'system' },
-        content: `好的，你的主管名字设为「${partnerName}」`,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages(prev => [...prev, confirmMsg]);
-
-      // After short delay, load morning briefing
-      setTimeout(() => {
-        setMessages(prev => [...prev, ...MOCK_MORNING_BRIEFING]);
-      }, 800);
-
-      return;
-    }
-
-    // Mock partner reply after short delay
-    setTimeout(() => {
-      const mentionMatch = text.match(/@(\S+)/);
-      const member = mentionMatch
-        ? TEAM_MEMBERS.find(m => m.name === mentionMatch[1])
-        : null;
-
-      let replyContent = '收到，我来安排。';
-      if (member && !member.locked) {
-        replyContent = `好的，我让${member.name}来处理。`;
-      } else if (member && member.locked) {
-        replyContent = `${member.name}还在入职准备中，暂时由我来处理这个需求。`;
-      } else if (text.includes('数据') || text.includes('报表')) {
-        replyContent = '好的，我来帮你拉一下数据。';
-      } else if (text.includes('文章') || text.includes('内容')) {
-        replyContent = '内容相关的事我交给火花来处理。';
-      } else if (text.includes('客户') || text.includes('线索')) {
-        replyContent = '获客的事我交给小可来跟进。';
-      }
-
-      const partnerReply: ChatMessage = {
-        id: `partner-${Date.now()}`,
-        sender: { type: 'partner' },
-        content: replyContent,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages(prev => [...prev, partnerReply]);
-
-      if (member && !member.locked) {
-        setTimeout(() => {
-          const employeeReply: ChatMessage = {
-            id: `emp-${Date.now()}`,
-            sender: {
-              type: 'employee',
-              id: member.id,
-              name: member.name,
-              avatar: member.avatar,
-              color: member.color,
-            },
-            content: '收到，我来处理。有进展会及时汇报。',
-            time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-          };
-          setMessages(prev => [...prev, employeeReply]);
-        }, 800);
-      }
-    }, 600);
-  }, [partner.isConfigured]);
 
   const handleMemberClick = useCallback((id: string) => {
     const member = TEAM_MEMBERS.find(m => m.id === id);
@@ -143,49 +56,11 @@ export default function Cockpit({ onNav }: CockpitProps) {
     }
   }, [onNav]);
 
-  const handleApproveTask = useCallback((taskId: string) => {
-    setTasks(prev =>
-      prev.map(t => (t.id === taskId ? { ...t, status: 'completed' as const, progress: 100 } : t))
-    );
-    const task = tasks.find(t => t.id === taskId);
-    if (task) {
-      const msg: ChatMessage = {
-        id: `sys-${Date.now()}`,
-        sender: { type: 'system' },
-        content: `已批准：${task.assigneeName}的「${task.title}」`,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages(prev => [...prev, msg]);
-    }
-  }, [tasks]);
-
-  const handleRejectTask = useCallback((taskId: string) => {
-    setTasks(prev =>
-      prev.map(t => (t.id === taskId ? { ...t, status: 'pending' as const } : t))
-    );
-    const task = tasks.find(t => t.id === taskId);
-    if (task) {
-      const msg: ChatMessage = {
-        id: `sys-${Date.now()}`,
-        sender: { type: 'system' },
-        content: `已驳回：${task.assigneeName}的「${task.title}」，已退回修改`,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages(prev => [...prev, msg]);
-    }
-  }, [tasks]);
-
   const handleQuickAction = useCallback((action: string) => {
-    handleSendMessage(action);
-  }, [handleSendMessage]);
+    sendMessage(action);
+  }, [sendMessage]);
 
-  const handleScheduleToggle = useCallback((id: string, enabled: boolean) => {
-    setScheduledTasks(prev => prev.map(t => (t.id === id ? { ...t, enabled } : t)));
-  }, []);
 
-  const handleScheduleDelete = useCallback((id: string) => {
-    setScheduledTasks(prev => prev.filter(t => t.id !== id));
-  }, []);
 
   const handleAddMember = useCallback((id: DigitalEmployeeId) => {
     setTeamIds(prev => prev.includes(id) ? prev : [...prev, id]);
@@ -199,7 +74,7 @@ export default function Cockpit({ onNav }: CockpitProps) {
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-parchment">
       {/* ── Top: Team Header ── */}
       <TeamHeader
-        partner={partner}
+        partner={data.partner}
         centaur={MOCK_CENTAUR_INDEX}
         teamMembers={teamMembers}
         onPartnerNameChange={handlePartnerNameChange}
@@ -215,12 +90,12 @@ export default function Cockpit({ onNav }: CockpitProps) {
         <aside className="w-[240px] min-w-[240px] border-r border-border-cream/30 bg-white/30 backdrop-blur-sm flex flex-col overflow-hidden max-lg:hidden">
           <LeftPanel
             reviewTasks={reviewTasks}
-            onApprove={handleApproveTask}
-            onReject={handleRejectTask}
+            onApprove={approveTask}
+            onReject={rejectTask}
             onQuickAction={handleQuickAction}
-            scheduledTasks={scheduledTasks}
-            onScheduleToggle={handleScheduleToggle}
-            onScheduleDelete={handleScheduleDelete}
+            scheduledTasks={data.scheduledTasks}
+            onScheduleToggle={toggleSchedule}
+            onScheduleDelete={deleteSchedule}
           />
         </aside>
 
@@ -236,9 +111,9 @@ export default function Cockpit({ onNav }: CockpitProps) {
           </button>
           <div className="flex-1 min-h-0 flex flex-col">
             <PartnerChat
-              messages={messages}
-              partner={partner}
-              onSendMessage={handleSendMessage}
+              messages={data.messages}
+              partner={data.partner}
+              onSendMessage={sendMessage}
               onMemberClick={handleMemberClick}
             />
           </div>
@@ -249,9 +124,7 @@ export default function Cockpit({ onNav }: CockpitProps) {
           <aside className="w-[280px] min-w-[280px] border-l border-border-cream/30 bg-white/30 backdrop-blur-sm flex flex-col overflow-hidden max-lg:hidden">
             <RightPanel centaur={MOCK_CENTAUR_INDEX} />
           </aside>
-        )}
-
-      </div>
+        )}    </div>
     </div>
   );
 }
