@@ -504,7 +504,7 @@ export default function PartnerChat({
   const [isDragOver, setIsDragOver] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Compute filtered mention count (needed for arrow key wrap-around)
   const mentionItemCount = useMemo(() => {
@@ -661,9 +661,13 @@ export default function PartnerChat({
     setInputText('');
     setAttachedFiles([]);
     closeMention();
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // If mention popup is open, handle navigation keys
     if (showMentionPopup && mentionItemCount > 0) {
       if (e.key === 'ArrowDown') {
@@ -707,10 +711,15 @@ export default function PartnerChat({
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     const cursorPos = e.target.selectionStart ?? value.length;
     setInputText(value);
+
+    // Auto-resize textarea
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
 
     // Detect @mention trigger
     // Walk backwards from cursor to find the @ sign
@@ -793,7 +802,7 @@ export default function PartnerChat({
       </div>
 
       {/* BOTTOM: Input area */}
-      <div className="px-4 py-3 border-t border-border-cream/20">
+      <div className="px-4 py-3 bg-white/60 backdrop-blur-sm border-t border-border-cream/30">
         {/* File preview bar */}
         <AnimatePresence>
           {attachedFiles.length > 0 && (
@@ -837,7 +846,7 @@ export default function PartnerChat({
           )}
         </AnimatePresence>
 
-        <div className="relative bg-parchment/60 rounded-xl px-3 py-2 border border-border-cream/30 focus-within:border-terracotta/30 focus-within:ring-2 focus-within:ring-terracotta/5 transition-all">
+        <div className="relative bg-white rounded-2xl px-3 py-2.5 border border-stone-200/80 shadow-sm focus-within:border-terracotta/40 focus-within:ring-2 focus-within:ring-terracotta/10 focus-within:shadow-md transition-all">
           {/* @mention popup */}
           <AnimatePresence>
             {showMentionPopup && (
@@ -862,8 +871,8 @@ export default function PartnerChat({
             className="hidden"
           />
 
-          {/* Input row: [📎 | input | 🎤 ➤] */}
-          <div className="flex items-center gap-1.5">
+          {/* Input row: [📎 | textarea | 🎤 ➤] */}
+          <div className="flex items-end gap-1.5">
             {/* Left action buttons */}
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -876,16 +885,16 @@ export default function PartnerChat({
             {/* Divider */}
             <div className="w-px h-5 bg-border-cream/50 mx-0.5" />
 
-            {/* Text input */}
-            <input
+            {/* Textarea */}
+            <textarea
               ref={inputRef}
-              type="text"
               value={inputText}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder="给阿拓发消息..."
-              className="flex-1 text-[13px] text-near-black bg-transparent outline-none placeholder:text-stone-gray/50"
+              placeholder={`发消息给${partner.name || '主管'}...`}
+              rows={1}
+              className="flex-1 text-[13px] text-near-black bg-transparent outline-none placeholder:text-stone-gray/40 resize-none leading-[20px] max-h-[120px] overflow-y-auto custom-scrollbar py-0.5"
             />
 
             {/* Right action buttons */}

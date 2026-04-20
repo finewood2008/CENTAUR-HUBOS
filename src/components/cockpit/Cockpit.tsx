@@ -8,6 +8,7 @@ import type { NavTab } from '../../types';
 import {
   DEFAULT_PARTNER,
   MOCK_MORNING_BRIEFING,
+  ONBOARDING_MESSAGES,
   MOCK_TASKS,
   MOCK_CENTAUR_INDEX,
   TEAM_MEMBERS,
@@ -26,12 +27,12 @@ export default function Cockpit({ onNav }: CockpitProps) {
   // Partner state
   const [partner, setPartner] = useState<PartnerProfile>({
     ...DEFAULT_PARTNER,
-    name: '阿拓',
-    isConfigured: true,
+    name: '',
+    isConfigured: false,
   });
 
   // Chat messages
-  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MORNING_BRIEFING);
+  const [messages, setMessages] = useState<ChatMessage[]>(ONBOARDING_MESSAGES);
 
   // Tasks
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
@@ -65,6 +66,27 @@ export default function Cockpit({ onNav }: CockpitProps) {
       time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
     };
     setMessages(prev => [...prev, userMsg]);
+
+    // Onboarding: treat first message as partner name
+    if (!partner.isConfigured) {
+      const partnerName = text.trim();
+      setPartner(prev => ({ ...prev, name: partnerName, isConfigured: true }));
+
+      const confirmMsg: ChatMessage = {
+        id: `sys-${Date.now()}`,
+        sender: { type: 'system' },
+        content: `好的，你的主管名字设为「${partnerName}」`,
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages(prev => [...prev, confirmMsg]);
+
+      // After short delay, load morning briefing
+      setTimeout(() => {
+        setMessages(prev => [...prev, ...MOCK_MORNING_BRIEFING]);
+      }, 800);
+
+      return;
+    }
 
     // Mock partner reply after short delay
     setTimeout(() => {
@@ -112,7 +134,7 @@ export default function Cockpit({ onNav }: CockpitProps) {
         }, 800);
       }
     }, 600);
-  }, []);
+  }, [partner.isConfigured]);
 
   const handleMemberClick = useCallback((id: string) => {
     const member = TEAM_MEMBERS.find(m => m.id === id);
