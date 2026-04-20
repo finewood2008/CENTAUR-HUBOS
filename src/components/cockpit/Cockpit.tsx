@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { PanelRightOpen, PanelRightClose } from 'lucide-react';
 import PartnerChat from './PartnerChat';
 import TeamHeader from './TeamHeader';
 import LeftPanel from './LeftPanel';
@@ -33,6 +34,9 @@ export default function Cockpit({ onNav }: CockpitProps) {
 
   // ── Derived ──
   const reviewTasks = tasks.filter(t => t.status === 'review');
+
+  // Right panel toggle (default closed)
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
 
   // ── Handlers ──
 
@@ -164,7 +168,15 @@ export default function Cockpit({ onNav }: CockpitProps) {
         </aside>
 
         {/* Center: THE Chat — absolute core */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          {/* Right panel toggle button */}
+          <button
+            onClick={() => setRightPanelOpen(p => !p)}
+            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-warm-sand/50 transition-colors text-stone-gray hover:text-charcoal-warm"
+            title={rightPanelOpen ? '收起面板' : '展开数据面板'}
+          >
+            {rightPanelOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+          </button>
           <div className="flex-1 min-h-0 flex flex-col">
             <PartnerChat
               messages={messages}
@@ -175,10 +187,12 @@ export default function Cockpit({ onNav }: CockpitProps) {
           </div>
         </div>
 
-        {/* Right Panel: Centaur Index + Stats + Feed */}
-        <aside className="w-[280px] min-w-[280px] border-l border-border-cream/30 bg-white/30 backdrop-blur-sm flex flex-col overflow-hidden max-lg:hidden">
-          <RightPanel centaur={MOCK_CENTAUR_INDEX} />
-        </aside>
+        {/* Right Panel: Centaur Index + Stats + Feed (toggle) */}
+        {rightPanelOpen && (
+          <aside className="w-[280px] min-w-[280px] border-l border-border-cream/30 bg-white/30 backdrop-blur-sm flex flex-col overflow-hidden max-lg:hidden">
+            <RightPanel centaur={MOCK_CENTAUR_INDEX} />
+          </aside>
+        )}
 
       </div>
     </div>
