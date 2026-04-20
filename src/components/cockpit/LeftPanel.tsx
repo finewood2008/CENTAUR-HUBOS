@@ -1,8 +1,6 @@
-import { AlertCircle, Zap, Clock, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { AlertCircle, Zap, Clock, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Task, ScheduledTask } from '../../data/partner';
-import ScheduleTaskPopover from './ScheduleTaskPopover';
 
 interface LeftPanelProps {
   reviewTasks: Task[];
@@ -10,7 +8,6 @@ interface LeftPanelProps {
   onReject: (id: string) => void;
   onQuickAction: (action: string) => void;
   scheduledTasks: ScheduledTask[];
-  onScheduleSubmit: (task: Omit<ScheduledTask, 'id' | 'createdAt'>) => void;
   onScheduleToggle: (id: string, enabled: boolean) => void;
   onScheduleDelete: (id: string) => void;
 }
@@ -28,11 +25,9 @@ export default function LeftPanel({
   onReject,
   onQuickAction,
   scheduledTasks,
-  onScheduleSubmit,
   onScheduleToggle,
   onScheduleDelete,
 }: LeftPanelProps) {
-  const [showNewTask, setShowNewTask] = useState(false);
 
   const getScheduleLabel = (task: ScheduledTask) => {
     const { schedule } = task;
@@ -105,22 +100,12 @@ export default function LeftPanel({
         <div className="flex items-center gap-1.5 mb-3">
           <Clock size={14} className="text-terracotta" />
           <h3 className="text-[12px] font-semibold text-charcoal-warm flex-1">定时任务</h3>
-          <button
-            onClick={() => setShowNewTask(true)}
-            className="w-5 h-5 rounded-md bg-terracotta/10 text-terracotta hover:bg-terracotta/20 flex items-center justify-center transition-colors"
-            title="新建定时任务"
-          >
-            <Plus size={12} />
-          </button>
         </div>
 
         {scheduledTasks.length === 0 ? (
-          <button
-            onClick={() => setShowNewTask(true)}
-            className="w-full text-[11px] text-stone-gray py-3 px-3 rounded-lg border border-dashed border-border-cream hover:border-terracotta/30 hover:text-terracotta transition-colors"
-          >
-            + 创建第一个定时任务
-          </button>
+          <p className="text-[11px] text-stone-gray py-2 px-3">
+            暂无定时任务，在对话中输入即可创建
+          </p>
         ) : (
           <div className="space-y-1.5">
             <AnimatePresence initial={false}>
@@ -173,38 +158,6 @@ export default function LeftPanel({
             </AnimatePresence>
           </div>
         )}
-
-        {/* New task popover */}
-        <AnimatePresence>
-          {showNewTask && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px]"
-              onClick={(e) => { if (e.target === e.currentTarget) setShowNewTask(false); }}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                transition={{ duration: 0.15 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ScheduleTaskPopover
-                  onClose={() => setShowNewTask(false)}
-                  onSubmit={(task) => {
-                    onScheduleSubmit(task);
-                    setShowNewTask(false);
-                  }}
-                  onToggle={onScheduleToggle}
-                  onDelete={onScheduleDelete}
-                  existingTasks={scheduledTasks}
-                />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </section>
 
       {/* ── Section 3: Quick Actions ── */}

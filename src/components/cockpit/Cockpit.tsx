@@ -157,15 +157,6 @@ export default function Cockpit({ onNav }: CockpitProps) {
     handleSendMessage(action);
   }, [handleSendMessage]);
 
-  const handleScheduleSubmit = useCallback((task: Omit<ScheduledTask, 'id' | 'createdAt'>) => {
-    const newTask: ScheduledTask = {
-      ...task,
-      id: `st-${Date.now()}`,
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-    setScheduledTasks(prev => [...prev, newTask]);
-  }, []);
-
   const handleScheduleToggle = useCallback((id: string, enabled: boolean) => {
     setScheduledTasks(prev => prev.map(t => (t.id === id ? { ...t, enabled } : t)));
   }, []);
@@ -206,7 +197,6 @@ export default function Cockpit({ onNav }: CockpitProps) {
             onReject={handleRejectTask}
             onQuickAction={handleQuickAction}
             scheduledTasks={scheduledTasks}
-            onScheduleSubmit={handleScheduleSubmit}
             onScheduleToggle={handleScheduleToggle}
             onScheduleDelete={handleScheduleDelete}
           />
