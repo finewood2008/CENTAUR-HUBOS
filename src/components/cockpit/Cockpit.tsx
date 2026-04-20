@@ -13,8 +13,9 @@ import {
   TEAM_MEMBERS,
   ALL_EMPLOYEES,
   DEFAULT_TEAM_IDS,
+  MOCK_SCHEDULED_TASKS,
 } from '../../data/partner';
-import type { ChatMessage, Task, PartnerProfile } from '../../data/partner';
+import type { ChatMessage, Task, PartnerProfile, ScheduledTask } from '../../data/partner';
 import type { DigitalEmployeeId } from '../../types';
 
 interface CockpitProps {
@@ -43,6 +44,9 @@ export default function Cockpit({ onNav }: CockpitProps) {
 
   // ── Derived ──
   const reviewTasks = tasks.filter(t => t.status === 'review');
+
+  // Scheduled tasks
+  const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>(MOCK_SCHEDULED_TASKS);
 
   // Right panel toggle (default closed)
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
@@ -153,6 +157,23 @@ export default function Cockpit({ onNav }: CockpitProps) {
     handleSendMessage(action);
   }, [handleSendMessage]);
 
+  const handleScheduleSubmit = useCallback((task: Omit<ScheduledTask, 'id' | 'createdAt'>) => {
+    const newTask: ScheduledTask = {
+      ...task,
+      id: `st-${Date.now()}`,
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    setScheduledTasks(prev => [...prev, newTask]);
+  }, []);
+
+  const handleScheduleToggle = useCallback((id: string, enabled: boolean) => {
+    setScheduledTasks(prev => prev.map(t => (t.id === id ? { ...t, enabled } : t)));
+  }, []);
+
+  const handleScheduleDelete = useCallback((id: string) => {
+    setScheduledTasks(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   const handleAddMember = useCallback((id: DigitalEmployeeId) => {
     setTeamIds(prev => prev.includes(id) ? prev : [...prev, id]);
   }, []);
@@ -184,6 +205,10 @@ export default function Cockpit({ onNav }: CockpitProps) {
             onApprove={handleApproveTask}
             onReject={handleRejectTask}
             onQuickAction={handleQuickAction}
+            scheduledTasks={scheduledTasks}
+            onScheduleSubmit={handleScheduleSubmit}
+            onScheduleToggle={handleScheduleToggle}
+            onScheduleDelete={handleScheduleDelete}
           />
         </aside>
 

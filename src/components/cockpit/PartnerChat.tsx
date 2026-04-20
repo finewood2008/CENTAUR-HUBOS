@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SendHorizontal, Star, Lock, Users, Paperclip, Mic, Clock, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { SendHorizontal, Star, Lock, Users, Paperclip, Mic, X, FileText, Image as ImageIcon } from 'lucide-react';
 import type {
   ChatMessage,
   MessageSender,
@@ -9,11 +9,9 @@ import type {
   PartnerProfile,
   TaskStatus,
   InputFile,
-  ScheduledTask,
 } from '../../data/partner';
-import { TEAM_MEMBERS, DEFAULT_PARTNER, MOCK_SCHEDULED_TASKS } from '../../data/partner';
+import { TEAM_MEMBERS, DEFAULT_PARTNER } from '../../data/partner';
 import VoiceRecorder from './VoiceRecorder';
-import ScheduleTaskPopover from './ScheduleTaskPopover';
 
 // ── Props ──
 interface PartnerChatProps {
@@ -503,8 +501,6 @@ export default function PartnerChat({
   const [mentionHighlight, setMentionHighlight] = useState(0);
   const [attachedFiles, setAttachedFiles] = useState<InputFile[]>([]);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
-  const [showSchedulePopover, setShowSchedulePopover] = useState(false);
-  const [scheduledTasks, setScheduledTasks] = useState<ScheduledTask[]>(MOCK_SCHEDULED_TASKS);
   const [isDragOver, setIsDragOver] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -651,28 +647,6 @@ export default function PartnerChat({
     },
     [onSendMessage]
   );
-
-  // ── Schedule ──
-  const handleScheduleSubmit = useCallback(
-    (task: Omit<ScheduledTask, 'id' | 'createdAt'>) => {
-      const newTask: ScheduledTask = {
-        ...task,
-        id: `st-${Date.now()}`,
-        createdAt: new Date().toISOString().slice(0, 10),
-      };
-      setScheduledTasks((prev) => [...prev, newTask]);
-      setShowSchedulePopover(false);
-    },
-    []
-  );
-
-  const handleScheduleToggle = useCallback((id: string, enabled: boolean) => {
-    setScheduledTasks((prev) => prev.map((t) => (t.id === id ? { ...t, enabled } : t)));
-  }, []);
-
-  const handleScheduleDelete = useCallback((id: string) => {
-    setScheduledTasks((prev) => prev.filter((t) => t.id !== id));
-  }, []);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return `${bytes}B`;
@@ -878,19 +852,6 @@ export default function PartnerChat({
             )}
           </AnimatePresence>
 
-          {/* Schedule task popover */}
-          <AnimatePresence>
-            {showSchedulePopover && (
-              <ScheduleTaskPopover
-                onClose={() => setShowSchedulePopover(false)}
-                onSubmit={handleScheduleSubmit}
-                onToggle={handleScheduleToggle}
-                onDelete={handleScheduleDelete}
-                existingTasks={scheduledTasks}
-              />
-            )}
-          </AnimatePresence>
-
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -901,7 +862,7 @@ export default function PartnerChat({
             className="hidden"
           />
 
-          {/* Input row: [📎 ⏰ | input | 🎤 ➤] */}
+          {/* Input row: [📎 | input | 🎤 ➤] */}
           <div className="flex items-center gap-1.5">
             {/* Left action buttons */}
             <button
@@ -910,17 +871,6 @@ export default function PartnerChat({
               title="上传附件"
             >
               <Paperclip size={16} />
-            </button>
-            <button
-              onClick={() => setShowSchedulePopover((prev) => !prev)}
-              className={`p-1.5 rounded-lg transition-colors ${
-                showSchedulePopover
-                  ? 'text-terracotta bg-terracotta/10'
-                  : 'text-stone-gray hover:text-terracotta hover:bg-terracotta/5'
-              }`}
-              title="定时任务"
-            >
-              <Clock size={16} />
             </button>
 
             {/* Divider */}

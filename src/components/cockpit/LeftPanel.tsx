@@ -1,11 +1,18 @@
-import { AlertCircle, Zap } from 'lucide-react';
-import type { Task } from '../../data/partner';
+import { AlertCircle, Zap, Clock, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { Task, ScheduledTask } from '../../data/partner';
+import ScheduleTaskPopover from './ScheduleTaskPopover';
 
 interface LeftPanelProps {
   reviewTasks: Task[];
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
   onQuickAction: (action: string) => void;
+  scheduledTasks: ScheduledTask[];
+  onScheduleSubmit: (task: Omit<ScheduledTask, 'id' | 'createdAt'>) => void;
+  onScheduleToggle: (id: string, enabled: boolean) => void;
+  onScheduleDelete: (id: string) => void;
 }
 
 const QUICK_ACTIONS = [
@@ -15,7 +22,30 @@ const QUICK_ACTIONS = [
   { emoji: '🎯', label: '跟进线索' },
 ];
 
-export default function LeftPanel({ reviewTasks, onApprove, onReject, onQuickAction }: LeftPanelProps) {
+export default function LeftPanel({
+  reviewTasks,
+  onApprove,
+  onReject,
+  onQuickAction,
+  scheduledTasks,
+  onScheduleSubmit,
+  onScheduleToggle,
+  onScheduleDelete,
+}: LeftPanelProps) {
+  const [showNewTask, setShowNewTask] = useState(false);
+
+  const getScheduleLabel = (task: ScheduledTask) => {
+    const { schedule } = task;
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    switch (schedule.type) {
+      case 'daily': return `每天 ${schedule.time}`;
+      case 'weekly': return `每周${weekdays[schedule.weekday ?? 0]} ${schedule.time}`;
+      case 'monthly': return `每月${schedule.dayOfMonth}日 ${schedule.time}`;
+      case 'once': return `${schedule.date} ${schedule.time}`;
+      default: return schedule.time;
+    }
+  };
+
   return (
     <div className="h-full overflow-y-auto custom-scrollbar px-3 py-4 space-y-5">
       {/* ── Section 1: Action Queue ── */}
@@ -70,7 +100,114 @@ export default function LeftPanel({ reviewTasks, onApprove, onReject, onQuickAct
         )}
       </section>
 
-      {/* ── Section 2: Quick Actions ── */}
+      {/* ── Section 2: Scheduled Tasks ── */}
+      <section>
+        <div className="flex items-center gap-1.5 mb-3">
+          <Clock size={14} className="text-terracotta" />
+          <h3 className="text-[12px] font-semibold text-charcoal-warm flex-1">定时任务</h3>
+          <button
+            onClick={() => setShowNewTask(true)}
+            className="w-5 h-5 rounded-md bg-terracotta/10 text-terracotta hover:bg-terracotta/20 flex items-center justify-center transition-colors"
+            title="新建定时任务"
+          >
+            <Plus size={12} />
+          </button>
+        </div>
+
+        {scheduledTasks.length === 0 ? (
+          <button
+            onClick={() => setShowNewTask(true)}
+            className="w-full text-[11px] text-stone-gray py-3 px-3 rounded-lg border border-dashed border-border-cream hover:border-terracotta/30 hover:text-terracotta transition-colors"
+          >
+            + 创建第一个定时任务
+          </button>
+        ) : (
+          <div className="space-y-1.5">
+            <AnimatePresence initial={false}>
+              {scheduledTasks.map((task) => (
+                <motion.div
+                  key={task.id}
+                  layout
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="group"
+                >
+                  <div className="flex items-start gap-2 py-2 px-2.5 rounded-lg bg-parchment/40 hover:bg-parchment/80 transition-colors">
+                    {/* Toggle */}
+                    <button
+                      onClick={() => onScheduleToggle(task.id, !task.enabled)}
+                      className={`mt-0.5 w-7 h-4 rounded-full transition-colors shrink-0 relative ${
+                        task.enabled ? 'bg-terracotta' : 'bg-stone-gray/20'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${
+                          task.enabled ? 'left-3.5' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[12px] font-medium truncate ${
+                        task.enabled ? 'text-near-black' : 'text-stone-gray'
+                      }`}>
+                        {task.title}
+                      </p>
+                      <p className="text-[10px] text-stone-gray truncate">
+                        {getScheduleLabel(task)}
+                        {task.nextRun && ` · 下次 ${task.nextRun}`}
+                      </p>
+                    </div>
+                    {/* Delete */}
+                    <button
+                      onClick={() => onScheduleDelete(task.id)}
+                      className="mt-0.5 p-0.5 rounded text-stone-gray/0 group-hover:text-stone-gray hover:!text-red-500 transition-colors shrink-0"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* New task popover */}
+        <AnimatePresence>
+          {showNewTask && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px]"
+              onClick={(e) => { if (e.target === e.currentTarget) setShowNewTask(false); }}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ duration: 0.15 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ScheduleTaskPopover
+                  onClose={() => setShowNewTask(false)}
+                  onSubmit={(task) => {
+                    onScheduleSubmit(task);
+                    setShowNewTask(false);
+                  }}
+                  onToggle={onScheduleToggle}
+                  onDelete={onScheduleDelete}
+                  existingTasks={scheduledTasks}
+                />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+
+      {/* ── Section 3: Quick Actions ── */}
       <section>
         <div className="flex items-center gap-1.5 mb-3">
           <Zap size={14} className="text-charcoal-warm" />
