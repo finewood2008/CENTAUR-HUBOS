@@ -9,6 +9,7 @@ import { mapOutlineData, mapArticleData, mapSocialPostData } from '../engine/flo
 import { streamChat, type ChatMessage } from '../lib/spark-ai';
 import { nextMsgId } from '../components/chat-engine/types';
 import { useChatPersistence } from './useChatPersistence';
+import { getSystemPrompt } from '../engine/PromptAssembler';
 
 // 数据映射函数注册表
 const DATA_MAPPERS: Record<string, (ai: string) => any> = {
@@ -93,10 +94,7 @@ export function useHarnessChat(employeeId: string): UseHarnessChatReturn {
         content: m.content.length > 800 ? m.content.slice(0, 800) + '...' : m.content,
       }));
 
-    const systemPrompt =
-      '你是火花，一个温暖专业的品牌创意总监，服务中小企业。\n' +
-      '用中文回复，保持简洁、有人情味的沟通风格。\n' +
-      (systemPromptAddition ? '\n---\n当前任务指引：\n' + systemPromptAddition : '');
+    const systemPrompt = getSystemPrompt(employeeId, systemPromptAddition || undefined);
 
     await new Promise<void>((resolve) => {
       streamChat({
@@ -122,7 +120,7 @@ export function useHarnessChat(employeeId: string): UseHarnessChatReturn {
         },
       });
     });
-  }, [addAssistantMessage, updateMessages]);
+  }, [addAssistantMessage, updateMessages, employeeId]);
 
   // 启动 Harness 流程
   const startFlow = useCallback((flow: HarnessFlow, userText: string) => {

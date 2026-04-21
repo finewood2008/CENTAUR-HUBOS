@@ -7,12 +7,13 @@ import {
   Building2, Upload, Image,
   Users, Timer, Layers, Gauge,
   Bell, BellRing, FileText, AlertTriangle, Mail,
-  Palette, Globe, Sun, Moon,
+  Palette, Globe, Sun, Moon, Brain,
   Shield, Lock, ScrollText, DatabaseBackup,
 } from 'lucide-react';
 import { useOrg, useTheme } from '../../stores/useAppStore';
 import type { OrgInfo, BackgroundStyle } from '../../stores/useAppStore';
 import { useFinanceData } from '../../hooks/useQeeClaw';
+import SystemMemory from './SystemMemory';
 
 // ─── 类型 ────────────────────────────────────────
 interface SettingsProps {
@@ -495,6 +496,12 @@ export default function Settings({ isConnected }: SettingsProps) {
               Hub OS {DEVICE.firmware} · QeeClaw Runtime
             </p>
           </div>
+        </motion.section>
+
+        {/* 7. 系统记忆 */}
+        <motion.section className="card-glass-warm p-6" {...sectionAnim}>
+          <SectionTitle icon={Brain} label="系统记忆" />
+          <SystemMemory />
         </motion.section>
       </div>
 

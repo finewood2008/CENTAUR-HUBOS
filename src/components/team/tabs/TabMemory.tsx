@@ -1,59 +1,122 @@
-// TabMemory — 个人记忆
-import { useState } from 'react';
-import { Brain, Plus, Search, Layers } from 'lucide-react';
+// TabMemory — 个人记忆 (PersonaStore edition)
+import { useState, useEffect } from 'react';
+import { Brain, Plus, Trash2, Sparkles } from 'lucide-react';
+import { usePersonaStore } from '../../../stores/personaStore';
+import { SOUL_DEFAULTS } from '../../../data/persona-defaults';
 import type { DigitalEmployee } from '../../../types';
+import type { MemoryEntry } from '../../../stores/personaStore';
 
 interface Props {
   emp: DigitalEmployee;
-  config: ReturnType<typeof import('../../../hooks/useEmployeeConfig').useEmployeeConfig>;
   readonly?: boolean;
 }
 
 const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  preference: { label: '偏好', color: 'bg-terracotta/10 text-terracotta' },
-  fact:       { label: '事实', color: 'bg-olive-gray/10 text-olive-gray' },
-  decision:   { label: '决策', color: 'bg-amber-500/10 text-amber-600' },
-  entity:     { label: '实体', color: 'bg-success-green/10 text-success-green' },
-  other:      { label: '其他', color: 'bg-stone-gray/10 text-stone-gray' },
+  preference:  { label: '偏好', color: 'bg-terracotta/10 text-terracotta' },
+  fact:        { label: '事实', color: 'bg-olive-gray/10 text-olive-gray' },
+  lesson:      { label: '经验', color: 'bg-amber-500/10 text-amber-600' },
+  correction:  { label: '纠正', color: 'bg-success-green/10 text-success-green' },
 };
 
-export default function TabMemory({ emp, config, readonly }: Props) {
-  const { data, addMemory, searchMemory } = config;
+type MemoryCategory = 'preference' | 'fact' | 'lesson' | 'correction';
+
+function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  } catch {
+    return iso;
+  }
+}
+
+export default function TabMemory({ emp, readonly }: Props) {
+  const store = usePersonaStore();
   const [newMem, setNewMem] = useState('');
-  const [newCat, setNewCat] = useState('fact');
-  const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [newCat, setNewCat] = useState<MemoryCategory>('fact');
+  const [toast, setToast] = useState('');
 
-  const handleAdd = async () => {
+  // Initialize employee persona on mount if not exists
+  useEffect(() => {
+    const defaultSoul = SOUL_DEFAULTS.find((s) => s.employeeId === emp.id)?.soul ?? '';
+    store.initializeEmployee(emp.id, defaultSoul);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emp.id]);
+
+  // Read memories from store
+  const memories: MemoryEntry[] = store.getMemories(emp.id);
+  const persona = store.employees[emp.id];
+  const charLimit = persona?.memoryCharLimit ?? 2000;
+  const charUsed = memories.reduce((sum, m) => sum + m.content.length, 0);
+  const charPercent = charLimit > 0 ? Math.min(100, Math.round((charUsed / charLimit) * 100)) : 0;
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2000);
+  };
+
+  const handleAdd = () => {
     if (!newMem.trim() || readonly) return;
-    await addMemory(newMem.trim(), newCat);
+    if (charUsed + newMem.trim().length > charLimit) {
+      showToast('字符超限，请先清理旧记忆');
+      return;
+    }
+    store.addMemory(emp.id, {
+      content: newMem.trim(),
+      source: 'manual',
+      category: newCat,
+    });
     setNewMem('');
+    showToast('记忆已保存');
   };
 
-  const handleSearch = async () => {
-    if (!query.trim()) { setSearchResults([]); return; }
-    const results = await searchMemory(query.trim());
-    setSearchResults(Array.isArray(results) ? results : []);
+  const handleDelete = (memoryId: string) => {
+    if (readonly) return;
+    store.removeMemory(emp.id, memoryId);
   };
 
-  const totalByCategory = Object.entries(data.memoryStats.categories || {});
+  const handleOrganize = () => {
+    showToast('整理记忆功能即将上线…');
+  };
 
   return (
     <div className="space-y-5">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg bg-near-black/80 text-white text-xs shadow-lg animate-fade-in">
+          {toast}
+        </div>
+      )}
+
       {/* Stats */}
       <section className="card-glass-warm p-5">
         <div className="flex items-center gap-2 mb-3">
           <Brain size={14} className="text-terracotta" />
           <h3 className="font-serif text-sm text-near-black font-medium">{emp.name}的记忆体</h3>
-          <span className="ml-auto text-[11px] text-stone-gray">共 {data.memoryStats.total} 条</span>
+          <span className="ml-auto text-[11px] text-stone-gray">共 {memories.length} 条</span>
         </div>
-        <p className="text-xs text-olive-gray mb-4">{emp.memorySystem.description}</p>
+
+        {/* Char usage progress bar */}
+        <div className="mb-3">
+          <div className="flex items-center justify-between text-[10px] text-olive-gray mb-1">
+            <span>字符用量</span>
+            <span>{charUsed} / {charLimit}</span>
+          </div>
+          <div className="w-full h-1.5 bg-warm-sand/60 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                charPercent > 90 ? 'bg-red-400' : charPercent > 70 ? 'bg-amber-400' : 'bg-terracotta/60'
+              }`}
+              style={{ width: `${charPercent}%` }}
+            />
+          </div>
+        </div>
 
         {/* Category breakdown */}
-        {totalByCategory.length > 0 && (
+        {memories.length > 0 && (
           <div className="grid grid-cols-4 gap-2">
-            {totalByCategory.map(([cat, count]) => {
-              const meta = CATEGORY_LABELS[cat] || CATEGORY_LABELS.other;
+            {(Object.keys(CATEGORY_LABELS) as MemoryCategory[]).map((cat) => {
+              const count = memories.filter((m) => m.category === cat).length;
+              const meta = CATEGORY_LABELS[cat];
               return (
                 <div key={cat} className={`rounded-lg p-2.5 text-center ${meta.color}`}>
                   <p className="text-lg font-serif">{count}</p>
@@ -64,13 +127,16 @@ export default function TabMemory({ emp, config, readonly }: Props) {
           </div>
         )}
 
-        {/* Memory layers (from employee spec) */}
-        <div className="flex flex-wrap gap-1.5 mt-4">
-          {emp.memorySystem.layers.map((l) => (
-            <span key={l} className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-warm-sand/60 text-[10px] text-olive-gray">
-              <Layers size={9} className="text-terracotta" />{l}
-            </span>
-          ))}
+        {/* Organize button */}
+        <div className="flex justify-end mt-3">
+          <button
+            onClick={handleOrganize}
+            disabled={readonly || memories.length === 0}
+            className="flex items-center gap-1 text-[11px] text-terracotta hover:text-terracotta/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Sparkles size={12} />
+            整理记忆
+          </button>
         </div>
       </section>
 
@@ -91,7 +157,7 @@ export default function TabMemory({ emp, config, readonly }: Props) {
           <div className="flex items-center gap-2">
             <select
               value={newCat}
-              onChange={(e) => setNewCat(e.target.value)}
+              onChange={(e) => setNewCat(e.target.value as MemoryCategory)}
               disabled={readonly}
               className="text-xs bg-warm-sand/30 border border-border-cream rounded-lg px-2 py-1.5 focus:outline-none focus:border-terracotta/40"
             >
@@ -110,33 +176,42 @@ export default function TabMemory({ emp, config, readonly }: Props) {
         </div>
       </section>
 
-      {/* Search */}
+      {/* Memory list */}
       <section className="card-glass-warm p-5">
         <h3 className="font-serif text-sm text-near-black font-medium mb-3 flex items-center gap-2">
-          <Search size={14} className="text-terracotta" />
-          记忆检索
+          <Brain size={14} className="text-terracotta" />
+          记忆列表
         </h3>
-        <div className="flex items-center gap-2 mb-3">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="搜索关键词..."
-            className="flex-1 text-xs bg-warm-sand/30 border border-border-cream rounded-lg px-3 py-2 focus:outline-none focus:border-terracotta/40"
-          />
-          <button onClick={handleSearch} className="btn-terracotta text-xs px-3 py-2">搜索</button>
-        </div>
-        {searchResults.length > 0 ? (
-          <div className="space-y-1.5">
-            {searchResults.map((r, i) => (
-              <div key={i} className="p-2.5 rounded-lg bg-warm-sand/30 text-xs text-olive-gray">
-                {r.content || JSON.stringify(r)}
-              </div>
-            ))}
+        {memories.length > 0 ? (
+          <div className="space-y-2">
+            {[...memories].reverse().map((m) => {
+              const meta = CATEGORY_LABELS[m.category] || CATEGORY_LABELS.fact;
+              return (
+                <div key={m.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-warm-sand/30">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-near-black leading-relaxed break-words">{m.content}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${meta.color}`}>
+                        {meta.label}
+                      </span>
+                      <span className="text-[10px] text-stone-gray">{formatDate(m.createdAt)}</span>
+                    </div>
+                  </div>
+                  {!readonly && (
+                    <button
+                      onClick={() => handleDelete(m.id)}
+                      className="flex-shrink-0 p-1 rounded hover:bg-red-50 text-stone-gray hover:text-red-400 transition-colors"
+                      title="删除记忆"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        ) : query && (
-          <p className="text-[11px] text-stone-gray text-center py-4">无匹配结果</p>
+        ) : (
+          <p className="text-[11px] text-stone-gray text-center py-6">暂无记忆条目</p>
         )}
       </section>
     </div>

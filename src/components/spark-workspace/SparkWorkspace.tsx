@@ -1,13 +1,15 @@
 // SparkWorkspace.tsx — 火花创意工作台 三栏外壳
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Brain, FileText } from 'lucide-react';
 import ChatColumn, { type ChatMsg } from './ChatColumn';
 import EditorColumn from './EditorColumn';
 import PreviewColumn from './PreviewColumn';
 import { streamChat } from '../../lib/spark-ai';
-import { SPARK_SYSTEM_PROMPT, PLATFORM_PROMPTS, type Platform } from '../../data/spark-prompts';
-import { useSparkMemory } from '../../stores/sparkMemoryStore';
+import { PLATFORM_PROMPTS, type Platform } from '../../data/spark-prompts';
+import { usePersonaStore } from '../../stores/personaStore';
+import { getSystemPrompt } from '../../engine/PromptAssembler';
+import { SOUL_DEFAULTS } from '../../data/persona-defaults';
 
 interface Props {
   onBack: () => void;
@@ -29,7 +31,16 @@ export default function SparkWorkspace({ onBack }: Props) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
 
-  const memory = useSparkMemory();
+  const persona = usePersonaStore();
+
+  // Initialize spark employee with default soul on first render
+  useEffect(() => {
+    const sparkDefault = SOUL_DEFAULTS.find((s) => s.employeeId === 'spark');
+    if (sparkDefault) {
+      persona.initializeEmployee('spark', sparkDefault.soul);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSend = useCallback(
     (text: string) => {
@@ -58,13 +69,8 @@ export default function SparkWorkspace({ onBack }: Props) {
       setChatMessages((prev) => [...prev, userMsg, assistantMsg]);
       setIsStreaming(true);
 
-      // 拼装 system prompt
-      const memoryCtx = memory.getFullContext('full');
-      const systemPrompt = [
-        SPARK_SYSTEM_PROMPT,
-        PLATFORM_PROMPTS[currentPlatform],
-        memoryCtx ? `\n---\n以下是用户的品牌记忆:\n${memoryCtx}` : '',
-      ].join('\n\n');
+      // 拼装 system prompt (via PromptAssembler)
+      const systemPrompt = getSystemPrompt('spark', PLATFORM_PROMPTS[currentPlatform]);
 
       // 构建消息历史（只送最近 20 条）
       const historyMsgs = [...chatMessages.slice(-18), userMsg].map((m) => ({
@@ -92,7 +98,11 @@ export default function SparkWorkspace({ onBack }: Props) {
             setEditorContent(fullContent);
           }
           // 记录上下文
-          memory.addContext('最近话题', text);
+          persona.addMemory('spark', {
+            content: `最近话题: ${text}`,
+            source: 'auto',
+            category: 'fact',
+          });
         },
         onError: (err) => {
           setIsStreaming(false);
@@ -106,7 +116,7 @@ export default function SparkWorkspace({ onBack }: Props) {
         },
       });
     },
-    [chatMessages, currentPlatform, memory],
+    [chatMessages, currentPlatform, persona],
   );
 
   return (
@@ -177,60 +187,77 @@ export default function SparkWorkspace({ onBack }: Props) {
       </div>
 
       {/* ── 记忆面板 (可折叠) ── */}
-      {showMemory && (
+      {showMemory && (() => {
+        const memories = persona.getMemories('spark');
+        const shared = persona.getShared();
+        const facts = memories.filter((m) => m.category === 'fact');
+        const preferences = memories.filter((m) => m.category === 'preference');
+        const lessons = memories.filter((m) => m.category === 'lesson' || m.category === 'correction');
+        return (
         <div className="px-4 py-3 border-b border-border-cream bg-warm-sand/20 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-near-black">品牌记忆</span>
             <button
-              onClick={() => memory.clearAll()}
+              onClick={() => {
+                // Remove all spark memories one by one
+                memories.forEach((m) => persona.removeMemory('spark', m.id));
+              }}
               className="text-[10px] text-stone-gray hover:text-red-500 transition-colors"
             >
               清空全部
             </button>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            {/* 品牌档案 */}
+            {/* 品牌档案 (facts) */}
             <div className="bg-white/60 rounded-lg p-2.5">
               <p className="text-[10px] text-stone-gray mb-1.5">📋 品牌档案</p>
-              {memory.identity.length === 0 ? (
+              {facts.length === 0 ? (
                 <p className="text-[10px] text-stone-gray/50">暂无</p>
               ) : (
-                memory.identity.map((it) => (
-                  <p key={it.key} className="text-[10px] text-olive-gray truncate">
-                    {it.key}: {it.value}
+                facts.map((it) => (
+                  <p key={it.id} className="text-[10px] text-olive-gray truncate">
+                    {it.content}
                   </p>
                 ))
               )}
             </div>
-            {/* 偏好 */}
+            {/* 偏好 (preferences) */}
             <div className="bg-white/60 rounded-lg p-2.5">
               <p className="text-[10px] text-stone-gray mb-1.5">⭐ 偏好</p>
-              {memory.preferences.length === 0 ? (
+              {preferences.length === 0 ? (
                 <p className="text-[10px] text-stone-gray/50">暂无</p>
               ) : (
-                memory.preferences.map((it) => (
-                  <p key={it.key} className="text-[10px] text-olive-gray truncate">
-                    {it.key}: {it.value}
+                preferences.map((it) => (
+                  <p key={it.id} className="text-[10px] text-olive-gray truncate">
+                    {it.content}
                   </p>
                 ))
               )}
             </div>
-            {/* 上下文 */}
+            {/* 经验 & 共享知识 (lessons + shared) */}
             <div className="bg-white/60 rounded-lg p-2.5">
-              <p className="text-[10px] text-stone-gray mb-1.5">💭 上下文</p>
-              {memory.context.length === 0 ? (
+              <p className="text-[10px] text-stone-gray mb-1.5">💭 经验</p>
+              {lessons.length === 0 && !shared.boss && !shared.company ? (
                 <p className="text-[10px] text-stone-gray/50">暂无</p>
               ) : (
-                memory.context.slice(-3).map((it) => (
-                  <p key={it.key + it.updatedAt} className="text-[10px] text-olive-gray truncate">
-                    {it.value}
-                  </p>
-                ))
+                <>
+                  {lessons.slice(-3).map((it) => (
+                    <p key={it.id} className="text-[10px] text-olive-gray truncate">
+                      {it.content}
+                    </p>
+                  ))}
+                  {shared.company && (
+                    <p className="text-[10px] text-olive-gray truncate">
+                      🏢 {shared.company.slice(0, 40)}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ── 三栏主体 ── */}
       <div className="flex-1 flex overflow-hidden">

@@ -29,6 +29,9 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    exclude: ['@qeeclaw/core-sdk', '@qeeclaw/product-sdk', '@qeeclaw/runtime-sidecar'],
+  },
   server: {
     proxy: {
       // /api/* 由 apiMockPlugin 处理（rewrite或mock）

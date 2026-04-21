@@ -1,13 +1,15 @@
 // XiaokeWorkspace.tsx — 小可获客增长工作台 三栏外壳
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Brain, Target, TrendingUp, Users, Mail } from 'lucide-react';
 import ChatPanel, { type ChatMsg, nextMsgId } from './ChatPanel';
 import DashboardPanel from './DashboardPanel';
 import StrategyPanel from './StrategyPanel';
 import { streamChat } from '../../lib/spark-ai';
-import { XIAOKE_SYSTEM_PROMPT, CHANNEL_PROMPTS, type Channel } from '../../data/xiaoke-prompts';
-import { useXiaokeMemory } from '../../stores/xiaokeMemoryStore';
+import { CHANNEL_PROMPTS, type Channel } from '../../data/xiaoke-prompts';
+import { usePersonaStore } from '../../stores/personaStore';
+import { getSystemPrompt } from '../../engine/PromptAssembler';
+import { SOUL_DEFAULTS } from '../../data/persona-defaults';
 
 interface Props {
   onBack: () => void;
@@ -25,7 +27,13 @@ export default function XiaokeWorkspace({ onBack }: Props) {
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [strategyContent, setStrategyContent] = useState('');
-  const memoryContext = useXiaokeMemory((s) => s.getFullContext);
+  const initializeEmployee = usePersonaStore((s) => s.initializeEmployee);
+
+  // Initialize xiaoke employee with default soul on first mount
+  useEffect(() => {
+    const defaultSoul = SOUL_DEFAULTS.find((s) => s.employeeId === 'xiaoke')?.soul ?? '';
+    initializeEmployee('xiaoke', defaultSoul);
+  }, [initializeEmployee]);
 
   const handleSend = useCallback(async (text: string) => {
     const userMsg: ChatMsg = { id: nextMsgId(), role: 'user', content: text };
@@ -34,14 +42,9 @@ export default function XiaokeWorkspace({ onBack }: Props) {
     setChatMessages((prev) => [...prev, userMsg, assistantMsg]);
     setIsStreaming(true);
 
-    // Build system prompt with memory context
-    const memory = memoryContext();
-    const channelHint = CHANNEL_PROMPTS[currentChannel];
-    const systemPrompt = [
-      XIAOKE_SYSTEM_PROMPT,
-      memory ? `\n\n## 记忆上下文\n${memory}` : '',
-      `\n\n## 当前渠道：${currentChannel}\n${channelHint}`,
-    ].join('');
+    // Build system prompt via PromptAssembler (soul + shared + memory + channel hint)
+    const channelHint = `## 当前渠道：${currentChannel}\n${CHANNEL_PROMPTS[currentChannel]}`;
+    const systemPrompt = getSystemPrompt('xiaoke', channelHint);
 
     const allMessages = [
       ...chatMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
@@ -83,7 +86,7 @@ export default function XiaokeWorkspace({ onBack }: Props) {
         setIsStreaming(false);
       },
     });
-  }, [chatMessages, currentChannel, memoryContext]);
+  }, [chatMessages, currentChannel]);
 
   return (
     <motion.div

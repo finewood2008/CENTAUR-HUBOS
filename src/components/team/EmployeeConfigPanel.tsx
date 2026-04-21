@@ -10,6 +10,7 @@ import {
 import type { DigitalEmployee, ActivationStatus } from '../../types';
 import { useEmployeeConfig } from '../../hooks/useEmployeeConfig';
 import TabOverview from './tabs/TabOverview';
+import TabPersona from './tabs/TabPersona';
 import TabModel from './tabs/TabModel';
 import TabHarness from './tabs/TabHarness';
 import TabSkills from './tabs/TabSkills';
@@ -25,10 +26,11 @@ interface Props {
   onWorkbench: (emp: DigitalEmployee) => void;
 }
 
-type TabKey = 'overview' | 'model' | 'harness' | 'skills' | 'knowledge' | 'memory' | 'workspace';
+type TabKey = 'overview' | 'persona' | 'model' | 'harness' | 'skills' | 'knowledge' | 'memory' | 'workspace';
 
 const TABS: { key: TabKey; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
   { key: 'overview',  label: '概览',       icon: LayoutDashboard },
+  { key: 'persona',   label: '人格',       icon: Sparkles },
   { key: 'model',     label: '模型',       icon: Cpu },
   { key: 'harness',   label: 'Harness',   icon: Shield },
   { key: 'skills',    label: '技能',       icon: Zap },
@@ -155,11 +157,12 @@ export default function EmployeeConfigPanel({ emp, isConnected, onBack, onActiva
               className="px-8 py-6 max-w-4xl"
             >
               {activeTab === 'overview'  && <TabOverview emp={emp} config={config} />}
+              {activeTab === 'persona'   && <TabPersona emp={emp} readonly={isLocked} />}
               {activeTab === 'model'     && <TabModel emp={emp} config={config} readonly={isLocked} />}
               {activeTab === 'harness'   && <TabHarness emp={emp} />}
               {activeTab === 'skills'    && <TabSkills emp={emp} readonly={isLocked} />}
               {activeTab === 'knowledge' && <TabKnowledge emp={emp} config={config} readonly={isLocked} />}
-              {activeTab === 'memory'    && <TabMemory emp={emp} config={config} readonly={isLocked} />}
+              {activeTab === 'memory'    && <TabMemory emp={emp} readonly={isLocked} />}
               {activeTab === 'workspace' && <TabWorkspace emp={emp} unlocked={workspaceUnlocked} onOpen={() => onWorkbench(emp)} />}
             </motion.div>
           </AnimatePresence>
