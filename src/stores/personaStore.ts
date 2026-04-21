@@ -1,6 +1,7 @@
 // personaStore.ts — Unified persona + memory store for CENTAUR-HUBOS
 // Replaces sparkMemoryStore.ts and xiaokeMemoryStore.ts
 // Zustand v5 + persist middleware → localStorage key 'hubos-persona'
+// OpenClaw-aligned v2
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -10,8 +11,11 @@ import { persist } from 'zustand/middleware';
 export interface MemoryEntry {
   id: string;
   content: string;
-  source: 'auto' | 'manual' | 'onboarding';
+  source: 'auto' | 'manual' | 'onboarding' | 'conversation';
   category: 'preference' | 'fact' | 'lesson' | 'correction';
+  target: 'memory' | 'user';
+  confidence: number; // 0-1
+  relatedTo?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -27,14 +31,43 @@ export interface SharedKnowledge {
   boss: string;
   company: string;
   team: string;
+  charLimit: number;
 }
 
 export interface SystemLog {
   id: string;
   timestamp: string;
-  action: 'memory_added' | 'memory_removed' | 'memory_updated' | 'soul_edited' | 'shared_updated';
+  action: 'memory_added' | 'memory_removed' | 'memory_updated' | 'soul_edited' | 'shared_updated' | 'initialized';
   employeeId?: string;
   detail: string;
+}
+
+export interface PersonaStats {
+  totalMemories: number;
+  totalChars: number;
+  activeEmployees: number;
+  todayAdded: number;
+}
+
+export interface TimelineEntry extends MemoryEntry {
+  employeeId: string;
+}
+
+export interface GraphNode {
+  id: string;
+  type: 'employee' | 'memory' | 'category';
+  label: string;
+}
+
+export interface GraphLink {
+  source: string;
+  target: string;
+  type: string;
+}
+
+export interface GraphData {
+  nodes: GraphNode[];
+  links: GraphLink[];
 }
 
 export interface PersonaState {
@@ -69,6 +102,11 @@ export interface PersonaState {
 
   // Init with default data if empty
   initializeEmployee: (employeeId: string, defaultSoul: string) => void;
+
+  // OpenClaw analytics
+  getStats: () => PersonaStats;
+  getTimeline: () => TimelineEntry[];
+  getGraphData: () => GraphData;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -112,7 +150,7 @@ function ensureEmployee(
       employeeId,
       soul: '',
       memories: [],
-      memoryCharLimit: 2000,
+      memoryCharLimit: employeeId === 'leader' ? 3000 : 2200,
     },
   };
 }
@@ -121,12 +159,23 @@ function totalMemoryChars(memories: MemoryEntry[]): number {
   return memories.reduce((sum, m) => sum + m.content.length, 0);
 }
 
+function isToday(isoString: string): boolean {
+  const d = new Date(isoString);
+  const t = new Date();
+  return (
+    d.getFullYear() === t.getFullYear() &&
+    d.getMonth() === t.getMonth() &&
+    d.getDate() === t.getDate()
+  );
+}
+
 // ─── Default state ───────────────────────────────────────────────────
 
 const DEFAULT_SHARED: SharedKnowledge = {
   boss: '',
   company: '',
   team: '',
+  charLimit: 1375,
 };
 
 // ─── Store ───────────────────────────────────────────────────────────
@@ -292,7 +341,7 @@ export const usePersonaStore = create<PersonaState>()(
       getMemoryText: (employeeId: string): string => {
         const emp = get().employees[employeeId];
         if (!emp || emp.memories.length === 0) return '';
-        return emp.memories.map((m) => m.content).join(' § ');
+        return emp.memories.map((m) => m.content).join('\n§\n');
       },
 
       // ── Shared Knowledge ───────────────────────────────────────
@@ -329,7 +378,7 @@ export const usePersonaStore = create<PersonaState>()(
         return {
           soul: emp?.soul ?? '',
           memory: emp && emp.memories.length > 0
-            ? emp.memories.map((m) => m.content).join(' § ')
+            ? emp.memories.map((m) => m.content).join('\n§\n')
             : '',
           boss: state.shared.boss,
           company: state.shared.company,
@@ -351,17 +400,118 @@ export const usePersonaStore = create<PersonaState>()(
                 employeeId,
                 soul: defaultSoul,
                 memories: [],
-                memoryCharLimit: 2000,
+                memoryCharLimit: employeeId === 'leader' ? 3000 : 2200,
               },
             },
             logs: appendLog(
               s.logs,
-              'soul_edited',
+              'initialized',
               `Employee ${employeeId} initialized with default soul`,
               employeeId,
             ),
           };
         });
+      },
+
+      // ── OpenClaw Analytics ─────────────────────────────────────
+
+      getStats: (): PersonaStats => {
+        const state = get();
+        const employeeIds = Object.keys(state.employees);
+        let totalMemories = 0;
+        let totalChars = 0;
+        let todayAdded = 0;
+
+        for (const id of employeeIds) {
+          const emp = state.employees[id];
+          totalMemories += emp.memories.length;
+          totalChars += totalMemoryChars(emp.memories);
+          todayAdded += emp.memories.filter((m) => isToday(m.createdAt)).length;
+        }
+
+        return {
+          totalMemories,
+          totalChars,
+          activeEmployees: employeeIds.length,
+          todayAdded,
+        };
+      },
+
+      getTimeline: (): TimelineEntry[] => {
+        const state = get();
+        const all: TimelineEntry[] = [];
+
+        for (const [employeeId, emp] of Object.entries(state.employees)) {
+          for (const mem of emp.memories) {
+            all.push({ ...mem, employeeId });
+          }
+        }
+
+        // Sort newest first
+        all.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        return all;
+      },
+
+      getGraphData: (): GraphData => {
+        const state = get();
+        const nodes: GraphNode[] = [];
+        const links: GraphLink[] = [];
+        const categorySet = new Set<string>();
+
+        for (const [employeeId, emp] of Object.entries(state.employees)) {
+          // Employee node
+          nodes.push({
+            id: employeeId,
+            type: 'employee',
+            label: employeeId,
+          });
+
+          for (const mem of emp.memories) {
+            // Memory node
+            nodes.push({
+              id: mem.id,
+              type: 'memory',
+              label: mem.content.slice(0, 40),
+            });
+
+            // Employee -> Memory link
+            links.push({
+              source: employeeId,
+              target: mem.id,
+              type: 'has_memory',
+            });
+
+            // Category node (deduplicated)
+            if (!categorySet.has(mem.category)) {
+              categorySet.add(mem.category);
+              nodes.push({
+                id: `cat:${mem.category}`,
+                type: 'category',
+                label: mem.category,
+              });
+            }
+
+            // Memory -> Category link
+            links.push({
+              source: mem.id,
+              target: `cat:${mem.category}`,
+              type: 'categorized_as',
+            });
+
+            // relatedTo links
+            if (mem.relatedTo) {
+              for (const relId of mem.relatedTo) {
+                links.push({
+                  source: mem.id,
+                  target: relId,
+                  type: 'related_to',
+                });
+              }
+            }
+          }
+        }
+
+        return { nodes, links };
       },
     }),
     {

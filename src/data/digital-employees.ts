@@ -2,6 +2,57 @@
 import type { DigitalEmployee, FinanceOverview } from '../types';
 
 export const DIGITAL_EMPLOYEES: DigitalEmployee[] = [
+  // ─── 0. 主管 Leader — COO / 首席运营官 ───
+  {
+    id: 'leader',
+    name: '主管',
+    englishName: 'Leader',
+    role: 'COO · 首席运营官',
+    tagline: '你的右臂，团队的大脑',
+    introduction:
+      '我是你的数字合伙人，团队的总管。我理解你的意图，拆解任务，协调团队，确保每件事都有人跟进、及时交付。我不当对讲机——我会主动思考、提出建议、预判风险。',
+    avatar: '🧑‍💼',
+    color: 'from-indigo-500 to-violet-400',
+    accentColor: 'text-indigo-600',
+    status: 'active',
+    model: 'Claude Opus 4',
+    capabilities: ['任务拆解', '团队协调', '进度跟踪', '风险预判', '汇报总结', '决策支持'],
+    skills: [
+      { name: '任务拆解与分配', icon: 'GitBranch', description: '将复杂目标拆解为可执行任务并分配给合适的员工' },
+      { name: '进度跟踪与汇报', icon: 'BarChart', description: '实时掌握各任务进展，主动向老板汇报' },
+      { name: '风险预判与预警', icon: 'AlertTriangle', description: '提前识别项目风险并给出应对建议' },
+      { name: '团队协调与调度', icon: 'Users', description: '协调多员工协作，避免资源冲突与信息断层' },
+    ],
+    tools: [
+      { name: '任务看板', icon: 'LayoutDashboard', category: 'data', description: '任务创建、分配与状态追踪' },
+      { name: '进度仪表盘', icon: 'Activity', category: 'analysis', description: '团队整体进度可视化' },
+      { name: '团队通讯', icon: 'MessageSquare', category: 'communication', description: '员工间任务流转与消息同步' },
+      { name: '日报周报生成', icon: 'FileText', category: 'data', description: '自动汇总团队工作成果' },
+    ],
+    harness: [
+      { title: '意图理解', content: '深度理解老板的战略意图，将模糊目标转化为清晰可执行的任务' },
+      { title: '全局调度', content: '掌握团队每位成员的能力与状态，合理分配任务并跟进交付' },
+    ],
+    modelInfo: {
+      base: 'Claude Opus 4',
+      reasoning: '深度推理 + 全局规划',
+      context: '200K tokens',
+      specialization: '任务编排与团队协调',
+    },
+    memorySystem: {
+      description: '团队记忆体——积累团队协作模式与老板决策偏好',
+      layers: ['老板意图历史', '任务分配记录', '团队协作模式', '风险与复盘经验'],
+    },
+    workspace: {
+      type: 'command-center',
+      label: '指挥中心',
+      description: '任务分配与进度监控',
+    },
+    onboardingPreferences: [],
+    trainingDataSources: [],
+    stats: { monthlyTasks: 320, hoursSaved: 150, satisfaction: 98 },
+  },
+
   // ─── 1. 火花 Spark — CMO / 品牌创意总监 ───
   {
     id: 'spark',

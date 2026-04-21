@@ -43,8 +43,9 @@ async function tryLoadRealSDK(): Promise<boolean> {
   if (_loadAttempted) return _realCreateClient !== null;
   _loadAttempted = true;
   try {
-    // 直接导入，Vite 会处理路径解析
-    const mod = await import(/* @vite-ignore */ '@qeeclaw/core-sdk');
+    // 动态导入，通过变量间接引用绕过 Vite 静态分析
+    const sdkName = '@qeeclaw/core-sdk';
+    const mod = await import(/* @vite-ignore */ sdkName);
     _realCreateClient = mod.createQeeClawClient;
     console.log('[QeeClaw SDK] 真实 SDK 加载成功');
     return true;

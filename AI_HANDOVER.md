@@ -1,7 +1,7 @@
 # AI_HANDOVER.md — Hub OS 项目交接文档
 
 > 给其他 AI 开发者（Claude Code / Codex / OpenCode 等）的项目状态说明
-> 最后更新: 2026-04-20 v0.10.0
+> 最后更新: 2026-04-22 v0.11.0
 
 ---
 
@@ -21,15 +21,16 @@ Hub OS 是半人马 AI 的数字员工操作系统前端。把大模型 Agent �
 
 | 模块 | 组件路径 | 版本 | 说明 |
 |------|---------|------|------|
-| 超级工作台 | `components/cockpit/` | v0.7 | 三栏布局，左侧面板(团队/待办/财务/通讯/知识库) + 右侧信息流 |
+| 超级工作台 | `components/cockpit/` | v0.11 | 三栏布局，左面板(审批/定时任务/快捷指令) + 中PartnerChat + 右数据面板(默认关闭) |
 | 信息流 | `components/dashboard/` | v0.7 | 语义化 Feed 卡片，按类型/员工筛选，审批操作按钮 |
-| 数字团队 | `components/team/` | v0.10 | 5 名预设核心员工 + Builder V2 + EmployeeConfigPanel 二栏配置页 |
-| 员工配置面板 | `components/team/EmployeeConfigPanel.tsx` | v0.10 | 左导航+右内容二栏布局，7 Tab(概览/模型/Harness/技能/RAG/记忆/工作台) |
+| 数字团队 | `components/team/` | v0.11 | 6 名员工(含主管) + Builder V2 + EmployeeConfigPanel 二栏配置页，主管置顶特殊展示 |
+| 员工配置面板 | `components/team/EmployeeConfigPanel.tsx` | v0.11 | 左导航+右内容二栏布局，8 Tab(概览/模型/Harness/技能/RAG/记忆/人格/工作台) |
+| 记忆中心 | `components/memory/` | v0.11 | 三视图(总览仪表盘/时间线/认知图谱)，主管置顶C位，图谱中心节点为主管 |
 | 员工构建工作台 | `components/builder/` | v0.8 | 三栏布局(Chat+Canvas+Detail)，Gemini AI 对话驱动，三层可视化画布 |
 | 财务中心 | `components/finance/` | v0.4 | API Key 管理 + 员工用量明细 + 月度预算 |
 | 通讯中心 | `components/channels/` | v0.3 | 渠道监控大盘（企微/飞书/Telegram/钉钉/邮件） |
 | 知识库 | `components/knowledge/` | v0.3 | 文档管理 + 统计 + 权限分配 |
-| 设置 | `components/settings/` | v0.5 | API 密钥配置 + 偏好设置 |
+| 设置 | `components/settings/` | v0.11 | 设备信息/云端连接/企业信息/员工策略/通知/安全/外观（已移除系统记忆板块） |
 | AI 对话 | `components/chat/` | v0.2 | 对话区，接 models.invoke() |
 
 ### ⚠️ 当前限制
@@ -48,16 +49,22 @@ Hub OS 是半人马 AI 的数字员工操作系统前端。把大模型 Agent �
 
 ```
 src/
-├── App.tsx                        # 路由入口，NavTab 切换 6 个页面
+├── App.tsx                        # 路由入口，NavTab 切换 7 个页面(含记忆中心)
 ├── types/index.ts                 # 所有 TypeScript 类型定义
 ├── services/qeeclaw.ts            # SDK 适配层（双模式：真实 SDK / Proxy stub）
 ├── hooks/
 │   ├── useQeeClaw.ts              # 17 个 hooks，每个对应一组 SDK 调用
 │   └── useEmployeeConfig.ts       # ★ v0.10 员工配置 hook（SDK/mock 双模式）
-├── stores/useAppStore.tsx         # Zustand 全局状态
+├── stores/
+│   ├── useAppStore.tsx            # Zustand 全局状态
+│   └── personaStore.ts            # ★ v0.11 人格+记忆 store（OpenClaw 标准，双轨§分隔）
+├── engine/
+│   └── PromptAssembler.ts         # ★ v0.11 提示词组装器（SOUL+MEMORY→system prompt）
 ├── data/
 │   ├── mock.ts                    # 工作台/信息流 mock 数据
-│   ├── digital-employees.ts       # 数字员工档案 + 财务 mock 数据
+│   ├── digital-employees.ts       # ★ v0.11 数字员工档案(含主管) + 财务 mock 数据
+│   ├── persona-defaults.ts        # ★ v0.11 灵魂默认值(6员工+共享层)
+│   ├── partner.ts                 # 合伙人/团队成员数据模型
 │   ├── employee-harness.ts        # ★ v0.10 5员工 Harness 配置（agent-loop/context/memory/standards/security）
 │   └── employee-skills.ts         # ★ v0.10 5员工 Skills 映射（clawhub.ai 技能库+调用统计）
 ├── gateway/

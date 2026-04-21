@@ -9,6 +9,7 @@ import EmployeeBuilderV2 from './components/builder';
 import Finance from './components/finance/Finance';
 import Channels from './components/channels/Channels';
 import Knowledge from './components/knowledge/Knowledge';
+import MemoryCenter from './components/memory/MemoryCenter';
 import Settings from './components/settings/Settings';
 import { ToastProvider, useToast } from './components/shared/Toast';
 import { AppProvider, useTheme } from './stores/useAppStore';
@@ -97,6 +98,7 @@ function AppInner() {
               onRefresh={refreshChannels}
             />
           )}
+          {tab === 'memory' && <MemoryCenter />}
           {tab === 'knowledge' && (
             <Knowledge
               knowledgeData={knowledgeData}

@@ -137,6 +137,7 @@ export interface TeamMember {
 }
 
 export const ALL_EMPLOYEES: TeamMember[] = [
+  { id: 'leader', name: '主管', avatar: '🧑‍💼', color: 'border-l-indigo-400', role: '团队统管', status: 'online', locked: false },
   { id: 'spark', name: '火花', avatar: '🔥', color: 'border-l-orange-400', role: '品牌设计', status: 'working', locked: false },
   { id: 'xiaoke', name: '小可', avatar: '🎯', color: 'border-l-blue-400', role: '获客增长', status: 'online', locked: false },
   { id: 'shuxi', name: '书熙', avatar: '📚', color: 'border-l-emerald-400', role: '商业策划', status: 'offline', locked: true },

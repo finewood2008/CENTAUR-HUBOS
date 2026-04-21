@@ -2,7 +2,7 @@
 
 // ── 数字员工核心类型 ──────────────────────────────
 
-export type DigitalEmployeeId = 'spark' | 'xiaoke' | 'shuxi' | 'shuibao' | 'lvan' | (string & {});
+export type DigitalEmployeeId = 'leader' | 'spark' | 'xiaoke' | 'shuxi' | 'shuibao' | 'lvan' | (string & {});
 
 // ── 员工创建器中间状态 ──────────────────────────────
 export interface EmployeeSpec {
@@ -57,7 +57,7 @@ export interface MemoryEntry {
 }
 
 export interface WorkspaceConfig {
-  type: 'three-panel' | 'dashboard' | 'chat' | 'document';
+  type: 'three-panel' | 'dashboard' | 'chat' | 'document' | 'chat-board' | 'command-center';
   label: string;
   description: string;
   screenshot?: string;  // placeholder image path
@@ -260,4 +260,4 @@ export interface ActivityItem {
   priority?: 'normal' | 'high' | 'urgent';
 }
 
-export type NavTab = 'team' | 'employees' | 'channels' | 'knowledge' | 'finance' | 'settings';
+export type NavTab = 'team' | 'employees' | 'channels' | 'memory' | 'knowledge' | 'finance' | 'settings';

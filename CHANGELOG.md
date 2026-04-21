@@ -1,5 +1,61 @@
 # Changelog
 
+## [0.11.0] - 2026-04-22
+
+### 🧠 主管角色系统 + 记忆中心三视图 + 团队感UI强化
+
+#### 新增：主管（Leader）角色 — 团队核心中枢
+- `src/data/digital-employees.ts`：新增 leader 数字员工档案（COO · 首席运营官），含完整技能标签和业绩指标
+- `src/data/persona-defaults.ts`：新增 leader 灵魂定义（SOUL），3000字符记忆上限（高于普通员工2200）
+- `src/data/partner.ts`：ALL_EMPLOYEES 新增 leader 条目，团队成员添加列表自动排除主管
+- 主管定位：不是普通团队成员，是老板的右臂、团队的大脑，统管所有数字员工
+
+#### 新增：记忆中心 — 三视图可视化（Memory Center）
+- `src/components/memory/MemoryCenter.tsx`：主页面，3-tab 切换（总览/时间线/图谱）
+- `src/components/memory/DashboardView.tsx`：总览仪表盘 — 统计卡片 + 共享认知 + 员工认知卡片
+  - 主管卡片置顶C位，独占一行，紫色边框 + ☆团队领导徽章
+  - 普通员工卡片横排展示
+- `src/components/memory/TimelineView.tsx`：时间线视图 — 按日期分组、操作类型筛选、员工筛选
+- `src/components/memory/GraphView.tsx`：认知图谱 — react-force-graph-2d 力导向图
+  - 中心节点为主管（非老板），主管连接所有员工和老板
+  - 节点颜色对应员工品牌色
+- 导航栏新增"记忆"入口（Brain图标），位于通讯与知识库之间
+- NavTab 类型扩展：新增 'memory'
+
+#### 新增：PersonaStore 升级 — OpenClaw 标准对齐
+- `src/stores/personaStore.ts`：完全重写，对齐 OpenClaw 标准
+  - 双轨记忆：`target: 'memory' | 'user'`（agent笔记 vs 用户画像）
+  - § 分隔符序列化，2200/1375 字符限制
+  - 新增 getStats / getTimeline / getGraphData 方法
+  - confidence 和 relatedTo 字段支持
+  - localStorage 持久化（key: hubos-persona-store）
+- 新增依赖：`react-force-graph-2d`、`date-fns`
+
+#### 改进：员工页面 — 主管置顶特殊化
+- `src/components/team/Team.tsx`：主管从员工列表抽出，置顶单独一行展示
+  - 紫色左边框 + ☆团队领导徽章 + 全宽大卡片
+  - 无"进入工作台"按钮（主管通过首页对话交互）
+  - 与普通员工网格布局形成明确层级区分
+
+#### 改进：首页 TeamHeader — 团队感强化
+- 主管头像放大（w-14 h-14）+ 紫色光晕（ring-3 ring-indigo-300/40）
+- 皇冠徽章改为紫色调（bg-indigo-500）
+- 新增"COO · 统管团队"角色标签
+- 团队成员区域新增"团队在线 N人"标签
+- 成员头像群外围加 bg-warm-sand/20 背景框，增强团队归属感
+- 添加按钮移至 overflow 容器外，弹窗向下右对齐展开，不再被遮挡
+- 添加列表自动排除主管（主管不是可添加的团队成员）
+
+#### 删除：设置页"系统记忆"板块
+- `src/components/settings/Settings.tsx`：移除 SystemMemory 引用和渲染
+- 记忆功能已独立为记忆中心页面，不再重复出现在设置中
+
+#### 技术改进
+- `src/services/qeeclaw.ts`：Vite 8 动态 import 加 `/* @vite-ignore */` 修复分析错误
+- `vite.config.ts`：optimizeDeps.exclude 排除 @qeeclaw 包
+
+---
+
 ## [0.10.0] - 2026-04-20
 
 ### 🧩 完整数字员工配置页 — 7 模块二栏配置面板

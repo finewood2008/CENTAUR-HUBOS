@@ -336,7 +336,7 @@ export default function Team({ isConnected }: TeamProps) {
   const sdkAgentMap = new Map(sdkData.agents.map(a => [a.name.toLowerCase(), a]));
 
   // 合并：如果 SDK 中有匹配的 agent，更新状态为 active
-  const employees = DIGITAL_EMPLOYEES.map(emp => {
+  const mergedEmployees = DIGITAL_EMPLOYEES.map(emp => {
     const sdkMatch = sdkAgentMap.get(emp.name.toLowerCase()) || sdkAgentMap.get(emp.englishName.toLowerCase());
     if (sdkMatch) {
       return {
@@ -347,6 +347,10 @@ export default function Team({ isConnected }: TeamProps) {
     }
     return emp;
   });
+
+  // 把 leader 从员工列表中抽出来单独渲染
+  const leader = mergedEmployees.find(e => e.id === 'leader');
+  const employees = mergedEmployees.filter(e => e.id !== 'leader');
 
   // 生成预设员工的名称集合，用于过滤 SDK 中额外创建的员工
   const presetNames = new Set(DIGITAL_EMPLOYEES.map(e => e.name.toLowerCase()));
@@ -485,10 +489,83 @@ export default function Team({ isConnected }: TeamProps) {
               </motion.div>
             </div>
 
+            {/* Leader Card */}
+            {leader && (
+              <div className="px-8 mt-4">
+                <motion.div
+                  className="rounded-2xl border-l-4 border-indigo-500 bg-indigo-500/5 p-5 cursor-pointer hover:shadow-md transition-shadow group"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                  onClick={() => setSelectedEmployee(leader)}
+                  whileHover={{ y: -2 }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    {/* 左侧：头像 + 名字 + 角色 */}
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${leader.color} flex items-center justify-center text-3xl shadow-sm shrink-0`}>
+                        {leader.avatar}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-serif text-lg text-near-black font-semibold">{leader.name}</h3>
+                          <span className="text-sm text-olive-gray">{leader.englishName}</span>
+                        </div>
+                        <p className="text-sm text-stone-gray mt-0.5">{leader.role}</p>
+                        <p className="text-xs text-indigo-600/80 mt-1">{leader.tagline}</p>
+                      </div>
+                    </div>
+
+                    {/* 右侧：状态 + 领导徽章 */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${statusConfig[leader.status].bg}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusConfig[leader.status].dot}`} />
+                        {statusConfig[leader.status].label}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-600 text-[11px] font-semibold">
+                        <Star size={12} className="fill-indigo-500 text-indigo-500" />
+                        团队领导
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* capabilities 小标签 */}
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {leader.capabilities.map((c) => (
+                      <span key={c} className="px-2 py-0.5 rounded-md bg-indigo-500/8 text-[10px] text-indigo-700 font-medium">
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* stats (active only) */}
+                  {leader.status === 'active' && (
+                    <div className="flex items-center gap-4 text-[10px] text-stone-gray border-t border-indigo-200/40 pt-3 mt-3">
+                      <span className="flex items-center gap-1"><Zap size={10} className="text-indigo-500" />{leader.stats.monthlyTasks} 任务/月</span>
+                      <span className="flex items-center gap-1"><Clock size={10} />{leader.stats.hoursSaved}h 已节省</span>
+                      <span className="flex items-center gap-1"><Star size={10} className="text-amber-500" />{leader.stats.satisfaction}%</span>
+                    </div>
+                  )}
+                </motion.div>
+              </div>
+            )}
+
+            {/* 分隔标题：团队成员 */}
+            <div className="px-8 mt-6 mb-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Users size={15} className="text-olive-gray" />
+                  <h2 className="font-serif text-base text-near-black font-medium">团队成员</h2>
+                </div>
+                <div className="flex-1 h-px bg-border-cream" />
+                <span className="text-[11px] text-stone-gray">{allEmployees.filter(e => e.id !== 'leader').length} 人</span>
+              </div>
+            </div>
+
             {/* Grid */}
-            <div className="px-8 pb-8 mt-4">
+            <div className="px-8 pb-8 mt-2">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {allEmployees.map((emp, i) => (
+                {allEmployees.filter(e => e.id !== 'leader').map((emp, i) => (
                   <EmployeeCard
                     key={emp.id}
                     emp={emp}

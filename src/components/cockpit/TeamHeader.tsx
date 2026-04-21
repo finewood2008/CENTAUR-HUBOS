@@ -77,7 +77,7 @@ export default function TeamHeader({
 
   // Employees available to add (in ALL_EMPLOYEES but not in teamMembers)
   const teamIds = new Set(teamMembers.map(m => m.id));
-  const availableToAdd = ALL_EMPLOYEES.filter(e => !teamIds.has(e.id));
+  const availableToAdd = ALL_EMPLOYEES.filter(e => e.id !== 'leader' && !teamIds.has(e.id));
 
   return (
     <div className="shrink-0 bg-white/70 backdrop-blur-sm border-b border-border-cream/30">
@@ -85,10 +85,10 @@ export default function TeamHeader({
         {/* ── Partner Section ── */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="relative">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center text-2xl ring-2 ring-amber-300/50 shadow-[0_0_12px_rgba(251,191,36,0.2)]">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center text-2xl ring-3 ring-indigo-300/40 shadow-[0_0_18px_rgba(129,140,248,0.3)]">
               {partner.avatar || '🧑‍💼'}
             </div>
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center shadow-sm">
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center shadow-sm">
               <Crown className="w-2.5 h-2.5 text-white" />
             </span>
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-white" />
@@ -108,12 +108,15 @@ export default function TeamHeader({
               />
             ) : (
               <button onClick={() => setEditing(true)} className="flex items-center gap-1 group cursor-pointer">
-                <span className="text-[15px] font-semibold text-near-black">{partner.name || '管家'}</span>
+                <span className="text-[17px] font-semibold text-near-black">{partner.name || '管家'}</span>
                 <Edit2 size={11} className="text-stone-gray/0 group-hover:text-stone-gray/60 transition-colors" />
               </button>
             )}
             <div className="text-[11px] text-stone-gray/70 mt-0.5">
               {partner.tagline || '你的数字合伙人'} · 在线
+            </div>
+            <div className="text-[10px] text-indigo-500/60 mt-0.5">
+              COO · 统管团队
             </div>
           </div>
         </div>
@@ -122,7 +125,13 @@ export default function TeamHeader({
         <div className="w-px h-10 bg-border-cream/40 shrink-0" />
 
         {/* ── Team Members Row ── */}
-        <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto">
+        <div className="flex flex-col gap-1 flex-1 min-w-0">
+          <div className="flex items-center gap-1 px-3">
+            <span className="text-[10px] text-stone-gray/60">团队在线</span>
+            <span className="text-[10px] text-stone-gray/60 font-medium">{teamMembers.length}人</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="bg-warm-sand/20 rounded-2xl px-3 py-2 flex items-center gap-1 overflow-x-auto flex-1 min-w-0">
           {teamMembers.map(m => (
             <button
               key={m.id}
@@ -157,8 +166,9 @@ export default function TeamHeader({
               )}
             </button>
           ))}
+            </div>
 
-          {/* ── Add Member Button ── */}
+          {/* ── Add Member Button (outside overflow container) ── */}
           {availableToAdd.length > 0 && (
             <div className="relative shrink-0" ref={pickerRef}>
               <button
@@ -175,7 +185,7 @@ export default function TeamHeader({
               {/* ── Picker Popover ── */}
               {showPicker && (
                 <div
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-[200px] rounded-xl border border-border-cream/60 bg-white shadow-lg py-2"
+                  className="absolute top-full right-0 mt-2 z-[100] w-[200px] rounded-xl border border-border-cream/60 bg-white shadow-lg py-2"
                   style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)' }}
                 >
                   <div className="px-3 py-1.5 text-[11px] font-semibold text-stone-gray border-b border-border-cream/30 mb-1">
@@ -206,6 +216,7 @@ export default function TeamHeader({
               )}
             </div>
           )}
+          </div>
         </div>
 
         {/* ── Divider ── */}
