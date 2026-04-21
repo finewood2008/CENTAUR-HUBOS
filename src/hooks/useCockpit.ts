@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getClientAsync } from '../services/qeeclaw';
 import type { ChatMessage, ReportItem, InputFile, Task, ScheduledTask, PartnerProfile } from '../data/partner';
-import { DEFAULT_PARTNER, MOCK_TASKS, MOCK_SCHEDULED_TASKS, ONBOARDING_MESSAGES } from '../data/partner';
+import { DEFAULT_PARTNER, ONBOARDING_MESSAGES } from '../data/partner';
 
 interface CockpitData {
   partner: PartnerProfile;
@@ -35,14 +35,16 @@ export function useCockpit(isConnected: boolean) {
     updateData({ partner: { ...data.partner, name } });
   }, [data.partner, updateData]);
 
-  // 加载调度任务 (暂时用 MOCK 数据 fallback)
+  // 加载调度任务
   const loadSchedule = useCallback(async () => {
     try {
+      // TODO: 对接到具体的 workflow 接口
       // const client = await getClientAsync();
       // const res = await client.workflow.listScheduled();
-      setData(prev => ({ ...prev, scheduledTasks: MOCK_SCHEDULED_TASKS }));
+      setData(prev => ({ ...prev, scheduledTasks: [] }));
     } catch (e) {
-      setData(prev => ({ ...prev, scheduledTasks: MOCK_SCHEDULED_TASKS }));
+      console.error('[Cockpit] 加载调度任务失败:', e);
+      setData(prev => ({ ...prev, scheduledTasks: [] }));
     }
   }, []);
 
@@ -54,11 +56,10 @@ export function useCockpit(isConnected: boolean) {
       // TODO: 从 approval 模块获取待审批项
       // const remoteApprovals = await client.approval.list({ status: 'pending' });
       
-      // 目前回退至 Mock Task 作为演示
-      updateData({ tasks: MOCK_TASKS });
+      updateData({ tasks: [] });
     } catch (err) {
       console.error('[Cockpit] 加载汇报/审批失败:', err);
-      updateData({ tasks: MOCK_TASKS }); // Fallback
+      updateData({ tasks: [] });
     }
   }, [isConnected, updateData]);
 

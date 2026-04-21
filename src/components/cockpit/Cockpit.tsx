@@ -48,6 +48,7 @@ export default function Cockpit({ onNav }: CockpitProps) {
 
   // Right panel toggle (default closed)
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [pendingQuickAction, setPendingQuickAction] = useState<{ id: number; text: string } | null>(null);
 
   const handleMemberClick = useCallback((id: string) => {
     const member = TEAM_MEMBERS.find(m => m.id === id);
@@ -57,8 +58,13 @@ export default function Cockpit({ onNav }: CockpitProps) {
   }, [onNav]);
 
   const handleQuickAction = useCallback((action: string) => {
+    if (!connected || !data.sessionId || !data.partner.isConfigured || sending) {
+      setPendingQuickAction({ id: Date.now(), text: action });
+      return;
+    }
+
     sendMessage(action);
-  }, [sendMessage]);
+  }, [connected, data.partner.isConfigured, data.sessionId, sendMessage, sending]);
 
 
 
@@ -115,6 +121,8 @@ export default function Cockpit({ onNav }: CockpitProps) {
               partner={data.partner}
               onSendMessage={sendMessage}
               onMemberClick={handleMemberClick}
+              pendingQuickAction={pendingQuickAction}
+              onPendingQuickActionApplied={() => setPendingQuickAction(null)}
             />
           </div>
         </div>

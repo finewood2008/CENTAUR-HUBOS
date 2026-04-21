@@ -19,6 +19,8 @@ interface PartnerChatProps {
   partner: PartnerProfile;
   onSendMessage: (text: string, files?: InputFile[], voiceBlob?: { blob: Blob; duration: number }) => void;
   onMemberClick?: (id: string) => void;
+  pendingQuickAction?: { id: number; text: string } | null;
+  onPendingQuickActionApplied?: () => void;
 }
 
 export interface TeamBarProps {
@@ -497,6 +499,8 @@ export default function PartnerChat({
   partner,
   onSendMessage,
   onMemberClick,
+  pendingQuickAction,
+  onPendingQuickActionApplied,
 }: PartnerChatProps) {
   const [inputText, setInputText] = useState('');
   const [showMentionPopup, setShowMentionPopup] = useState(false);
@@ -536,6 +540,29 @@ export default function PartnerChat({
     setMentionStartIndex(-1);
     setMentionHighlight(0);
   }, []);
+
+  useEffect(() => {
+    if (!pendingQuickAction) return;
+
+    setInputText((prev) => {
+      if (!prev.trim()) return pendingQuickAction.text;
+      return `${prev.trimEnd()} ${pendingQuickAction.text}`;
+    });
+    closeMention();
+
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+
+      input.focus();
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
+      const cursorPos = input.value.length;
+      input.setSelectionRange(cursorPos, cursorPos);
+    });
+
+    onPendingQuickActionApplied?.();
+  }, [closeMention, onPendingQuickActionApplied, pendingQuickAction]);
 
   const handleMentionSelect = useCallback(
     (name: string) => {
