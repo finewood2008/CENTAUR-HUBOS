@@ -63,9 +63,9 @@ async function loadImage(url: string): Promise<HTMLImageElement> {
 }
 
 /** Extract character sprite frames from a character PNG.
- *  pixel-agents chars are 16x24 sprites in a spritesheet:
- *  Row 0: walk down (4 frames), Row 1: walk up (4 frames),
- *  Row 2: walk right (4 frames), + typing/reading frames
+ *  pixel-agents chars are 16x32 sprites in a 112x96 spritesheet:
+ *  Row 0: walk down (7 frames), Row 1: walk up (7 frames),
+ *  Row 2: walk right (7 frames)
  */
 function parseCharacterSheet(img: HTMLImageElement): {
   down: SpriteData[];
@@ -79,7 +79,7 @@ function parseCharacterSheet(img: HTMLImageElement): {
   ctx.drawImage(img, 0, 0);
 
   const CHAR_W = 16;
-  const CHAR_H = 24;
+  const CHAR_H = 32;
   const cols = Math.floor(img.naturalWidth / CHAR_W);
   const rows = Math.floor(img.naturalHeight / CHAR_H);
 
@@ -106,12 +106,12 @@ function parseCharacterSheet(img: HTMLImageElement): {
   }
 
   // Extract frames - each character sheet has rows of frames
-  // Row 0: down walk frames, Row 1: up walk frames, Row 2: right walk frames
+  // Row 0: down walk frames, Row 1: up walk frames, Row 2: walk right frames
   const down: SpriteData[] = [];
   const up: SpriteData[] = [];
   const right: SpriteData[] = [];
 
-  for (let c = 0; c < Math.min(cols, 8); c++) {
+  for (let c = 0; c < cols; c++) {
     if (rows > 0) down.push(extractFrame(c, 0));
     if (rows > 1) up.push(extractFrame(c, 1));
     if (rows > 2) right.push(extractFrame(c, 2));
