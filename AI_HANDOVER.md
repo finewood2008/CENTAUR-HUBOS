@@ -1,7 +1,7 @@
 # AI_HANDOVER.md — Hub OS 项目交接文档
 
 > 给其他 AI 开发者（Claude Code / Codex / OpenCode 等）的项目状态说明
-> 最后更新: 2026-04-22 v0.12.0
+> 最后更新: 2026-04-22 v0.12.1
 
 ---
 
@@ -30,7 +30,7 @@ Hub OS 是半人马 AI 的数字员工操作系统前端。把大模型 Agent �
 | 财务中心 | `components/finance/` | v0.4 | API Key 管理 + 员工用量明细 + 月度预算 |
 | 通讯中心 | `components/channels/` | v0.3 | 渠道监控大盘（企微/飞书/Telegram/钉钉/邮件） |
 | 知识库 | `components/knowledge/` | v0.3 | 文档管理 + 统计 + 权限分配 |
-| 虚拟办公室 | `components/office/` | v0.12 | 像素风办公室，pixel-agents Canvas 2D 引擎，6角色+25+家具+自定义布局 |
+| 虚拟办公室 | `components/office/` | v0.12.1 | 像素风办公室，pixel-agents Canvas 2D 引擎，6角色+25+家具+自定义布局，递归manifest解析 |
 | 设置 | `components/settings/` | v0.11 | 设备信息/云端连接/企业信息/员工策略/通知/安全/外观（已移除系统记忆板块） |
 | AI 对话 | `components/chat/` | v0.2 | 对话区，接 models.invoke() |
 

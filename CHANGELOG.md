@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.12.1] - 2026-04-22
+
+### 🐛 虚拟办公室 Bugfix — 角色渲染修正 + 家具加载修正
+
+#### 修复：角色sprite帧高度错误 (16×24 → 16×32)
+- `assetLoader.ts` 中 `parseCharacterSheet` 帧高度从 24px 修正为 32px，匹配 pixel-agents 原始规格
+- 修正帧提取列数限制（从 `Math.min(cols, 8)` 改为 `cols`，正确提取全部 7 帧）
+- 修复角色头身反转的渲染问题
+
+#### 修复：PC 家具 manifest 嵌套解析
+- PC 的 manifest.json 是三层嵌套结构（group → state-group → animation → asset），旧代码只处理两层
+- 新增 `collectLeafAssets()` 递归函数，支持任意深度的 manifest 嵌套
+- 修复 `furniture/PC/undefined` 404 错误
+- 所有家具属性（orientation/state/animationGroup）正确向下继承
+
+---
+
 ## [0.12.0] - 2026-04-22
 
 ### 🏢 像素风虚拟办公室 — pixel-agents 引擎移植 + 全套美术素材
