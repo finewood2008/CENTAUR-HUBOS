@@ -2,38 +2,31 @@
  * VirtualOffice — Hub OS pixel art virtual office.
  * Uses the pixel-agents engine (pure Canvas 2D).
  * Features:
- *  - Random employee activity cycles (work → break → wander → coffee)
+ *  - SDK-backed employee roster and runtime status
  *  - Interactive buttons: 拍一下, 派任务, 请咖啡, 催一下
- *  - Fun character reactions & toast notifications
+ *  - Toast notifications for real office actions
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DIGITAL_EMPLOYEES } from '../../data/digital-employees';
 import { OfficeState } from './engine/officeState';
 import { OfficeCanvas } from './components/OfficeCanvas';
 import { createHubOSLayout } from './hubosLayout';
 import { loadAllAssets } from './assetLoader';
 import { EditorState } from './editor/editorState';
-
-// ── Employee agent mapping ──────────────────────────────────────
-const EMPLOYEE_AGENTS = DIGITAL_EMPLOYEES.map((emp, idx) => ({
-  id: idx,
-  name: emp.name,
-  role: emp.role,
-  hubId: emp.id,
-  isLeader: emp.id === 'leader',
-  emoji: emp.id === 'leader' ? '👔' : ['🔥', '🎯', '📊', '💰', '🌿'][idx - 1] || '👤',
-}));
+import { useToast } from '../shared/Toast';
+import {
+  useOfficeData,
+  type OfficeActionKind,
+  type OfficeAgentActivity,
+} from '../../hooks/useQeeClaw';
 
 // ── Activity types ──────────────────────────────────────────────
-type Activity = 'coding' | 'reading' | 'meeting' | 'coffee' | 'idle' | 'slacking';
-const ACTIVITIES: Record<Activity, { label: string; tool: string | null; emoji: string }> = {
-  coding:  { label: '写代码',  tool: 'Write',  emoji: '⌨️' },
-  reading: { label: '看文档',  tool: 'Read',   emoji: '📖' },
-  meeting: { label: '开会中',  tool: 'Write',  emoji: '🗣️' },
-  coffee:  { label: '喝咖啡',  tool: null,     emoji: '☕' },
-  idle:    { label: '发呆中',  tool: null,     emoji: '💭' },
-  slacking:{ label: '在摸鱼',  tool: null,     emoji: '🐟' },
+const ACTIVITIES: Record<OfficeAgentActivity, { label: string; tool: string | null; emoji: string }> = {
+  active: { label: '最近处理中', tool: 'Write', emoji: '⚡' },
+  workflow: { label: '已挂工作流', tool: 'Bash', emoji: '🧩' },
+  standby: { label: '在线待命', tool: 'Read', emoji: '🟢' },
+  offline: { label: '离线', tool: null, emoji: '⚪' },
+  attention: { label: '运行异常', tool: null, emoji: '⚠️' },
 };
 
 // ── Toast messages ──────────────────────────────────────────────
@@ -41,32 +34,32 @@ interface Toast {
   id: number;
   text: string;
   emoji: string;
-  ts: number;
 }
-
-// ── Reactions for interactions ───────────────────────────────────
-const PAT_REACTIONS = ['被拍了一下，开心地跳了起来！', '害羞地低下了头', '回头看了你一眼 👀', '打了个哈欠 🥱', '敬了个礼 🫡'];
-const TASK_TYPES = ['写一篇公众号文章', '做个数据报表', '设计一张海报', '整理客户资料', '写个需求文档', '做个竞品分析'];
-const COFFEE_REACTIONS = ['开心地接过咖啡 ☕', '说了声谢谢老板！', '感动得热泪盈眶', '立刻精神百倍！', '偷偷加了三块糖'];
-const RUSH_REACTIONS = ['加快了打字速度 💨', '紧张地看了眼进度条', '默默叹了口气...', '表示马上就好！', '假装没听到 🙈'];
 
 let toastId = 0;
 
-export default function VirtualOffice() {
-  const [loading, setLoading] = useState(true);
+interface VirtualOfficeProps {
+  isConnected: boolean;
+}
+
+export default function VirtualOffice({ isConnected }: VirtualOfficeProps) {
+  const { toast } = useToast();
+  const { agents, runtime, loading: dataLoading, error, triggerAction } = useOfficeData(isConnected);
+  const [assetsLoading, setAssetsLoading] = useState(true);
   const [officeState, setOfficeState] = useState<OfficeState | null>(null);
   const [zoom, setZoom] = useState(3);
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [agentActivities, setAgentActivities] = useState<Record<number, Activity>>({});
-  const [, forceUpdate] = useState(0);
+  const [actionPending, setActionPending] = useState<OfficeActionKind | null>(null);
+  const [taskComposerOpen, setTaskComposerOpen] = useState(false);
+  const [taskDraft, setTaskDraft] = useState('');
   const panRef = useRef({ x: 0, y: 0 });
   const editorStateRef = useRef<EditorState>(new EditorState());
   const stateRef = useRef<OfficeState | null>(null);
 
   // ── Add toast ─────────────────────────────────────────────────
   const addToast = useCallback((text: string, emoji: string) => {
-    const t: Toast = { id: ++toastId, text, emoji, ts: Date.now() };
+    const t: Toast = { id: ++toastId, text, emoji };
     setToasts(prev => [...prev.slice(-4), t]); // keep max 5
     setTimeout(() => {
       setToasts(prev => prev.filter(x => x.id !== t.id));
@@ -84,159 +77,105 @@ export default function VirtualOffice() {
       const layout = createHubOSLayout();
       const state = new OfficeState(layout);
 
-      // Add all employees
-      for (const agent of EMPLOYEE_AGENTS) {
-        if (agent.isLeader) {
-          state.addAgent(agent.id, 0, 0, 'leader-chair');
-        } else {
-          state.addAgent(agent.id, agent.id % 6);
-        }
-      }
-
-      // Initial activities
-      const activities: Record<number, Activity> = {};
-      for (const agent of EMPLOYEE_AGENTS) {
-        if (agent.isLeader) {
-          activities[agent.id] = 'coding';
-          state.setAgentTool(agent.id, 'Write');
-        } else {
-          const initial: Activity[] = ['coding', 'reading', 'coding', 'meeting', 'coding'];
-          const act = initial[agent.id - 1] || 'coding';
-          activities[agent.id] = act;
-          state.setAgentTool(agent.id, ACTIVITIES[act].tool);
-        }
-      }
-
       stateRef.current = state;
-      setAgentActivities(activities);
       setOfficeState(state);
-      setLoading(false);
+      setAssetsLoading(false);
     }
 
-    init();
+    void init();
     return () => { cancelled = true; };
   }, []);
 
-  // ── Random activity cycle for non-leader employees ────────────
   useEffect(() => {
     if (!officeState) return;
 
-    const interval = setInterval(() => {
-      const state = stateRef.current;
-      if (!state) return;
+    const state = stateRef.current;
+    if (!state) return;
 
-      // Pick a random non-leader employee to change activity
-      const nonLeaders = EMPLOYEE_AGENTS.filter(a => !a.isLeader);
-      const agent = nonLeaders[Math.floor(Math.random() * nonLeaders.length)];
+    const nextIds = new Set(agents.map((agent) => agent.id));
+    for (const id of Array.from(state.characters.keys())) {
+      if (!nextIds.has(id)) {
+        state.removeAgent(id);
+      }
+    }
 
-      const activityList: Activity[] = ['coding', 'reading', 'coffee', 'idle', 'slacking', 'meeting', 'coding', 'coding'];
-      const newActivity = activityList[Math.floor(Math.random() * activityList.length)];
-      const info = ACTIVITIES[newActivity];
+    for (const agent of agents) {
+      if (!state.characters.has(agent.id)) {
+        if (agent.isLeader) {
+          state.addAgent(agent.id, 0, 0, 'leader-chair', true);
+        } else {
+          state.addAgent(agent.id, undefined, undefined, undefined, true);
+        }
+      }
 
-      // Update engine state
-      if (info.tool) {
-        state.setAgentActive(agent.id, true);
-        state.setAgentTool(agent.id, info.tool);
+      const activityInfo = ACTIVITIES[agent.activity];
+      state.setAgentTool(agent.id, activityInfo.tool);
+      state.setAgentActive(agent.id, Boolean(activityInfo.tool));
+    }
+  }, [agents, officeState]);
+
+  useEffect(() => {
+    if (selectedAgent === null) return;
+    if (agents.some((agent) => agent.id === selectedAgent)) return;
+    setSelectedAgent(null);
+    setTaskComposerOpen(false);
+    setTaskDraft('');
+  }, [agents, selectedAgent]);
+
+  useEffect(() => {
+    setTaskComposerOpen(false);
+    setTaskDraft('');
+  }, [selectedAgent]);
+
+  const runSelectedAction = useCallback(async (
+    action: OfficeActionKind,
+    options?: { taskContent?: string },
+  ) => {
+    if (selectedAgent === null) return;
+
+    const state = stateRef.current;
+    setActionPending(action);
+    if (state) {
+      if (action === 'coffee') {
+        state.showWaitingBubble(selectedAgent);
       } else {
-        state.setAgentTool(agent.id, null);
-        state.setAgentActive(agent.id, false);
+        state.showPermissionBubble(selectedAgent);
+        window.setTimeout(() => state.dismissBubble(selectedAgent), 1800);
       }
+    }
 
-      setAgentActivities(prev => ({ ...prev, [agent.id]: newActivity }));
-
-      // Occasional toast for fun activities
-      if (newActivity === 'coffee') {
-        addToast(`${agent.name} 去倒了杯咖啡`, '☕');
-      } else if (newActivity === 'slacking') {
-        addToast(`${agent.name} 在偷偷摸鱼`, '🐟');
-      } else if (newActivity === 'meeting') {
-        addToast(`${agent.name} 加入了一个会议`, '🗣️');
-      }
-    }, 5000 + Math.random() * 5000); // 5-10 seconds
-
-    return () => clearInterval(interval);
-  }, [officeState, addToast]);
+    const result = await triggerAction(selectedAgent, action, options);
+    addToast(result.message, result.emoji);
+    if (!result.ok) {
+      toast('error', result.message);
+    }
+    if (result.ok && action === 'task') {
+      setTaskComposerOpen(false);
+      setTaskDraft('');
+    }
+    setActionPending(null);
+  }, [addToast, selectedAgent, toast, triggerAction]);
 
   // ── Interaction handlers ──────────────────────────────────────
   const handlePat = useCallback(() => {
-    if (selectedAgent === null || !stateRef.current) return;
-    const agent = EMPLOYEE_AGENTS.find(a => a.id === selectedAgent);
-    if (!agent) return;
-
-    // Show bubble
-    stateRef.current.showPermissionBubble(selectedAgent);
-    setTimeout(() => stateRef.current?.dismissBubble(selectedAgent), 2000);
-
-    const reaction = PAT_REACTIONS[Math.floor(Math.random() * PAT_REACTIONS.length)];
-    addToast(`${agent.name} ${reaction}`, '👋');
-  }, [selectedAgent, addToast]);
+    void runSelectedAction('pat');
+  }, [runSelectedAction]);
 
   const handleTask = useCallback(() => {
-    if (selectedAgent === null || !stateRef.current) return;
-    const agent = EMPLOYEE_AGENTS.find(a => a.id === selectedAgent);
-    if (!agent) return;
+    setTaskComposerOpen(true);
+  }, []);
 
-    const task = TASK_TYPES[Math.floor(Math.random() * TASK_TYPES.length)];
-
-    // Employee goes back to desk and starts typing
-    stateRef.current.setAgentActive(selectedAgent, true);
-    stateRef.current.setAgentTool(selectedAgent, 'Write');
-    setAgentActivities(prev => ({ ...prev, [selectedAgent]: 'coding' }));
-
-    // Show bubble to indicate task received
-    stateRef.current.showPermissionBubble(selectedAgent);
-    setTimeout(() => {
-      stateRef.current?.dismissBubble(selectedAgent);
-      stateRef.current?.showWaitingBubble(selectedAgent);
-    }, 1500);
-
-    addToast(`给 ${agent.name} 派了任务：${task}`, '📋');
-  }, [selectedAgent, addToast]);
+  const handleTaskSubmit = useCallback(() => {
+    void runSelectedAction('task', { taskContent: taskDraft.trim() });
+  }, [runSelectedAction, taskDraft]);
 
   const handleCoffee = useCallback(() => {
-    if (selectedAgent === null || !stateRef.current) return;
-    const agent = EMPLOYEE_AGENTS.find(a => a.id === selectedAgent);
-    if (!agent) return;
-
-    // Employee gets coffee break
-    stateRef.current.setAgentTool(selectedAgent, null);
-    stateRef.current.setAgentActive(selectedAgent, false);
-    setAgentActivities(prev => ({ ...prev, [selectedAgent]: 'coffee' }));
-
-    stateRef.current.showWaitingBubble(selectedAgent);
-
-    const reaction = COFFEE_REACTIONS[Math.floor(Math.random() * COFFEE_REACTIONS.length)];
-    addToast(`${agent.name} ${reaction}`, '☕');
-
-    // Return to work after a bit
-    setTimeout(() => {
-      if (stateRef.current) {
-        stateRef.current.setAgentActive(selectedAgent, true);
-        stateRef.current.setAgentTool(selectedAgent, 'Write');
-        setAgentActivities(prev => ({ ...prev, [selectedAgent]: 'coding' }));
-      }
-    }, 8000);
-  }, [selectedAgent, addToast]);
+    void runSelectedAction('coffee');
+  }, [runSelectedAction]);
 
   const handleRush = useCallback(() => {
-    if (selectedAgent === null || !stateRef.current) return;
-    const agent = EMPLOYEE_AGENTS.find(a => a.id === selectedAgent);
-    if (!agent) return;
-
-    // Rush them back to work
-    stateRef.current.setAgentActive(selectedAgent, true);
-    stateRef.current.setAgentTool(selectedAgent, 'Bash');
-    setAgentActivities(prev => ({ ...prev, [selectedAgent]: 'coding' }));
-
-    // Flash bubbles
-    stateRef.current.showPermissionBubble(selectedAgent);
-    setTimeout(() => {
-      stateRef.current?.dismissBubble(selectedAgent);
-    }, 1000);
-
-    const reaction = RUSH_REACTIONS[Math.floor(Math.random() * RUSH_REACTIONS.length)];
-    addToast(`催了一下 ${agent.name}，${reaction}`, '🔔');
-  }, [selectedAgent, addToast]);
+    void runSelectedAction('rush');
+  }, [runSelectedAction]);
 
   // ── Click handler ─────────────────────────────────────────────
   const handleClick = useCallback((agentId: number) => {
@@ -245,16 +184,16 @@ export default function VirtualOffice() {
 
   // Editor no-ops
   const noop = useCallback(() => {}, []);
-  const noopTile = useCallback((_col: number, _row: number) => {}, []);
-  const noopDrag = useCallback((_uid: string, _col: number, _row: number) => {}, []);
 
   // Selected agent info
   const selectedInfo = useMemo(() => {
     if (selectedAgent === null) return null;
-    return EMPLOYEE_AGENTS.find(a => a.id === selectedAgent) || null;
-  }, [selectedAgent]);
+    return agents.find((agent) => agent.id === selectedAgent) || null;
+  }, [agents, selectedAgent]);
 
-  const selectedActivity = selectedAgent !== null ? agentActivities[selectedAgent] : null;
+  const selectedActivity = selectedInfo?.activity ?? null;
+
+  const loading = assetsLoading || dataLoading;
 
   if (loading) {
     return (
@@ -276,9 +215,14 @@ export default function VirtualOffice() {
         <div className="flex items-center gap-3">
           <span className="text-lg">🏢</span>
           <span className="text-white/80 font-mono text-sm font-medium">虚拟办公室</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
-            ● {EMPLOYEE_AGENTS.length} 人在线
+          <span className={`text-[10px] px-2 py-0.5 rounded-full border ${runtime.runtimeOnline ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30'}`}>
+            ● {agents.length} 名智体 · {runtime.runtimeLabel} {runtime.runtimeOnline ? '在线' : '离线'}
           </span>
+          {!isConnected && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 border border-red-500/30">
+              SDK 未连接
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -293,6 +237,12 @@ export default function VirtualOffice() {
         </div>
       </div>
 
+      {(error || runtime.notes) && (
+        <div className="px-4 py-2 bg-[#10192f] border-b border-white/5 text-[11px] text-white/45 font-mono">
+          {error ?? runtime.notes}
+        </div>
+      )}
+
       {/* Canvas + Overlays */}
       <div className="flex-1 relative">
         <OfficeCanvas
@@ -300,12 +250,12 @@ export default function VirtualOffice() {
           onClick={handleClick}
           isEditMode={false}
           editorState={editorStateRef.current}
-          onEditorTileAction={noopTile}
-          onEditorEraseAction={noopTile}
+          onEditorTileAction={noop}
+          onEditorEraseAction={noop}
           onEditorSelectionChange={noop}
           onDeleteSelected={noop}
           onRotateSelected={noop}
-          onDragMove={noopDrag}
+          onDragMove={noop}
           editorTick={0}
           zoom={zoom}
           onZoomChange={setZoom}
@@ -325,31 +275,50 @@ export default function VirtualOffice() {
           ))}
         </div>
 
+        {!loading && agents.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="rounded-2xl border border-white/10 bg-[#16213e]/90 px-5 py-4 text-center shadow-xl">
+              <div className="text-3xl mb-2">🤖</div>
+              <div className="text-white/80 text-sm font-medium">当前没有可展示的已入职智体</div>
+              <div className="text-white/45 text-xs mt-1">办公室现在只展示 SDK 返回的真实 Agent，不再使用前端 mock 列表。</div>
+            </div>
+          </div>
+        )}
+
         {/* Selected agent interaction panel */}
         {selectedInfo && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#16213e]/95 backdrop-blur border border-white/10 rounded-xl px-5 py-3 shadow-2xl flex items-center gap-4">
             {/* Avatar + Info */}
             <div className="flex items-center gap-3 pr-4 border-r border-white/10">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-lg">
-                {selectedInfo.emoji}
+                {selectedInfo.avatar}
               </div>
               <div>
                 <div className="text-white text-sm font-medium">{selectedInfo.name}</div>
                 <div className="text-white/40 text-[10px]">{selectedInfo.role}</div>
+                <div className="text-white/30 text-[10px] mt-0.5">{selectedInfo.model} · {selectedInfo.runtimeLabel}</div>
                 {selectedActivity && (
                   <div className="flex items-center gap-1 mt-0.5">
                     <span className="text-xs">{ACTIVITIES[selectedActivity].emoji}</span>
                     <span className="text-white/50 text-[10px]">{ACTIVITIES[selectedActivity].label}</span>
                   </div>
                 )}
+                {selectedInfo.lastActive && (
+                  <div className="text-white/25 text-[10px] mt-0.5">最近活跃：{new Date(selectedInfo.lastActive).toLocaleString()}</div>
+                )}
+                {selectedInfo.workflowCount > 0 && (
+                  <div className="text-white/25 text-[10px] mt-0.5">可用工作流：{selectedInfo.workflowCount}</div>
+                )}
               </div>
             </div>
 
             {/* Interaction Buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
               <button
                 onClick={handlePat}
-                className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/15 transition-all text-white/70 hover:text-white"
+                disabled={actionPending !== null || !runtime.runtimeOnline}
+                className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/15 transition-all text-white/70 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
                 title="拍一下打个招呼"
               >
                 <span className="text-base">👋</span>
@@ -359,15 +328,17 @@ export default function VirtualOffice() {
                 <>
                   <button
                     onClick={handleTask}
-                    className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-blue-500/20 active:bg-blue-500/30 transition-all text-white/70 hover:text-blue-300"
-                    title="随机派一个任务"
+                    disabled={actionPending === 'task' || !runtime.runtimeOnline}
+                    className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-blue-500/20 active:bg-blue-500/30 transition-all text-white/70 hover:text-blue-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                    title={selectedInfo.primaryWorkflowId ? '打开任务输入框并启动对应工作流' : '打开任务输入框并发送真实任务'}
                   >
                     <span className="text-base">📋</span>
                     <span className="text-[9px]">派任务</span>
                   </button>
                   <button
                     onClick={handleCoffee}
-                    className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/20 active:bg-amber-500/30 transition-all text-white/70 hover:text-amber-300"
+                    disabled={actionPending !== null || !runtime.runtimeOnline}
+                    className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/20 active:bg-amber-500/30 transition-all text-white/70 hover:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed"
                     title="请喝杯咖啡"
                   >
                     <span className="text-base">☕</span>
@@ -375,13 +346,48 @@ export default function VirtualOffice() {
                   </button>
                   <button
                     onClick={handleRush}
-                    className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 active:bg-red-500/30 transition-all text-white/70 hover:text-red-300"
+                    disabled={actionPending !== null || !runtime.runtimeOnline}
+                    className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-red-500/20 active:bg-red-500/30 transition-all text-white/70 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed"
                     title="催一下加速"
                   >
                     <span className="text-base">🔔</span>
                     <span className="text-[9px]">催一下</span>
                   </button>
                 </>
+              )}
+              </div>
+
+              {taskComposerOpen && !selectedInfo.isLeader && (
+                <div className="flex items-center gap-2">
+                  <input
+                    value={taskDraft}
+                    onChange={(event) => setTaskDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        handleTaskSubmit();
+                      }
+                    }}
+                    placeholder="输入任务内容，直接透传到 workflow.run 或 conversations.sendMessage"
+                    className="w-[320px] rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none focus:border-blue-400/50"
+                  />
+                  <button
+                    onClick={handleTaskSubmit}
+                    disabled={actionPending === 'task' || !taskDraft.trim() || !runtime.runtimeOnline}
+                    className="rounded-lg bg-blue-500/20 px-3 py-2 text-[11px] text-blue-200 transition-colors hover:bg-blue-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    发送任务
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTaskComposerOpen(false);
+                      setTaskDraft('');
+                    }}
+                    className="rounded-lg px-2 py-2 text-[11px] text-white/40 hover:text-white/70"
+                  >
+                    取消
+                  </button>
+                </div>
               )}
             </div>
 
@@ -397,9 +403,8 @@ export default function VirtualOffice() {
       {/* Footer — employee status strip */}
       <div className="px-4 py-1.5 bg-[#16213e] border-t border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {EMPLOYEE_AGENTS.map(agent => {
-            const act = agentActivities[agent.id];
-            const info = act ? ACTIVITIES[act] : null;
+          {agents.map(agent => {
+            const info = ACTIVITIES[agent.activity];
             return (
               <button
                 key={agent.id}
@@ -411,10 +416,11 @@ export default function VirtualOffice() {
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${
-                  agent.isLeader ? 'bg-purple-400' :
-                  act === 'slacking' ? 'bg-yellow-400' :
-                  act === 'coffee' || act === 'idle' ? 'bg-amber-400' :
-                  'bg-green-400'
+                  agent.activity === 'attention' ? 'bg-red-400' :
+                  agent.activity === 'offline' ? 'bg-white/30' :
+                  agent.activity === 'workflow' ? 'bg-blue-400' :
+                  agent.activity === 'active' ? 'bg-emerald-400' :
+                  'bg-green-300'
                 }`} />
                 <span>{agent.name}</span>
                 {info && <span className="text-[10px] opacity-60">{info.emoji}</span>}
@@ -423,7 +429,7 @@ export default function VirtualOffice() {
           })}
         </div>
         <div className="text-white/20 text-[10px] font-mono">
-          pixel-agents engine · MIT
+          pixel-agents engine · SDK live data
         </div>
       </div>
 

@@ -21,8 +21,8 @@ const EMPLOYEE_LABELS: Record<string, string> = {
   leader: '主管',
   spark: 'Spark',
   xiaoke: '小可',
-  shuxi: '书习',
-  shuibao: '水宝',
+  shuxi: '书熙',
+  shuibao: '税宝',
   lvan: '绿安',
 };
 

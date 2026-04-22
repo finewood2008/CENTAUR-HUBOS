@@ -133,9 +133,17 @@ export default function TeamHeader({
           <div className="flex items-center gap-1">
             <div className="bg-warm-sand/20 rounded-2xl px-3 py-2 flex items-center gap-1 overflow-x-auto flex-1 min-w-0">
           {teamMembers.map(m => (
-            <button
+            <div
               key={m.id}
               onClick={() => onMemberClick?.(m.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onMemberClick?.(m.id);
+                }
+              }}
+              role="button"
+              tabIndex={0}
               className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl transition-all shrink-0 hover:bg-warm-sand/50 cursor-pointer group"
               title={`${m.name} — ${m.role}`}
             >
@@ -148,8 +156,10 @@ export default function TeamHeader({
                 {onRemoveMember && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onRemoveMember(m.id); }}
+                    onKeyDown={(e) => e.stopPropagation()}
                     className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-400 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                     title={`移除${m.name}`}
+                    type="button"
                   >
                     <X size={10} />
                   </button>
@@ -164,7 +174,7 @@ export default function TeamHeader({
               {m.status !== 'working' && (
                 <span className="text-[9px] text-stone-gray/50">{STATUS_TEXT[m.status]}</span>
               )}
-            </button>
+            </div>
           ))}
             </div>
 

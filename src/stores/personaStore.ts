@@ -20,6 +20,15 @@ export interface MemoryEntry {
   updatedAt: string;
 }
 
+export interface PendingMemoryOperation {
+  opId: string;
+  employeeId: string;
+  type: 'add' | 'delete';
+  createdAt: string;
+  entry?: MemoryEntry;
+  memoryId?: string;
+}
+
 export interface EmployeePersona {
   employeeId: string;
   soul: string;
@@ -74,11 +83,17 @@ export interface PersonaState {
   employees: Record<string, EmployeePersona>;
   shared: SharedKnowledge;
   logs: SystemLog[];
+  pendingMemoryOps: PendingMemoryOperation[];
 
   // Employee persona actions
   getSoul: (employeeId: string) => string;
   setSoul: (employeeId: string, content: string) => void;
   getMemories: (employeeId: string) => MemoryEntry[];
+  replaceMemories: (employeeId: string, entries: MemoryEntry[]) => void;
+  queuePendingMemoryAdd: (employeeId: string, entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt'>) => MemoryEntry | null;
+  queuePendingMemoryDelete: (employeeId: string, memoryId: string) => void;
+  getPendingMemoryOps: (employeeId: string) => PendingMemoryOperation[];
+  resolvePendingMemoryOp: (opId: string) => void;
   addMemory: (employeeId: string, entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateMemory: (employeeId: string, memoryId: string, content: string) => void;
   removeMemory: (employeeId: string, memoryId: string) => void;
@@ -90,6 +105,7 @@ export interface PersonaState {
 
   // System log
   getLogs: () => SystemLog[];
+  appendSystemLog: (action: SystemLog['action'], detail: string, employeeId?: string) => void;
 
   // Full context assembly (for prompt building)
   getFullContext: (employeeId: string) => {
@@ -159,6 +175,35 @@ function totalMemoryChars(memories: MemoryEntry[]): number {
   return memories.reduce((sum, m) => sum + m.content.length, 0);
 }
 
+function mergeWithPendingOperations(
+  serverEntries: MemoryEntry[],
+  pendingOps: PendingMemoryOperation[],
+): MemoryEntry[] {
+  const pendingDeleteIds = new Set(
+    pendingOps
+      .filter((op) => op.type === 'delete' && op.memoryId)
+      .map((op) => op.memoryId as string),
+  );
+
+  const pendingAdds = pendingOps
+    .filter((op): op is PendingMemoryOperation & { entry: MemoryEntry } => op.type === 'add' && Boolean(op.entry))
+    .map((op) => op.entry);
+
+  const merged = [
+    ...serverEntries.filter((entry) => !pendingDeleteIds.has(entry.id)),
+    ...pendingAdds,
+  ];
+
+  const unique = new Map<string, MemoryEntry>();
+  for (const entry of merged) {
+    unique.set(entry.id, entry);
+  }
+
+  return Array.from(unique.values()).sort(
+    (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+  );
+}
+
 function isToday(isoString: string): boolean {
   const d = new Date(isoString);
   const t = new Date();
@@ -186,6 +231,7 @@ export const usePersonaStore = create<PersonaState>()(
       employees: {},
       shared: { ...DEFAULT_SHARED },
       logs: [],
+      pendingMemoryOps: [],
 
       // ── Soul ────────────────────────────────────────────────────
 
@@ -215,6 +261,158 @@ export const usePersonaStore = create<PersonaState>()(
       getMemories: (employeeId: string): MemoryEntry[] => {
         const emp = get().employees[employeeId];
         return emp?.memories ?? [];
+      },
+
+      replaceMemories: (employeeId: string, entries: MemoryEntry[]): void => {
+        set((s) => {
+          const employees = ensureEmployee(s.employees, employeeId);
+          const persona = employees[employeeId];
+          const employeePendingOps = s.pendingMemoryOps.filter((op) => op.employeeId === employeeId);
+
+          return {
+            employees: {
+              ...employees,
+              [employeeId]: {
+                ...persona,
+                memories: mergeWithPendingOperations(entries, employeePendingOps),
+              },
+            },
+          };
+        });
+      },
+
+      queuePendingMemoryAdd: (
+        employeeId: string,
+        entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt'>,
+      ): MemoryEntry | null => {
+        let createdEntry: MemoryEntry | null = null;
+
+        set((s) => {
+          const employees = ensureEmployee(s.employees, employeeId);
+          const persona = employees[employeeId];
+          const currentChars = totalMemoryChars(persona.memories);
+
+          if (currentChars + entry.content.length > persona.memoryCharLimit) {
+            return {
+              logs: appendLog(
+                s.logs,
+                'memory_added',
+                `REJECTED: Memory for ${employeeId} would exceed char limit (${currentChars + entry.content.length}/${persona.memoryCharLimit})`,
+                employeeId,
+              ),
+            };
+          }
+
+          const timestamp = now();
+          createdEntry = {
+            ...entry,
+            id: `pending-${generateId()}`,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          };
+
+          return {
+            employees: {
+              ...employees,
+              [employeeId]: {
+                ...persona,
+                memories: [...persona.memories, createdEntry],
+              },
+            },
+            pendingMemoryOps: [
+              ...s.pendingMemoryOps,
+              {
+                opId: generateId(),
+                employeeId,
+                type: 'add',
+                createdAt: timestamp,
+                entry: createdEntry,
+              },
+            ],
+            logs: appendLog(
+              s.logs,
+              'memory_added',
+              `Memory queued locally for ${employeeId}: [${entry.category}] ${entry.content.slice(0, 60)}`,
+              employeeId,
+            ),
+          };
+        });
+
+        return createdEntry;
+      },
+
+      queuePendingMemoryDelete: (employeeId: string, memoryId: string): void => {
+        set((s) => {
+          const persona = s.employees[employeeId];
+          if (!persona) return s;
+
+          const remainingOps = [...s.pendingMemoryOps];
+          const pendingAddIndex = remainingOps.findIndex(
+            (op) => op.employeeId === employeeId && op.type === 'add' && op.entry?.id === memoryId,
+          );
+
+          if (pendingAddIndex >= 0) {
+            remainingOps.splice(pendingAddIndex, 1);
+            return {
+              employees: {
+                ...s.employees,
+                [employeeId]: {
+                  ...persona,
+                  memories: persona.memories.filter((memory) => memory.id !== memoryId),
+                },
+              },
+              pendingMemoryOps: remainingOps,
+              logs: appendLog(
+                s.logs,
+                'memory_removed',
+                `Pending local memory ${memoryId} removed for ${employeeId}`,
+                employeeId,
+              ),
+            };
+          }
+
+          const hasPendingDelete = remainingOps.some(
+            (op) => op.employeeId === employeeId && op.type === 'delete' && op.memoryId === memoryId,
+          );
+
+          return {
+            employees: {
+              ...s.employees,
+              [employeeId]: {
+                ...persona,
+                memories: persona.memories.filter((memory) => memory.id !== memoryId),
+              },
+            },
+            pendingMemoryOps: hasPendingDelete
+              ? remainingOps
+              : [
+                  ...remainingOps,
+                  {
+                    opId: generateId(),
+                    employeeId,
+                    type: 'delete',
+                    createdAt: now(),
+                    memoryId,
+                  },
+                ],
+            logs: appendLog(
+              s.logs,
+              'memory_removed',
+              `Memory queued for deletion for ${employeeId}: ${memoryId}`,
+              employeeId,
+            ),
+          };
+        });
+      },
+
+      getPendingMemoryOps: (employeeId: string): PendingMemoryOperation[] => {
+        return get().pendingMemoryOps.filter((op) => op.employeeId === employeeId);
+      },
+
+      resolvePendingMemoryOp: (opId: string): void => {
+        set((s) => ({
+          pendingMemoryOps: s.pendingMemoryOps.filter((op) => op.opId !== opId),
+        }));
       },
 
       addMemory: (
@@ -368,6 +566,12 @@ export const usePersonaStore = create<PersonaState>()(
 
       getLogs: (): SystemLog[] => {
         return get().logs;
+      },
+
+      appendSystemLog: (action: SystemLog['action'], detail: string, employeeId?: string): void => {
+        set((s) => ({
+          logs: appendLog(s.logs, action, detail, employeeId),
+        }));
       },
 
       // ── Full Context Assembly ──────────────────────────────────

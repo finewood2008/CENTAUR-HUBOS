@@ -5,8 +5,10 @@ import {
   checkConnection,
   getClientAsync,
 } from '../services/qeeclaw';
+import { usePersonaStore, type MemoryEntry as PersonaMemoryEntry } from '../stores/personaStore';
+import { DIGITAL_EMPLOYEES } from '../data/digital-employees';
 // mock 数据已移除，全部使用 SDK 真实数据
-import type { Agent, Template, Alert, UsageStat, ActivityItem } from '../types';
+import type { Agent, Template, Alert, UsageStat, ActivityItem, DigitalEmployee } from '../types';
 import type {
   MyAgent, AgentTemplate,
   WalletSummary, ModelQuotaSummary,
@@ -45,6 +47,355 @@ export function useConnection() {
   return { connected, checking, recheck };
 }
 
+type MemoryCategory = PersonaMemoryEntry['category'];
+
+interface MemoryStatsSummary {
+  total: number;
+  categories: Record<MemoryCategory, number>;
+}
+
+interface MemoryMutationResult {
+  ok: boolean;
+  usedFallback: boolean;
+}
+
+const MEMORY_SCOPE = {
+  teamId: 1,
+  runtimeType: 'hermes',
+} as const;
+
+const DEFAULT_MEMORY_FETCH_LIMIT = 200;
+const MAX_MEMORY_FETCH_LIMIT = 2000;
+
+const EMPTY_MEMORY_STATS: MemoryStatsSummary = {
+  total: 0,
+  categories: {
+    preference: 0,
+    fact: 0,
+    lesson: 0,
+    correction: 0,
+  },
+};
+
+function mapSdkMemoryCategory(category: unknown): MemoryCategory {
+  switch (category) {
+    case 'preference':
+      return 'preference';
+    case 'fact':
+    case 'entity':
+      return 'fact';
+    case 'decision':
+      return 'lesson';
+    case 'other':
+      return 'correction';
+    default:
+      return 'fact';
+  }
+}
+
+function mapUiMemoryCategory(category: MemoryCategory): 'preference' | 'fact' | 'decision' | 'entity' | 'other' {
+  switch (category) {
+    case 'preference':
+      return 'preference';
+    case 'fact':
+      return 'fact';
+    case 'lesson':
+      return 'decision';
+    case 'correction':
+      return 'other';
+    default:
+      return 'fact';
+  }
+}
+
+function clampConfidence(value: unknown): number {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 1;
+  return Math.min(1, Math.max(0, value));
+}
+
+function normalizeSdkMemoryEntry(item: Record<string, unknown>): PersonaMemoryEntry | null {
+  const content = typeof item.content === 'string' ? item.content.trim() : '';
+  if (!content) return null;
+
+  const id = typeof item.id === 'string'
+    ? item.id
+    : typeof item.entry_id === 'string'
+      ? item.entry_id
+      : `sdk-${Math.random().toString(36).slice(2, 10)}`;
+
+  const createdAt = typeof item.created_at === 'string'
+    ? item.created_at
+    : typeof item.createdAt === 'string'
+      ? item.createdAt
+      : new Date().toISOString();
+
+  const updatedAt = typeof item.updated_at === 'string'
+    ? item.updated_at
+    : typeof item.updatedAt === 'string'
+      ? item.updatedAt
+      : createdAt;
+
+  return {
+    id,
+    content,
+    source: 'manual',
+    category: mapSdkMemoryCategory(item.category),
+    target: 'memory',
+    confidence: clampConfidence(item.importance),
+    createdAt,
+    updatedAt,
+  };
+}
+
+function buildMemoryStats(memories: PersonaMemoryEntry[]): MemoryStatsSummary {
+  return memories.reduce<MemoryStatsSummary>((summary, entry) => {
+    summary.total += 1;
+    summary.categories[entry.category] += 1;
+    return summary;
+  }, {
+    total: 0,
+    categories: {
+      preference: 0,
+      fact: 0,
+      lesson: 0,
+      correction: 0,
+    },
+  });
+}
+
+function normalizeMemoryStats(raw: Record<string, unknown> | null | undefined): MemoryStatsSummary {
+  const categories = {
+    preference: 0,
+    fact: 0,
+    lesson: 0,
+    correction: 0,
+  } satisfies Record<MemoryCategory, number>;
+
+  const source = raw && typeof raw.by_category === 'object' && raw.by_category !== null
+    ? raw.by_category as Record<string, unknown>
+    : raw && typeof raw.categories === 'object' && raw.categories !== null
+      ? raw.categories as Record<string, unknown>
+      : {};
+
+  for (const [key, value] of Object.entries(source)) {
+    const mappedKey = mapSdkMemoryCategory(key);
+    categories[mappedKey] += Number(value) || 0;
+  }
+
+  const total = typeof raw?.total === 'number'
+    ? raw.total
+    : Object.values(categories).reduce((sum, value) => sum + value, 0);
+
+  return { total, categories };
+}
+
+function sortMemories(memories: PersonaMemoryEntry[]): PersonaMemoryEntry[] {
+  return [...memories].sort(
+    (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
+  );
+}
+
+export function useMemoryData(employee: DigitalEmployee | null) {
+  const getMemories = usePersonaStore((state) => state.getMemories);
+  const queuePendingMemoryAdd = usePersonaStore((state) => state.queuePendingMemoryAdd);
+  const queuePendingMemoryDelete = usePersonaStore((state) => state.queuePendingMemoryDelete);
+  const getPendingMemoryOps = usePersonaStore((state) => state.getPendingMemoryOps);
+  const resolvePendingMemoryOp = usePersonaStore((state) => state.resolvePendingMemoryOp);
+  const appendSystemLog = usePersonaStore((state) => state.appendSystemLog);
+  const replaceMemories = usePersonaStore((state) => state.replaceMemories);
+
+  const [memories, setMemories] = useState<PersonaMemoryEntry[]>([]);
+  const [stats, setStats] = useState<MemoryStatsSummary>(EMPTY_MEMORY_STATS);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [didTruncate, setDidTruncate] = useState(false);
+
+  const loadFallback = useCallback((message?: string) => {
+    if (!employee) {
+      setMemories([]);
+      setStats(EMPTY_MEMORY_STATS);
+      setDidTruncate(false);
+      setUsingFallback(true);
+      return;
+    }
+
+    const fallbackMemories = sortMemories(getMemories(employee.id));
+    setMemories(fallbackMemories);
+    setStats(buildMemoryStats(fallbackMemories));
+    setDidTruncate(false);
+    setUsingFallback(true);
+    if (message) {
+      setError(message);
+    }
+  }, [employee, getMemories]);
+
+  const refresh = useCallback(async () => {
+    if (!employee) {
+      setMemories([]);
+      setStats(EMPTY_MEMORY_STATS);
+      setError(null);
+      setUsingFallback(false);
+      setDidTruncate(false);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const client = await getClientAsync();
+      const rawStats = await client.memory.stats({
+        ...MEMORY_SCOPE,
+        agentId: employee.id,
+      }).catch(() => null);
+      const normalizedStats = normalizeMemoryStats(rawStats as Record<string, unknown> | null);
+      const requestedLimit = Math.max(DEFAULT_MEMORY_FETCH_LIMIT, normalizedStats.total || 0);
+      const effectiveLimit = Math.min(requestedLimit, MAX_MEMORY_FETCH_LIMIT);
+      const pendingOps = getPendingMemoryOps(employee.id)
+        .slice()
+        .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+
+      for (const op of pendingOps) {
+        if (op.type === 'add' && op.entry) {
+          await client.memory.store({
+            ...MEMORY_SCOPE,
+            agentId: employee.id,
+            content: op.entry.content,
+            category: mapUiMemoryCategory(op.entry.category),
+            importance: op.entry.confidence,
+          });
+          resolvePendingMemoryOp(op.opId);
+          appendSystemLog(
+            'memory_added',
+            `Memory synced for ${employee.id}: [${op.entry.category}] ${op.entry.content.slice(0, 60)}`,
+            employee.id,
+          );
+        }
+
+        if (op.type === 'delete' && op.memoryId) {
+          await client.memory.delete(op.memoryId, {
+            ...MEMORY_SCOPE,
+            agentId: employee.id,
+          });
+          resolvePendingMemoryOp(op.opId);
+          appendSystemLog(
+            'memory_removed',
+            `Memory deletion synced for ${employee.id}: ${op.memoryId}`,
+            employee.id,
+          );
+        }
+      }
+
+      const result = await client.memory.search({
+        ...MEMORY_SCOPE,
+        agentId: employee.id,
+        query: '',
+        limit: effectiveLimit,
+        threshold: 0,
+      });
+
+      const normalized = Array.isArray(result)
+        ? sortMemories(
+            result
+              .map((item) => normalizeSdkMemoryEntry(item as Record<string, unknown>))
+              .filter((item): item is PersonaMemoryEntry => item !== null),
+          )
+        : [];
+
+      setMemories(normalized);
+      setStats(normalizedStats.total > 0 ? normalizedStats : buildMemoryStats(normalized));
+      replaceMemories(employee.id, normalized);
+      setUsingFallback(false);
+      setDidTruncate(normalizedStats.total > normalized.length || requestedLimit > effectiveLimit);
+      setError(null);
+    } catch (err) {
+      loadFallback(err instanceof Error ? err.message : 'memory sdk unavailable');
+    } finally {
+      setLoading(false);
+    }
+  }, [appendSystemLog, employee, getPendingMemoryOps, loadFallback, replaceMemories, resolvePendingMemoryOp]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const addMemory = useCallback(async (content: string, category: MemoryCategory): Promise<MemoryMutationResult> => {
+    if (!employee) return { ok: false, usedFallback: false };
+
+    const trimmed = content.trim();
+    if (!trimmed) return { ok: false, usedFallback: false };
+
+    try {
+      const client = await getClientAsync();
+      await client.memory.store({
+        ...MEMORY_SCOPE,
+        agentId: employee.id,
+        content: trimmed,
+        category: mapUiMemoryCategory(category),
+        importance: 1,
+      });
+      appendSystemLog(
+        'memory_added',
+        `Memory added for ${employee.id}: [${category}] ${trimmed.slice(0, 60)}`,
+        employee.id,
+      );
+      await refresh();
+      return { ok: true, usedFallback: false };
+    } catch (err) {
+      const queued = queuePendingMemoryAdd(employee.id, {
+        content: trimmed,
+        source: 'manual',
+        category,
+        target: 'memory',
+        confidence: 1,
+      });
+      if (!queued) {
+        return { ok: false, usedFallback: true };
+      }
+      loadFallback(err instanceof Error ? err.message : 'memory sdk unavailable');
+      return { ok: true, usedFallback: true };
+    }
+  }, [appendSystemLog, employee, loadFallback, queuePendingMemoryAdd, refresh]);
+
+  const deleteMemory = useCallback(async (memoryId: string): Promise<MemoryMutationResult> => {
+    if (!employee) return { ok: false, usedFallback: false };
+
+    try {
+      const client = await getClientAsync();
+      await client.memory.delete(memoryId, {
+        ...MEMORY_SCOPE,
+        agentId: employee.id,
+      });
+      appendSystemLog(
+        'memory_removed',
+        `Memory removed for ${employee.id}: ${memoryId}`,
+        employee.id,
+      );
+      await refresh();
+      return { ok: true, usedFallback: false };
+    } catch (err) {
+      queuePendingMemoryDelete(employee.id, memoryId);
+      loadFallback(err instanceof Error ? err.message : 'memory sdk unavailable');
+      return { ok: true, usedFallback: true };
+    }
+  }, [appendSystemLog, employee, loadFallback, queuePendingMemoryDelete, refresh]);
+
+  return {
+    memories,
+    stats,
+    loading,
+    error,
+    usingFallback,
+    didTruncate,
+    supportsOrganize: false,
+    refresh,
+    addMemory,
+    deleteMemory,
+  };
+}
+
 // ── 将 SDK MyAgent 转换为 Hub OS Agent 类型 ───────
 function sdkAgentToHubAgent(agent: MyAgent): Agent {
   return {
@@ -80,6 +431,380 @@ function sdkTemplateToHubTemplate(tpl: AgentTemplate): Template {
     skills: tpl.allowedTools,
     color: 'from-blue-500 to-cyan-500',
     status: 'live' as const,
+  };
+}
+
+export type OfficeAgentActivity = 'active' | 'workflow' | 'standby' | 'offline' | 'attention';
+
+export interface OfficeRuntimeState {
+  runtimeLabel: string;
+  runtimeStatus: string;
+  runtimeStage: string;
+  notes: string;
+  runtimeOnline: boolean;
+}
+
+export interface OfficeAgentData {
+  id: number;
+  code: string;
+  hubId: string;
+  name: string;
+  role: string;
+  avatar: string;
+  isLeader: boolean;
+  model: string;
+  runtimeLabel: string;
+  activity: OfficeAgentActivity;
+  lastActive: string | null;
+  activeTaskStatus: string | null;
+  activeTaskProgress: number | null;
+  activeTaskBrief: string | null;
+  workflowCount: number;
+  primaryWorkflowId: string | null;
+  primaryWorkflowName: string | null;
+}
+
+export type OfficeActionKind = 'pat' | 'task' | 'coffee' | 'rush';
+
+export interface OfficeActionOptions {
+  taskContent?: string;
+}
+
+export interface OfficeActionResult {
+  ok: boolean;
+  emoji: string;
+  message: string;
+}
+
+type OfficeWorkflowLike = {
+  id: string;
+  name?: string;
+  description?: string | null;
+  enabled?: boolean;
+};
+
+const OFFICE_PROFILE_ORDER = new Map(DIGITAL_EMPLOYEES.map((employee, index) => [employee.id, index]));
+
+function normalizeOfficeToken(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+function findOfficeProfile(agent: MyAgent): DigitalEmployee | null {
+  const codeToken = normalizeOfficeToken(agent.code);
+  const nameToken = normalizeOfficeToken(agent.name);
+
+  return DIGITAL_EMPLOYEES.find((employee) => {
+    const tokens = [employee.id, employee.englishName, employee.name]
+      .map((value) => normalizeOfficeToken(String(value)))
+      .filter(Boolean);
+    return tokens.some((token) => {
+      if (!token) return false;
+      return (
+        codeToken === token ||
+        nameToken === token ||
+        codeToken.includes(token) ||
+        nameToken.includes(token)
+      );
+    });
+  }) ?? null;
+}
+
+function getWorkflowMatchesForAgent(
+  agent: MyAgent,
+  profile: DigitalEmployee | null,
+  workflows: OfficeWorkflowLike[],
+): OfficeWorkflowLike[] {
+  const matchTokens = [agent.code, agent.name, profile?.id, profile?.englishName, profile?.name]
+    .map((value) => normalizeOfficeToken(typeof value === 'string' ? value : String(value ?? '')))
+    .filter(Boolean);
+
+  return workflows.filter((workflow) => {
+    if (workflow.enabled === false) return false;
+    const haystack = normalizeOfficeToken([
+      workflow.id,
+      workflow.name ?? '',
+      workflow.description ?? '',
+    ].join(' '));
+    return matchTokens.some((token) => haystack.includes(token));
+  });
+}
+
+function parseOfficeTimestamp(value: string | null | undefined): number {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function isRuntimeOnline(onlineState: {
+  runtimeStatus?: string;
+  onlineTeamIds?: number[];
+} | null): boolean {
+  if (!onlineState) return false;
+
+  if (Array.isArray(onlineState.onlineTeamIds) && onlineState.onlineTeamIds.includes(1)) {
+    return true;
+  }
+
+  const status = String(onlineState.runtimeStatus ?? '').toLowerCase();
+  return ['online', 'running', 'ready', 'connected', 'healthy'].includes(status);
+}
+
+function deriveOfficeActivity(
+  runtimeOnline: boolean,
+  runtimeStatus: string,
+  lastActive: string | null,
+  workflowCount: number,
+  activeTaskStatus?: string | null,
+): OfficeAgentActivity {
+  if (!runtimeOnline) return 'offline';
+
+  const loweredStatus = runtimeStatus.toLowerCase();
+  if (['error', 'failed', 'degraded'].includes(loweredStatus)) {
+    return 'attention';
+  }
+
+   const loweredTaskStatus = String(activeTaskStatus ?? '').toLowerCase();
+   if (['processing', 'running', 'pending', 'queued'].includes(loweredTaskStatus)) {
+     return 'active';
+   }
+
+  const lastActiveTs = parseOfficeTimestamp(lastActive);
+  if (lastActiveTs > 0 && Date.now() - lastActiveTs <= 10 * 60 * 1000) {
+    return 'active';
+  }
+
+  if (workflowCount > 0) {
+    return 'workflow';
+  }
+
+  return 'standby';
+}
+
+function sortOfficeAgents(agents: OfficeAgentData[]): OfficeAgentData[] {
+  return [...agents].sort((left, right) => {
+    const leftOrder = OFFICE_PROFILE_ORDER.get(left.hubId) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = OFFICE_PROFILE_ORDER.get(right.hubId) ?? Number.MAX_SAFE_INTEGER;
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+    return left.name.localeCompare(right.name, 'zh-CN');
+  });
+}
+
+export function useOfficeData(isConnected: boolean) {
+  const [agents, setAgents] = useState<OfficeAgentData[]>([]);
+  const [runtime, setRuntime] = useState<OfficeRuntimeState>({
+    runtimeLabel: 'Hermes',
+    runtimeStatus: 'offline',
+    runtimeStage: 'phase_device_bridge_only',
+    notes: '当前未连接到办公室运行时。',
+    runtimeOnline: false,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!isConnected) {
+      setAgents([]);
+      setRuntime({
+        runtimeLabel: 'Hermes',
+        runtimeStatus: 'offline',
+        runtimeStage: 'phase_device_bridge_only',
+        notes: '当前未连接到办公室运行时。',
+        runtimeOnline: false,
+      });
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const client = await getClientAsync();
+      const [agentList, onlineState, historyResult, workflowsResult] = await Promise.all([
+        client.agent.listMyAgents().catch(() => []),
+        client.devices.getOnlineState().catch(() => null),
+        client.conversations.listHistory({ teamId: 1, limit: 100 }).catch(() => []),
+        client.workflow.list().catch(() => []),
+      ]);
+
+      const runtimeState = {
+        runtimeLabel: onlineState?.runtimeLabel ?? 'Hermes',
+        runtimeStatus: onlineState?.runtimeStatus ?? 'unknown',
+        runtimeStage: onlineState?.runtimeStage ?? 'phase_device_bridge_only',
+        notes: onlineState?.notes ?? '办公室运行时未返回额外说明。',
+        runtimeOnline: isRuntimeOnline(onlineState),
+      };
+
+      const histories = Array.isArray(historyResult) ? historyResult : [];
+      const workflows = (Array.isArray(workflowsResult) ? workflowsResult : []) as OfficeWorkflowLike[];
+      const latestHistoryByAgent = new Map<number, ConversationHistoryMessage>();
+
+      for (const item of histories) {
+        if (typeof item.agentId !== 'number') continue;
+        const existing = latestHistoryByAgent.get(item.agentId);
+        if (!existing) {
+          latestHistoryByAgent.set(item.agentId, item);
+          continue;
+        }
+        if (parseOfficeTimestamp(item.createdTime) >= parseOfficeTimestamp(existing.createdTime)) {
+          latestHistoryByAgent.set(item.agentId, item);
+        }
+      }
+
+      const officeAgents = sortOfficeAgents(
+        (Array.isArray(agentList) ? agentList : []).map((agent) => {
+          const profile = findOfficeProfile(agent);
+          const matchedWorkflows = getWorkflowMatchesForAgent(agent, profile, workflows);
+          const latestHistory = latestHistoryByAgent.get(agent.id);
+          const lastActive = agent.lastActiveTime ?? latestHistory?.createdTime ?? null;
+          const activeTaskStatus = agent.activeTaskStatus ?? null;
+          const runtimeStatus = agent.runtimeStatus ?? runtimeState.runtimeStatus;
+
+          return {
+            id: agent.id,
+            code: agent.code,
+            hubId: profile?.id ?? agent.code,
+            name: profile?.name ?? agent.name,
+            role: profile?.role ?? agent.description ?? '未设置角色',
+            avatar: profile?.avatar ?? agent.avatar ?? '🤖',
+            isLeader: (profile?.id ?? agent.code) === 'leader',
+            model: agent.model ?? profile?.model ?? 'unknown',
+            runtimeLabel: agent.runtimeLabel ?? runtimeState.runtimeLabel,
+            activity: deriveOfficeActivity(
+              runtimeState.runtimeOnline,
+              runtimeStatus,
+              lastActive,
+              matchedWorkflows.length,
+              activeTaskStatus,
+            ),
+            lastActive,
+            activeTaskStatus,
+            activeTaskProgress: agent.activeTaskProgress ?? null,
+            activeTaskBrief: agent.activeTaskBrief ?? null,
+            workflowCount: matchedWorkflows.length,
+            primaryWorkflowId: matchedWorkflows[0]?.id ?? null,
+            primaryWorkflowName: matchedWorkflows[0]?.name ?? null,
+          };
+        }),
+      );
+
+      setAgents(officeAgents);
+      setRuntime(runtimeState);
+      setError(null);
+    } catch (err) {
+      setAgents([]);
+      setRuntime({
+        runtimeLabel: 'Hermes',
+        runtimeStatus: 'error',
+        runtimeStage: 'phase_device_bridge_only',
+        notes: '办公室数据拉取失败。',
+        runtimeOnline: false,
+      });
+      setError(err instanceof Error ? err.message : 'office data unavailable');
+    } finally {
+      setLoading(false);
+    }
+  }, [isConnected]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!isConnected) return undefined;
+
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, 15000);
+
+    return () => window.clearInterval(timer);
+  }, [isConnected, refresh]);
+
+  const triggerAction = useCallback(async (
+    agentId: number,
+    action: OfficeActionKind,
+    options?: OfficeActionOptions,
+  ): Promise<OfficeActionResult> => {
+    if (!isConnected) {
+      return { ok: false, emoji: '⚠️', message: '当前离线，无法发送办公室指令' };
+    }
+
+    const target = agents.find((agent) => agent.id === agentId);
+    if (!target) {
+      return { ok: false, emoji: '⚠️', message: '未找到目标智体' };
+    }
+
+    const taskContent = options?.taskContent?.trim() ?? '';
+    if (action === 'task' && !taskContent) {
+      return { ok: false, emoji: '⚠️', message: '请输入任务内容' };
+    }
+
+    try {
+      const client = await getClientAsync();
+
+      if (action === 'task' && target.primaryWorkflowId) {
+        await client.workflow.run(target.primaryWorkflowId, {
+          source: 'virtual-office',
+          teamId: 1,
+          agentId: target.id,
+          agentCode: target.code,
+          agentName: target.name,
+          taskBrief: taskContent,
+          prompt: taskContent,
+        });
+        void refresh();
+        return {
+          ok: true,
+          emoji: '📋',
+          message: `已为 ${target.name} 启动工作流${target.primaryWorkflowName ? `：${target.primaryWorkflowName}` : ''}`,
+        };
+      }
+
+      const messages: Record<Exclude<OfficeActionKind, 'task'>, string> = {
+        pat: '[virtual-office] 老板刚刚拍了拍你，请同步当前进展。',
+        coffee: '[virtual-office] 老板请你喝杯咖啡，休整后继续当前任务并回复进度。',
+        rush: '[virtual-office] 请优先处理当前任务，并尽快反馈阻塞点和预计完成时间。',
+      };
+      const feedback: Record<OfficeActionKind, { emoji: string; message: string }> = {
+        pat: { emoji: '👋', message: `已提醒 ${target.name} 同步当前进展` },
+        task: { emoji: '📋', message: `已向 ${target.name} 下发任务请求` },
+        coffee: { emoji: '☕', message: `已给 ${target.name} 发送休息提醒` },
+        rush: { emoji: '🔔', message: `已催办 ${target.name} 当前任务` },
+      };
+
+      const content = action === 'task'
+        ? `[virtual-office] 新任务：${taskContent}\n请回复执行计划、预计完成时间，以及当前可能阻塞点。`
+        : messages[action];
+
+      await client.conversations.sendMessage({
+        teamId: 1,
+        agentId: target.id,
+        content,
+      });
+
+      void refresh();
+      return {
+        ok: true,
+        emoji: feedback[action].emoji,
+        message: feedback[action].message,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        emoji: '⚠️',
+        message: err instanceof Error ? err.message : '办公室动作执行失败',
+      };
+    }
+  }, [agents, isConnected, refresh]);
+
+  return {
+    agents,
+    runtime,
+    loading,
+    error,
+    refresh,
+    triggerAction,
   };
 }
 
@@ -375,6 +1100,7 @@ export function useKnowledgeData(isConnected: boolean) {
 // ── 模型调用 hook（聊天用） ───────────────────────
 export function useQeeClawAgent(agentId: string) {
   const [loading, setLoading] = useState(false);
+  void agentId;
 
   const invokeModel = useCallback(
     async (prompt: string) => {
@@ -390,7 +1116,7 @@ export function useQeeClawAgent(agentId: string) {
         setLoading(false);
       }
     },
-    [agentId],
+    [],
   );
 
   return { invokeModel, loading };

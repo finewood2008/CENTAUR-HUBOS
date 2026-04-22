@@ -1,10 +1,10 @@
-// TabMemory — 个人记忆 (PersonaStore edition)
+// TabMemory — 个人记忆
 import { useState, useEffect } from 'react';
-import { Brain, Plus, Trash2, Sparkles } from 'lucide-react';
+import { Brain, Plus, Trash2 } from 'lucide-react';
 import { usePersonaStore } from '../../../stores/personaStore';
 import { SOUL_DEFAULTS } from '../../../data/persona-defaults';
 import type { DigitalEmployee } from '../../../types';
-import type { MemoryEntry } from '../../../stores/personaStore';
+import { useMemoryData } from '../../../hooks/useQeeClaw';
 
 interface Props {
   emp: DigitalEmployee;
@@ -30,22 +30,29 @@ function formatDate(iso: string): string {
 }
 
 export default function TabMemory({ emp, readonly }: Props) {
-  const store = usePersonaStore();
+  const initializeEmployee = usePersonaStore((state) => state.initializeEmployee);
+  const charLimit = usePersonaStore((state) => state.employees[emp.id]?.memoryCharLimit ?? 2000);
   const [newMem, setNewMem] = useState('');
   const [newCat, setNewCat] = useState<MemoryCategory>('fact');
   const [toast, setToast] = useState('');
+  const {
+    memories,
+    stats,
+    loading,
+    usingFallback,
+    didTruncate,
+    supportsOrganize,
+    addMemory,
+    deleteMemory,
+  } = useMemoryData(emp);
 
   // Initialize employee persona on mount if not exists
   useEffect(() => {
     const defaultSoul = SOUL_DEFAULTS.find((s) => s.employeeId === emp.id)?.soul ?? '';
-    store.initializeEmployee(emp.id, defaultSoul);
+    initializeEmployee(emp.id, defaultSoul);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emp.id]);
 
-  // Read memories from store
-  const memories: MemoryEntry[] = store.getMemories(emp.id);
-  const persona = store.employees[emp.id];
-  const charLimit = persona?.memoryCharLimit ?? 2000;
   const charUsed = memories.reduce((sum, m) => sum + m.content.length, 0);
   const charPercent = charLimit > 0 ? Math.min(100, Math.round((charUsed / charLimit) * 100)) : 0;
 
@@ -54,28 +61,25 @@ export default function TabMemory({ emp, readonly }: Props) {
     setTimeout(() => setToast(''), 2000);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newMem.trim() || readonly) return;
     if (charUsed + newMem.trim().length > charLimit) {
       showToast('字符超限，请先清理旧记忆');
       return;
     }
-    store.addMemory(emp.id, {
-      content: newMem.trim(),
-      source: 'manual',
-      category: newCat,
-    });
+    const result = await addMemory(newMem.trim(), newCat);
+    if (!result.ok) return;
+
     setNewMem('');
-    showToast('记忆已保存');
+    showToast(result.usedFallback ? '记忆已保存到本地，等待同步' : '记忆已保存');
   };
 
-  const handleDelete = (memoryId: string) => {
+  const handleDelete = async (memoryId: string) => {
     if (readonly) return;
-    store.removeMemory(emp.id, memoryId);
-  };
-
-  const handleOrganize = () => {
-    showToast('整理记忆功能即将上线…');
+    const result = await deleteMemory(memoryId);
+    if (result.usedFallback) {
+      showToast('删除已在本地生效，等待同步');
+    }
   };
 
   return (
@@ -92,8 +96,16 @@ export default function TabMemory({ emp, readonly }: Props) {
         <div className="flex items-center gap-2 mb-3">
           <Brain size={14} className="text-terracotta" />
           <h3 className="font-serif text-sm text-near-black font-medium">{emp.name}的记忆体</h3>
-          <span className="ml-auto text-[11px] text-stone-gray">共 {memories.length} 条</span>
+          <span className="ml-auto text-[11px] text-stone-gray">共 {stats.total} 条</span>
         </div>
+
+        {usingFallback && (
+          <p className="mb-3 text-[11px] text-stone-gray">SDK 不可用，当前显示本地回退记忆</p>
+        )}
+
+        {didTruncate && (
+          <p className="mb-3 text-[11px] text-stone-gray">当前仅展示最近部分记忆，完整列表需要服务端分页支持</p>
+        )}
 
         {/* Char usage progress bar */}
         <div className="mb-3">
@@ -127,17 +139,7 @@ export default function TabMemory({ emp, readonly }: Props) {
           </div>
         )}
 
-        {/* Organize button */}
-        <div className="flex justify-end mt-3">
-          <button
-            onClick={handleOrganize}
-            disabled={readonly || memories.length === 0}
-            className="flex items-center gap-1 text-[11px] text-terracotta hover:text-terracotta/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            <Sparkles size={12} />
-            整理记忆
-          </button>
-        </div>
+        {supportsOrganize && <div className="mt-3" />}
       </section>
 
       {/* Add memory */}
@@ -182,7 +184,9 @@ export default function TabMemory({ emp, readonly }: Props) {
           <Brain size={14} className="text-terracotta" />
           记忆列表
         </h3>
-        {memories.length > 0 ? (
+        {loading ? (
+          <p className="text-[11px] text-stone-gray text-center py-6">加载记忆中...</p>
+        ) : memories.length > 0 ? (
           <div className="space-y-2">
             {[...memories].reverse().map((m) => {
               const meta = CATEGORY_LABELS[m.category] || CATEGORY_LABELS.fact;

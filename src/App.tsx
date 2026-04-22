@@ -1,11 +1,11 @@
 // Hub OS - 主应用入口
 // SDK 连接 → 真实数据；后端未启动 → 自动 fallback mock
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { NavTab } from './types';
 import Sidebar from './components/layout/Sidebar';
 import Cockpit from './components/cockpit';
 import Team from './components/team/Team';
-import EmployeeBuilderV2 from './components/builder';
+import EmployeeBuilderV2, { type EmployeeSpecV2 } from './components/builder';
 import Finance from './components/finance/Finance';
 import Channels from './components/channels/Channels';
 import Knowledge from './components/knowledge/Knowledge';
@@ -33,11 +33,11 @@ function AppInner() {
   const { toast } = useToast();
 
   // 数据加载
-  const { data: dashData, refresh: refreshDashboard } = useEnhancedDashboardData(connected);
+  const { data: dashData } = useEnhancedDashboardData(connected);
   const { data: channelsData, loading: channelsLoading, refresh: refreshChannels } = useChannelsData(connected);
   const { data: knowledgeData, loading: knowledgeLoading, refresh: refreshKnowledge } = useKnowledgeData(connected);
 
-  const handleBuilderComplete = async (spec: any) => {
+  const handleBuilderComplete = async (spec: EmployeeSpecV2) => {
     try {
       const raw = localStorage.getItem('hubos_custom_employees');
       const list = raw ? JSON.parse(raw) : [];
@@ -100,7 +100,7 @@ function AppInner() {
             />
           )}
           {tab === 'memory' && <MemoryCenter />}
-          {tab === 'office' && <VirtualOffice />}
+          {tab === 'office' && <VirtualOffice isConnected={connected} />}
           {tab === 'knowledge' && (
             <Knowledge
               knowledgeData={knowledgeData}

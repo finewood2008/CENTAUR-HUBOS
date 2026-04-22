@@ -4,6 +4,8 @@ import { getClientAsync } from '../services/qeeclaw';
 import type { ChatMessage, ReportItem, InputFile, Task, ScheduledTask, PartnerProfile } from '../data/partner';
 import { DEFAULT_PARTNER, ONBOARDING_MESSAGES } from '../data/partner';
 
+type QeeClawClient = Awaited<ReturnType<typeof getClientAsync>>;
+
 interface CockpitData {
   partner: PartnerProfile;
   messages: ChatMessage[];
@@ -25,6 +27,28 @@ export function useCockpit(isConnected: boolean) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const sessionInitialized = useRef(false);
+
+  const createCockpitSession = useCallback(async (agentProfile = 'default') => {
+    const response = await fetch(`${window.location.origin}/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: 'hubos-cockpit',
+        agent_profile: agentProfile,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Create cockpit session failed');
+    }
+
+    const session = await response.json() as { session_id?: string | null };
+    if (!session.session_id) {
+      throw new Error('Cockpit session id missing');
+    }
+
+    return session.session_id;
+  }, []);
 
   // 辅助函数：修改内部数据
   const updateData = useCallback((updates: Partial<CockpitData>) => {
@@ -52,7 +76,6 @@ export function useCockpit(isConnected: boolean) {
   const loadApprovals = useCallback(async () => {
     if (!isConnected) return;
     try {
-      const client = await getClientAsync();
       // TODO: 从 approval 模块获取待审批项
       // const remoteApprovals = await client.approval.list({ status: 'pending' });
       
@@ -117,11 +140,7 @@ export function useCockpit(isConnected: boolean) {
     setLoading(true);
     try {
       const client = await getClientAsync();
-      // 创建会话
-      const session = await client.conversations.create({
-        teamId: 1,
-        title: '工作台对话',
-      });
+      const sessionId = await createCockpitSession();
       // 并行加载任务和调度
       await Promise.all([loadApprovals(), loadSchedule()]);
 
@@ -132,12 +151,12 @@ export function useCockpit(isConnected: boolean) {
           ...prev,
           messages: morningBriefing,
           reports: [],
-          sessionId: session.id,
+          sessionId,
         }));
       } else {
          setData(prev => ({
           ...prev,
-          sessionId: session.id,
+          sessionId,
         }));
       }
       sessionInitialized.current = true;
@@ -152,7 +171,7 @@ export function useCockpit(isConnected: boolean) {
     } finally {
       setLoading(false);
     }
-  }, [isConnected, loadApprovals, loadSchedule, data.partner.isConfigured]);
+  }, [isConnected, loadApprovals, loadSchedule, data.partner.isConfigured, createCockpitSession]);
 
   // 发送消息
   const sendMessage = useCallback(async (text: string, files?: InputFile[], voiceBlob?: { blob: Blob; duration: number }) => {
@@ -215,8 +234,6 @@ export function useCockpit(isConnected: boolean) {
     setSending(true);
 
     try {
-      const client = await getClientAsync();
-      
       // TODO: 向 SDK 上传 files 和 voiceBlob
       // const fileIds = [];
       // for (const file of files) {
@@ -225,12 +242,14 @@ export function useCockpit(isConnected: boolean) {
       // }
 
       // 调用流式 API
-      const response = await fetch(`${window.location.origin}/api/platform/conversations/${data.sessionId}/invoke/stream`, {
+      const response = await fetch(`${window.location.origin}/invoke/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: displayContent, // Todo: 包含 fileIds
-          stream: true,
+          prompt: displayContent, // Todo: 包含 fileIds
+          session_id: data.sessionId,
+          user_id: 'hubos-cockpit',
+          agent_profile: 'default',
         }),
       });
 
@@ -254,6 +273,10 @@ export function useCockpit(isConnected: boolean) {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let receivedText = false;
+      let streamError: string | null = null;
+      let streamDone = false;
+      let lastTextChunk = '';
 
       if (reader) {
         while (true) {
@@ -267,16 +290,37 @@ export function useCockpit(isConnected: boolean) {
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               const resData = line.slice(6);
-              if (resData === '[DONE]') continue;
+              if (resData === '[DONE]') {
+                streamDone = true;
+                break;
+              }
 
               try {
-                const parsed = JSON.parse(resData);
-                if (parsed.delta) {
+                const parsed = JSON.parse(resData) as {
+                  type?: string;
+                  delta?: string;
+                  content?: string;
+                  error?: string;
+                  session_id?: string;
+                };
+                if (parsed.type === 'session' && parsed.session_id) {
+                  setData(prev => ({ ...prev, sessionId: parsed.session_id ?? prev.sessionId }));
+                  continue;
+                }
+                if (parsed.type === 'error') {
+                  streamError = parsed.error ?? '模型服务暂时不可用';
+                  streamDone = true;
+                  break;
+                }
+                const textChunk = parsed.delta ?? parsed.content ?? '';
+                if (textChunk && textChunk !== lastTextChunk) {
+                  receivedText = true;
+                  lastTextChunk = textChunk;
                   setData(prev => ({
                     ...prev,
                     messages: prev.messages.map(m =>
                       m.id === aiMsgId
-                        ? { ...m, content: m.content + parsed.delta }
+                        ? { ...m, content: m.content + textChunk }
                         : m
                     ),
                   }));
@@ -286,6 +330,22 @@ export function useCockpit(isConnected: boolean) {
               }
             }
           }
+
+          if (streamDone) {
+            break;
+          }
+        }
+
+        if (!receivedText || streamError) {
+          const fallbackMessage = streamError ?? '当前模型服务未返回内容，请检查 bridge 模型鉴权或上游配置。';
+          setData(prev => ({
+            ...prev,
+            messages: prev.messages.map(m =>
+              m.id === aiMsgId
+                ? { ...m, content: fallbackMessage }
+                : m
+            ),
+          }));
         }
       }
     } catch (err) {
@@ -326,7 +386,7 @@ export function useCockpit(isConnected: boolean) {
 }
 
 // 生成早报消息
-async function generateMorningBriefing(client: any): Promise<ChatMessage[]> {
+async function generateMorningBriefing(client: QeeClawClient): Promise<ChatMessage[]> {
   const messages: ChatMessage[] = [];
   const now = new Date();
   const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
