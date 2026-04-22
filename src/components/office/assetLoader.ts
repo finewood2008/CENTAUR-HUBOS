@@ -220,66 +220,95 @@ async function loadFurniture(): Promise<void> {
   const catalog: LoadedAssetData['catalog'] = [];
   const sprites: Record<string, SpriteData> = {};
 
+  // Recursively collect all leaf "asset" nodes from a potentially nested manifest.
+  // PC manifest is 3 levels deep: group(rotation) → group(state) → group(animation) → asset
+  interface ManifestNode {
+    type: string;
+    id?: string;
+    file?: string;
+    width?: number;
+    height?: number;
+    footprintW?: number;
+    footprintH?: number;
+    orientation?: string;
+    state?: string;
+    mirrorSide?: boolean;
+    animationGroup?: string;
+    frame?: number;
+    members?: ManifestNode[];
+    groupType?: string;
+  }
+
+  function collectLeafAssets(
+    node: ManifestNode,
+    inherited: {
+      orientation?: string;
+      state?: string;
+      animationGroup?: string;
+    } = {}
+  ): Array<ManifestNode & { orientation?: string; state?: string; animationGroup?: string }> {
+    if (node.type === 'asset') {
+      return [{
+        ...node,
+        orientation: node.orientation ?? inherited.orientation,
+        state: node.state ?? inherited.state,
+        animationGroup: node.animationGroup ?? inherited.animationGroup,
+      }];
+    }
+    // It's a group — recurse into members
+    if (!node.members) return [];
+    const results: Array<ManifestNode & { orientation?: string; state?: string; animationGroup?: string }> = [];
+    for (const child of node.members) {
+      const childInherited = {
+        orientation: child.orientation ?? inherited.orientation,
+        state: child.state ?? inherited.state,
+        animationGroup: child.animationGroup ?? inherited.animationGroup,
+      };
+      results.push(...collectLeafAssets(child, childInherited));
+    }
+    return results;
+  }
+
   for (const type of FURNITURE_TYPES) {
     try {
       const manifestResp = await fetch(assetUrl(`assets/furniture/${type}/manifest.json`));
       if (!manifestResp.ok) continue;
       const manifest = await manifestResp.json();
 
-      if (manifest.type === 'group' && manifest.members) {
-        // Group furniture (e.g., DESK with DESK_FRONT and DESK_SIDE)
-        for (const member of manifest.members) {
+      if (manifest.members) {
+        // Has members — could be group, state-group, or deeply nested
+        const leaves = collectLeafAssets(manifest);
+        for (const leaf of leaves) {
+          if (!leaf.file || !leaf.id) continue; // skip non-asset nodes
           try {
-            const sprite = await loadSprite(assetUrl(`assets/furniture/${type}/${member.file}`));
-            sprites[member.id] = sprite;
+            const sprite = await loadSprite(assetUrl(`assets/furniture/${type}/${leaf.file}`));
+            sprites[leaf.id] = sprite;
             catalog.push({
-              id: member.id,
+              id: leaf.id,
               label: manifest.name || type,
               category: manifest.category || 'misc',
-              width: member.width,
-              height: member.height,
-              footprintW: member.footprintW,
-              footprintH: member.footprintH,
+              width: leaf.width ?? 16,
+              height: leaf.height ?? 16,
+              footprintW: leaf.footprintW ?? 1,
+              footprintH: leaf.footprintH ?? 1,
               isDesk: manifest.category === 'desks',
               groupId: type,
-              orientation: member.orientation,
+              orientation: leaf.orientation,
+              state: leaf.state,
               canPlaceOnSurfaces: manifest.canPlaceOnSurfaces,
               backgroundTiles: manifest.backgroundTiles,
               canPlaceOnWalls: manifest.canPlaceOnWalls,
+              mirrorSide: leaf.mirrorSide,
               rotationScheme: manifest.rotationScheme,
+              animationGroup: leaf.animationGroup,
+              frame: leaf.frame,
             });
           } catch {
             // Skip failed member
           }
         }
-      } else if (manifest.type === 'state-group' && manifest.members) {
-        for (const member of manifest.members) {
-          try {
-            const sprite = await loadSprite(assetUrl(`assets/furniture/${type}/${member.file}`));
-            sprites[member.id] = sprite;
-            catalog.push({
-              id: member.id,
-              label: manifest.name || type,
-              category: manifest.category || 'misc',
-              width: member.width,
-              height: member.height,
-              footprintW: member.footprintW,
-              footprintH: member.footprintH,
-              isDesk: manifest.category === 'desks',
-              groupId: type,
-              state: member.state,
-              canPlaceOnSurfaces: manifest.canPlaceOnSurfaces,
-              backgroundTiles: manifest.backgroundTiles,
-              canPlaceOnWalls: manifest.canPlaceOnWalls,
-              animationGroup: member.animationGroup,
-              frame: member.frame,
-            });
-          } catch {
-            // Skip
-          }
-        }
       } else {
-        // Single asset
+        // Single asset (no members)
         const file = manifest.file || `${type}.png`;
         try {
           const sprite = await loadSprite(assetUrl(`assets/furniture/${type}/${file}`));
