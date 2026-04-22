@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.12.0] - 2026-04-22
+
+### 🏢 像素风虚拟办公室 — pixel-agents 引擎移植 + 全套美术素材
+
+#### 新增：像素风虚拟办公室重构
+- 移植 pixel-agents (6.9k⭐ MIT) Canvas 2D 引擎，纯原生 Canvas 渲染
+- 去除 Phaser 依赖（-2MB），性能更优、包体更小
+- A*寻路、角色状态机、深度排序、家具碰撞检测
+
+#### 新增：全套像素美术素材
+- 6 个角色精灵（sprite sheets）
+- 25+ 家具贴图
+- 9 种地板纹理
+- 墙壁贴图素材
+- 所有素材存放于 `public/assets/`（characters, furniture, floors, walls）
+
+#### 新增：自定义办公室布局（hubosLayout.ts）
+- 主管独立办公室 + 5 员工工位区 + 休息区
+- 主管固定在独立办公室，始终保持工作状态
+- 支持自定义布局编辑
+
+#### 新增：资产加载器（assetLoader.ts）
+- 自动从 `public/assets/` 扫描并加载 PNG 资源
+- 统一的资产管理和缓存机制
+
+#### 技术架构
+- 新增目录 `src/components/office/`（engine/, sprites/, layout/, editor/, components/）
+- 核心组件：`VirtualOffice.tsx`（办公室主视图）
+- 引擎来源：pixel-agents (MIT 协议) — 纯 Canvas 2D，无第三方游戏框架依赖
+
+---
+
 ## [0.11.0] - 2026-04-22
 
 ### 🧠 主管角色系统 + 记忆中心三视图 + 团队感UI强化

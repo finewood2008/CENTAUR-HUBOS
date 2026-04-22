@@ -1,7 +1,7 @@
 # AI_HANDOVER.md — Hub OS 项目交接文档
 
 > 给其他 AI 开发者（Claude Code / Codex / OpenCode 等）的项目状态说明
-> 最后更新: 2026-04-22 v0.11.0
+> 最后更新: 2026-04-22 v0.12.0
 
 ---
 
@@ -30,6 +30,7 @@ Hub OS 是半人马 AI 的数字员工操作系统前端。把大模型 Agent �
 | 财务中心 | `components/finance/` | v0.4 | API Key 管理 + 员工用量明细 + 月度预算 |
 | 通讯中心 | `components/channels/` | v0.3 | 渠道监控大盘（企微/飞书/Telegram/钉钉/邮件） |
 | 知识库 | `components/knowledge/` | v0.3 | 文档管理 + 统计 + 权限分配 |
+| 虚拟办公室 | `components/office/` | v0.12 | 像素风办公室，pixel-agents Canvas 2D 引擎，6角色+25+家具+自定义布局 |
 | 设置 | `components/settings/` | v0.11 | 设备信息/云端连接/企业信息/员工策略/通知/安全/外观（已移除系统记忆板块） |
 | AI 对话 | `components/chat/` | v0.2 | 对话区，接 models.invoke() |
 
@@ -102,6 +103,15 @@ src/
     │   ├── EmployeeBuilder.tsx    #   旧版对话式创建器（已被 builder/ 取代）
     │   ├── GenerationAnimation.tsx#   生成动画
     │   └── TrialChat.tsx          #   试聊确认
+    ├── office/                    # ★ v0.12 像素风虚拟办公室
+    │   ├── engine/                #   Canvas 2D 引擎（来自 pixel-agents MIT）
+    │   ├── sprites/               #   角色精灵系统
+    │   ├── layout/                #   办公室布局定义
+    │   │   └── hubosLayout.ts     #   主管独立办公室 + 5工位 + 休息区
+    │   ├── editor/                #   布局编辑器
+    │   ├── components/            #   办公室 UI 子组件
+    │   │   └── VirtualOffice.tsx  #   办公室主视图组件
+    │   └── assetLoader.ts         #   资产加载器（自动加载 public/assets/ PNG）
     ├── layout/Sidebar.tsx         # 侧边导航栏
     └── shared/                    # 共享组件（Toast/Modal 等）
 ```
