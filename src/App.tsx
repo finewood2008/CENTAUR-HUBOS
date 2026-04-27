@@ -1,21 +1,23 @@
 // Hub OS - 主应用入口
 // SDK 连接 → 真实数据；后端未启动 → 自动 fallback mock
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import type { NavTab } from './types';
 import Sidebar from './components/layout/Sidebar';
-import Cockpit from './components/cockpit';
-import Team from './components/team/Team';
-import EmployeeBuilderV2, { type EmployeeSpecV2 } from './components/builder';
-import Finance from './components/finance/Finance';
-import Channels from './components/channels/Channels';
-import Knowledge from './components/knowledge/Knowledge';
-import MemoryCenter from './components/memory/MemoryCenter';
-import VirtualOffice from './components/office/VirtualOffice';
-import Settings from './components/settings/Settings';
+import type { EmployeeSpecV2 } from './components/builder';
 import { ToastProvider, useToast } from './components/shared/Toast';
 import { AppProvider, useTheme } from './stores/useAppStore';
 import { useConnection, useEnhancedDashboardData, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
 import { getClientAsync } from './services/qeeclaw';
+
+const Cockpit = lazy(() => import('./components/cockpit'));
+const Team = lazy(() => import('./components/team/Team'));
+const EmployeeBuilderV2 = lazy(() => import('./components/builder'));
+const Finance = lazy(() => import('./components/finance/Finance'));
+const Channels = lazy(() => import('./components/channels/Channels'));
+const Knowledge = lazy(() => import('./components/knowledge/Knowledge'));
+const MemoryCenter = lazy(() => import('./components/memory/MemoryCenter'));
+const VirtualOffice = lazy(() => import('./components/office/VirtualOffice'));
+const Settings = lazy(() => import('./components/settings/Settings'));
 
 // 背景样式映射
 const BG_CLASS_MAP: Record<string, string> = {
@@ -24,6 +26,16 @@ const BG_CLASS_MAP: Record<string, string> = {
   paper: 'bg-paper',
   gradient: 'bg-gradient',
 };
+
+function TabFallback() {
+  return (
+    <div className="flex flex-1 items-center justify-center px-8">
+      <div className="rounded-2xl border border-border-cream bg-warm-sand/40 px-5 py-4 text-sm text-stone-gray">
+        正在加载工作台...
+      </div>
+    </div>
+  );
+}
 
 function AppInner() {
   const [tab, setTab] = useState<NavTab>('team');
@@ -34,7 +46,7 @@ function AppInner() {
 
   // 数据加载
   const { data: dashData } = useEnhancedDashboardData(connected);
-  const { data: channelsData, loading: channelsLoading, refresh: refreshChannels } = useChannelsData(connected);
+  const { data: channelsData, loading: channelsLoading, error: channelsError, refresh: refreshChannels } = useChannelsData(connected);
   const { data: knowledgeData, loading: knowledgeLoading, refresh: refreshKnowledge } = useKnowledgeData(connected);
 
   const handleBuilderComplete = async (spec: EmployeeSpecV2) => {
@@ -79,39 +91,41 @@ function AppInner() {
               </div>
             </div>
           )}
-
-          {tab === 'team' && (
-            <Cockpit onNav={setTab} />
-          )}
-          {tab === 'employees' && !building && <Team isConnected={connected} />}
-          {tab === 'employees' && building && (
-            <EmployeeBuilderV2
-              onBack={() => setBuilding(false)}
-              onComplete={handleBuilderComplete}
-            />
-          )}
-          {tab === 'finance' && <Finance isConnected={connected} />}
-          {tab === 'channels' && (
-            <Channels
-              agents={dashData.agents}
-              channelsData={channelsData}
-              channelsLoading={channelsLoading}
-              onRefresh={refreshChannels}
-            />
-          )}
-          {tab === 'memory' && <MemoryCenter />}
-          {tab === 'office' && <VirtualOffice isConnected={connected} />}
-          {tab === 'knowledge' && (
-            <Knowledge
-              knowledgeData={knowledgeData}
-              knowledgeLoading={knowledgeLoading}
-              isConnected={connected}
-              onRefresh={refreshKnowledge}
-            />
-          )}
-          {tab === 'settings' && (
-            <Settings isConnected={connected} />
-          )}
+          <Suspense fallback={<TabFallback />}>
+            {tab === 'team' && (
+              <Cockpit onNav={setTab} />
+            )}
+            {tab === 'employees' && !building && <Team isConnected={connected} />}
+            {tab === 'employees' && building && (
+              <EmployeeBuilderV2
+                onBack={() => setBuilding(false)}
+                onComplete={handleBuilderComplete}
+              />
+            )}
+            {tab === 'finance' && <Finance isConnected={connected} />}
+            {tab === 'channels' && (
+              <Channels
+                agents={dashData.agents}
+                channelsData={channelsData}
+                channelsLoading={channelsLoading}
+                channelsError={channelsError}
+                onRefresh={refreshChannels}
+              />
+            )}
+            {tab === 'memory' && <MemoryCenter />}
+            {tab === 'office' && <VirtualOffice isConnected={connected} />}
+            {tab === 'knowledge' && (
+              <Knowledge
+                knowledgeData={knowledgeData}
+                knowledgeLoading={knowledgeLoading}
+                isConnected={connected}
+                onRefresh={refreshKnowledge}
+              />
+            )}
+            {tab === 'settings' && (
+              <Settings isConnected={connected} />
+            )}
+          </Suspense>
         </main>
       </div>
     </ToastProvider>

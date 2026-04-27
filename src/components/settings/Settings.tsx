@@ -42,6 +42,13 @@ interface SettingsState {
   language: string;
 }
 
+function formatFinanceAmount(amount: number, currency?: string | null) {
+  const resolved = String(currency || 'CNY').toUpperCase();
+  if (resolved === 'USD') return `$${amount.toFixed(2)}`;
+  if (resolved === 'CNY') return `¥${amount.toFixed(2)}`;
+  return `${resolved} ${amount.toFixed(2)}`;
+}
+
 // ─── 默认值 ──────────────────────────────────────
 const STORAGE_KEY = 'hubos-settings';
 
@@ -243,7 +250,10 @@ export default function Settings({ isConnected }: SettingsProps) {
                 <div className="flex items-center gap-1.5 text-xs text-olive-gray">
                   <Zap size={12} className="text-terracotta" />
                   剩余算力：<span className="font-medium text-near-black">
-                    ¥{(financeData.wallet?.balance ?? 5280).toFixed(2)}
+                    {formatFinanceAmount(
+                      financeData.wallet?.balance ?? 0,
+                      financeData.wallet?.currency ?? financeData.costSummary?.primaryCurrency ?? financeData.quota?.currency,
+                    )}
                   </span>
                 </div>
               )}

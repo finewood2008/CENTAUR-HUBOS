@@ -10,9 +10,8 @@ import type { Plugin } from 'vite';
 import http from 'http';
 import https from 'https';
 
-const BRIDGE = 'http://127.0.0.1:21747';
+const BRIDGE = process.env.VITE_BRIDGE_URL || 'http://127.0.0.1:21747';
 const HUBOS_API = process.env.VITE_HUBOS_API_URL || 'http://127.0.0.1:3456';
-const PLATFORM_URL = process.env.VITE_PLATFORM_URL || 'https://paas.qeeshu.com';
 
 // ── Knowledge 路径映射 ──────────────────────────
 const KNOWLEDGE_REWRITE: Record<string, string> = {
@@ -67,14 +66,6 @@ function proxyToBridge(
   res: http.ServerResponse,
 ) {
   proxyToTarget(BRIDGE, targetPath, req, res);
-}
-
-function proxyToPlatform(
-  targetPath: string,
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-) {
-  proxyToTarget(PLATFORM_URL, targetPath, req, res);
 }
 
 function proxyToHubos(

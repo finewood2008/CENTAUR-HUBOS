@@ -4,7 +4,7 @@ import { Brain, Plus, Trash2 } from 'lucide-react';
 import { usePersonaStore } from '../../../stores/personaStore';
 import { SOUL_DEFAULTS } from '../../../data/persona-defaults';
 import type { DigitalEmployee } from '../../../types';
-import { useMemoryData } from '../../../hooks/useQeeClaw';
+import { useAgentMemory } from '../../../features/memory/useAgentMemory';
 
 interface Props {
   emp: DigitalEmployee;
@@ -31,7 +31,6 @@ function formatDate(iso: string): string {
 
 export default function TabMemory({ emp, readonly }: Props) {
   const initializeEmployee = usePersonaStore((state) => state.initializeEmployee);
-  const charLimit = usePersonaStore((state) => state.employees[emp.id]?.memoryCharLimit ?? 2000);
   const [newMem, setNewMem] = useState('');
   const [newCat, setNewCat] = useState<MemoryCategory>('fact');
   const [toast, setToast] = useState('');
@@ -42,9 +41,10 @@ export default function TabMemory({ emp, readonly }: Props) {
     usingFallback,
     didTruncate,
     supportsOrganize,
+    charLimit,
     addMemory,
     deleteMemory,
-  } = useMemoryData(emp);
+  } = useAgentMemory(emp);
 
   // Initialize employee persona on mount if not exists
   useEffect(() => {

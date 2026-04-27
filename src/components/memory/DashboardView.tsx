@@ -8,21 +8,18 @@ import {
   HardDrive,
   Users,
   TrendingUp,
-  Crown,
-  Building2,
-  UsersRound,
-  Edit3,
-  Check,
-  X,
   ChevronDown,
-  ChevronUp,
   Ghost,
   BookOpen,
   Sparkles,
   Clock,
 } from 'lucide-react';
 import { usePersonaStore } from '../../stores/personaStore';
-import type { MemoryEntry, SystemLog } from '../../stores/personaStore';
+import type { SystemLog } from '../../stores/personaStore';
+import { useMemoryCenter } from '../../features/memory/useMemoryCenter';
+import type { MemoryEntry } from '../../features/memory/types';
+import { useSharedContext } from '../../features/shared-context/useSharedContext';
+import { SharedContextCards } from '../shared/SharedContextCards';
 
 // ─── Employee Config ───────────────────────────────────────────────
 const LEADER = { id: 'leader', emoji: '🧑‍💼', name: '主管', role: '团队统管', color: 'indigo' } as const;
@@ -93,111 +90,23 @@ function StatCard({
   );
 }
 
-// ─── Shared Knowledge Card ─────────────────────────────────────────
-function SharedKnowledgeCard({
-  icon: Icon,
-  title,
-  field,
-  value,
-  maxLen,
-}: {
-  icon: typeof Crown;
-  title: string;
-  field: 'boss' | 'company' | 'team';
-  value: string;
-  maxLen: number;
-}) {
-  const updateShared = usePersonaStore((s) => s.updateShared);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-
-  const pct = Math.min(100, Math.round((value.length / maxLen) * 100));
-
-  const handleSave = () => {
-    updateShared(field, draft);
-    setEditing(false);
-  };
-  const handleCancel = () => {
-    setDraft(value);
-    setEditing(false);
-  };
-
-  return (
-    <div className="card-glass rounded-2xl p-5 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon size={16} className="text-terracotta" />
-          <span className="heading-card">{title}</span>
-        </div>
-        {!editing && (
-          <button
-            onClick={() => { setDraft(value); setEditing(true); }}
-            className="btn-ghost p-1.5 rounded-lg"
-          >
-            <Edit3 size={14} />
-          </button>
-        )}
-      </div>
-
-      {editing ? (
-        <div className="flex flex-col gap-2">
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={3}
-            className="input-warm text-sm resize-none"
-            maxLength={maxLen}
-          />
-          <div className="flex items-center justify-between">
-            <span className="text-caption text-stone-gray">
-              {draft.length} / {maxLen}
-            </span>
-            <div className="flex gap-1">
-              <button onClick={handleCancel} className="btn-ghost p-1.5 rounded-lg">
-                <X size={14} />
-              </button>
-              <button onClick={handleSave} className="btn-terracotta py-1.5 px-3 text-xs rounded-lg">
-                <Check size={12} />
-                保存
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <>
-          <p className="text-body text-sm line-clamp-3 min-h-[2.5rem]">
-            {value || <span className="text-stone-gray italic">尚未设置</span>}
-          </p>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-1.5 bg-warm-sand rounded-full overflow-hidden">
-              <div
-                className="h-full bg-terracotta/60 rounded-full transition-all duration-300"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <span className="text-caption text-stone-gray">{pct}%</span>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 // ─── Employee Card ─────────────────────────────────────────────────
 function EmployeeCard({
   emp,
+  memories,
+  soul,
+  charLimit,
   isLeader = false,
 }: {
   emp: (typeof ALL_MEMBERS)[number];
+  memories: MemoryEntry[];
+  soul: string;
+  charLimit: number;
   isLeader?: boolean;
 }) {
-  const persona = usePersonaStore((s) => s.employees[emp.id]);
   const [expanded, setExpanded] = useState(false);
   const colors = COLOR_MAP[emp.color];
 
-  const memories = persona?.memories ?? [];
-  const soul = persona?.soul ?? '';
-  const charLimit = persona?.memoryCharLimit ?? 2000;
   const totalChars = memories.reduce((sum, m) => sum + m.content.length, 0);
   const usagePct = Math.min(100, Math.round((totalChars / charLimit) * 100));
 
@@ -379,14 +288,17 @@ function LogEntry({ log }: { log: SystemLog }) {
 
 // ─── Main Dashboard View ───────────────────────────────────────────
 export default function DashboardView() {
-  const { employees, shared, logs } = usePersonaStore();
+  const employees = usePersonaStore((state) => state.employees);
+  const logs = usePersonaStore((state) => state.logs);
+  const { agentMemories } = useMemoryCenter();
+  const { shared } = useSharedContext();
 
   // Compute stats
-  const allMemories: MemoryEntry[] = Object.values(employees).flatMap((e) => e.memories);
+  const allMemories: MemoryEntry[] = Object.values(agentMemories).flat();
   const totalMemories = allMemories.length;
   const totalChars = allMemories.reduce((sum, m) => sum + m.content.length, 0);
-  const activeEmployees = Object.keys(employees).filter(
-    (id) => (employees[id].memories.length > 0 || employees[id].soul)
+  const activeEmployees = ALL_MEMBERS.map((member) => member.id).filter(
+    (id) => (agentMemories[id]?.length ?? 0) > 0 || Boolean(employees[id]?.soul),
   ).length;
 
   // Today's new entries
@@ -418,29 +330,7 @@ export default function DashboardView() {
           <Sparkles size={16} className="text-terracotta" />
           共享认知
         </h2>
-        <div className="grid grid-cols-3 gap-4">
-          <SharedKnowledgeCard
-            icon={Crown}
-            title="老板画像"
-            field="boss"
-            value={shared.boss}
-            maxLen={500}
-          />
-          <SharedKnowledgeCard
-            icon={Building2}
-            title="企业画像"
-            field="company"
-            value={shared.company}
-            maxLen={800}
-          />
-          <SharedKnowledgeCard
-            icon={UsersRound}
-            title="团队画像"
-            field="team"
-            value={shared.team}
-            maxLen={500}
-          />
-        </div>
+        <SharedContextCards shared={shared} />
       </div>
 
       {/* ── Employee Cognition Cards ── */}
@@ -451,12 +341,24 @@ export default function DashboardView() {
         </h2>
         {/* Leader card — full width row */}
         <div className="grid grid-cols-1 gap-4 mb-4">
-          <EmployeeCard emp={LEADER} isLeader />
+          <EmployeeCard
+            emp={LEADER}
+            memories={agentMemories.leader}
+            soul={employees.leader?.soul ?? ''}
+            charLimit={employees.leader?.memoryCharLimit ?? 3000}
+            isLeader
+          />
         </div>
         {/* Regular employee cards */}
         <div className="grid grid-cols-5 gap-4">
           {EMPLOYEES.map((emp) => (
-            <EmployeeCard key={emp.id} emp={emp} />
+            <EmployeeCard
+              key={emp.id}
+              emp={emp}
+              memories={agentMemories[emp.id]}
+              soul={employees[emp.id]?.soul ?? ''}
+              charLimit={employees[emp.id]?.memoryCharLimit ?? 2000}
+            />
           ))}
         </div>
       </div>

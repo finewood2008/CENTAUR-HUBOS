@@ -4,6 +4,7 @@ import { Sparkles, Eye, User, ChevronDown, ChevronRight, Pencil, Save, X } from 
 import type { DigitalEmployee } from '../../../types';
 import { usePersonaStore } from '../../../stores/personaStore';
 import { SOUL_DEFAULTS } from '../../../data/persona-defaults';
+import { useSharedContext } from '../../../features/shared-context/useSharedContext';
 
 interface Props {
   emp: DigitalEmployee;
@@ -28,6 +29,7 @@ function parseSoul(soul: string): SoulSection[] {
 
 export default function TabPersona({ emp, readonly }: Props) {
   const store = usePersonaStore();
+  const { shared } = useSharedContext();
   const [editing, setEditing] = useState(false);
   const [soulDraft, setSoulDraft] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -41,7 +43,6 @@ export default function TabPersona({ emp, readonly }: Props) {
 
   const soul = store.getSoul(emp.id);
   const memories = store.getMemories(emp.id);
-  const shared = store.getShared();
   const sections = useMemo(() => parseSoul(soul), [soul]);
 
   const toggleSection = (title: string) => {

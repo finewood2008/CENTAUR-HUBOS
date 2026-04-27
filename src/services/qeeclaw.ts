@@ -28,12 +28,55 @@ export type QeeClawCoreSDK = {
 // ── 本地开发环境配置 ──────────────────────────────
 const isDev = import.meta.env.DEV;
 const BASE_URL = import.meta.env.VITE_BRIDGE_URL || window.location.origin;
+const CHANNELS_ENV_URL = import.meta.env.VITE_CHANNELS_BRIDGE_URL || import.meta.env.VITE_BRIDGE_URL || '';
+const CHANNELS_LOCAL_ONLY_ERROR = '通讯渠道仅允许连接本地 hermes-bridge。请在本机启动 bridge，并通过本地地址访问前端，或设置 VITE_CHANNELS_BRIDGE_URL 指向本地 bridge。';
 
-console.log('[QeeClaw SDK] 初始化配置:', { isDev, BASE_URL });
+function isLocalUrl(urlString: string): boolean {
+  try {
+    const { hostname } = new URL(urlString);
+    return hostname === 'localhost'
+      || hostname === '127.0.0.1'
+      || hostname === '0.0.0.0'
+      || hostname === '::1'
+      || hostname.endsWith('.local');
+  } catch {
+    return false;
+  }
+}
+
+function resolveChannelsBaseUrl(): string | null {
+  if (CHANNELS_ENV_URL) {
+    return isLocalUrl(CHANNELS_ENV_URL) ? CHANNELS_ENV_URL : null;
+  }
+
+  if (typeof window !== 'undefined' && isLocalUrl(window.location.origin)) {
+    return window.location.origin;
+  }
+
+  return null;
+}
+
+const CHANNELS_BASE_URL = resolveChannelsBaseUrl();
+
+function resolvePort(urlString: string, fallback = 21747): number {
+  try {
+    const url = new URL(urlString);
+    if (url.port) {
+      return Number(url.port);
+    }
+    return url.protocol === 'https:' ? 443 : 80;
+  } catch {
+    return fallback;
+  }
+}
+
+console.log('[QeeClaw SDK] 初始化配置:', { isDev, BASE_URL, CHANNELS_BASE_URL });
 
 // ── 创建客户端单例 ─────────────────────────────────
 let _client: QeeClawCoreSDK | null = null;
 let _clientPromise: Promise<QeeClawCoreSDK> | null = null;
+let _channelsClient: QeeClawCoreSDK | null = null;
+let _channelsClientPromise: Promise<QeeClawCoreSDK> | null = null;
 
 // 异步版本：等待 SDK 加载完成后再创建客户端（推荐使用）
 export async function getClientAsync(): Promise<QeeClawCoreSDK> {
@@ -49,6 +92,41 @@ export async function getClientAsync(): Promise<QeeClawCoreSDK> {
   }
 
   return _clientPromise;
+}
+
+export function isChannelsLocalBridgeAvailable(): boolean {
+  return Boolean(CHANNELS_BASE_URL);
+}
+
+export function getChannelsBaseUrl(): string | null {
+  return CHANNELS_BASE_URL;
+}
+
+export function getBridgePort(): number {
+  return resolvePort(BASE_URL);
+}
+
+export function getChannelsLocalOnlyError(): string {
+  return CHANNELS_LOCAL_ONLY_ERROR;
+}
+
+export async function getChannelsClientAsync(): Promise<QeeClawCoreSDK> {
+  if (!CHANNELS_BASE_URL) {
+    throw new Error(CHANNELS_LOCAL_ONLY_ERROR);
+  }
+
+  if (!_channelsClientPromise) {
+    _channelsClientPromise = (async () => {
+      if (!_channelsClient) {
+        _channelsClient = createQeeClawClient({ baseUrl: CHANNELS_BASE_URL }) as QeeClawCoreSDK;
+        console.log('[QeeClaw SDK] Channels client 已创建 (local bridge only)');
+      }
+
+      return _channelsClient;
+    })();
+  }
+
+  return _channelsClientPromise;
 }
 
 // 同步版本：立即返回（可能是 stub，不推荐直接使用）
@@ -94,7 +172,15 @@ export async function checkConnection(): Promise<{
 export function getAgentModule() { return getClient().agent; }
 export function getBillingModule() { return getClient().billing; }
 export function getModelsModule() { return getClient().models; }
-export function getChannelsModule() { return getClient().channels; }
+export function getChannelsModule() {
+  if (!CHANNELS_BASE_URL) {
+    throw new Error(CHANNELS_LOCAL_ONLY_ERROR);
+  }
+  if (!_channelsClient) {
+    _channelsClient = createQeeClawClient({ baseUrl: CHANNELS_BASE_URL }) as QeeClawCoreSDK;
+  }
+  return _channelsClient.channels;
+}
 export function getKnowledgeModule() { return getClient().knowledge; }
 export function getMemoryModule() { return getClient().memory; }
 export function getConversationsModule() { return getClient().conversations; }

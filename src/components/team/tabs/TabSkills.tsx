@@ -10,7 +10,7 @@ interface Props {
 }
 
 export default function TabSkills({ emp, readonly }: Props) {
-  const initialSkills = getEmployeeSkills(emp.id as any);
+  const initialSkills = getEmployeeSkills(emp.id);
   const [skills, setSkills] = useState<EmployeeSkill[]>(initialSkills);
 
   const toggle = (id: string) => {

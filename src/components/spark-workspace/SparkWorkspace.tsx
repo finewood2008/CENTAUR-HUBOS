@@ -10,6 +10,8 @@ import { PLATFORM_PROMPTS, type Platform } from '../../data/spark-prompts';
 import { usePersonaStore } from '../../stores/personaStore';
 import { getSystemPrompt } from '../../engine/PromptAssembler';
 import { SOUL_DEFAULTS } from '../../data/persona-defaults';
+import { useSharedContext } from '../../features/shared-context/useSharedContext';
+import { storeAgentMemory, deleteAgentMemory } from '../../features/memory/repository';
 
 interface Props {
   onBack: () => void;
@@ -32,6 +34,7 @@ export default function SparkWorkspace({ onBack }: Props) {
   const [showMemory, setShowMemory] = useState(false);
 
   const persona = usePersonaStore();
+  const { shared } = useSharedContext();
 
   // Initialize spark employee with default soul on first render
   useEffect(() => {
@@ -98,11 +101,7 @@ export default function SparkWorkspace({ onBack }: Props) {
             setEditorContent(fullContent);
           }
           // 记录上下文
-          persona.addMemory('spark', {
-            content: `最近话题: ${text}`,
-            source: 'auto',
-            category: 'fact',
-          });
+          void storeAgentMemory('spark', `最近话题: ${text}`, 'fact');
         },
         onError: (err) => {
           setIsStreaming(false);
@@ -189,7 +188,6 @@ export default function SparkWorkspace({ onBack }: Props) {
       {/* ── 记忆面板 (可折叠) ── */}
       {showMemory && (() => {
         const memories = persona.getMemories('spark');
-        const shared = persona.getShared();
         const facts = memories.filter((m) => m.category === 'fact');
         const preferences = memories.filter((m) => m.category === 'preference');
         const lessons = memories.filter((m) => m.category === 'lesson' || m.category === 'correction');
@@ -199,8 +197,7 @@ export default function SparkWorkspace({ onBack }: Props) {
             <span className="text-xs font-medium text-near-black">品牌记忆</span>
             <button
               onClick={() => {
-                // Remove all spark memories one by one
-                memories.forEach((m) => persona.removeMemory('spark', m.id));
+                void Promise.all(memories.map((m) => deleteAgentMemory('spark', m.id)));
               }}
               className="text-[10px] text-stone-gray hover:text-red-500 transition-colors"
             >

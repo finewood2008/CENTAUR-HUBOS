@@ -70,7 +70,8 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, isConnected
 
   const handleIngest = async () => {
     if (!isConnected) { toast('error', 'SDK 离线，无法上传'); return; }
-    if (!uploadFile && !uploadName.trim()) { toast('error', '请输入知识库名称或选择文件'); return; }
+    if (appendToKb && !uploadFile) { toast('error', '请选择要上传的文件'); return; }
+    if (!appendToKb && !uploadFile && !uploadName.trim()) { toast('error', '请输入知识库名称或选择文件'); return; }
     setUploading(true);
     try {
       const client = await getClientAsync();
@@ -182,7 +183,7 @@ export default function Knowledge({ knowledgeData, knowledgeLoading, isConnected
                 <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.txt,.md,.docx,.csv" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
                 <button
                   onClick={handleIngest}
-                  disabled={uploading || (!uploadFile && !uploadName.trim())}
+                  disabled={uploading || (!!appendToKb ? !uploadFile : (!uploadFile && !uploadName.trim()))}
                   className="w-full py-2.5 text-sm rounded-xl bg-terracotta text-ivory hover:bg-coral transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {uploading ? <><Loader2 size={14} className="animate-spin" /> 上传中...</> : <><Upload size={14} /> 创建</>}

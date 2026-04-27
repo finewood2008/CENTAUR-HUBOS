@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function TabHarness({ emp }: Props) {
-  const harness = getEmployeeHarness(emp.id as any);
+  const harness = getEmployeeHarness(emp.id);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   if (!harness) {

@@ -11,13 +11,13 @@
  *   255 = VOID
  */
 
-import type { OfficeLayout, PlacedFurniture } from './types';
+import type { OfficeLayout, PlacedFurniture, TileType } from './types';
 
 const COLS = 25;
 const ROWS = 16;
 
 // prettier-ignore
-const tiles: number[] = [
+const tiles: TileType[] = [
   // Row 0-1: void/roof margin
   255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
   255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,
@@ -126,7 +126,6 @@ export function createHubOSLayout(): OfficeLayout {
     tiles,
     tileColors,
     furniture,
-    wallSetIndex: 0,
     layoutRevision: 1,
   };
 }

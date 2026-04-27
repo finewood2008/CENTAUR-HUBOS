@@ -1,34 +1,49 @@
 // Hub OS - 通讯中心（渠道接入管理 + 监控大盘）
-// 数据来源：SDK channels API → mock server fallback
+import { useMemo, useState, type ReactNode } from 'react';
 import { Radio, CheckCircle, XCircle, AlertCircle, MinusCircle, RefreshCw, Wifi, WifiOff, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { ChannelsData, ChannelItem } from '../../hooks/useQeeClaw';
 import type { Agent } from '../../types';
+import { getChannelsBaseUrl, isChannelsLocalBridgeAvailable } from '../../services/qeeclaw';
+import ChannelConfigPanel from './ChannelConfigPanel';
 
 // 渠道类型元数据
-const CHANNEL_META: Record<string, { icon: string; label: string }> = {
-  wechat_work: { icon: '💬', label: '企业微信' },
-  feishu: { icon: '🐦', label: '飞书' },
-  wechat_personal_plugin: { icon: '📱', label: '微信个人号' },
-  wechat_personal_openclaw: { icon: '🔌', label: '微信 OpenClaw' },
-  telegram: { icon: '✈️', label: 'Telegram' },
-  dingtalk: { icon: '🔵', label: '钉钉' },
-  email: { icon: '📧', label: '邮件' },
-  whatsapp: { icon: '📱', label: 'WhatsApp' },
-  slack: { icon: '🟣', label: 'Slack' },
-  webhook: { icon: '🔗', label: 'Webhook' },
+const CHANNEL_META: Record<string, { icon: string; label: string; availability: 'supported' | 'planned' }> = {
+  wechat_work: { icon: '💬', label: '企业微信', availability: 'supported' },
+  feishu: { icon: '🐦', label: '飞书', availability: 'supported' },
+  wechat_personal_plugin: { icon: '📱', label: '微信个人号', availability: 'supported' },
+  wechat_personal_openclaw: { icon: '🔌', label: '微信个人号(插件)', availability: 'supported' },
+  telegram: { icon: '✈️', label: 'Telegram', availability: 'planned' },
+  dingtalk: { icon: '🔵', label: '钉钉', availability: 'planned' },
+  email: { icon: '📧', label: '邮件', availability: 'planned' },
+  whatsapp: { icon: '📱', label: 'WhatsApp', availability: 'planned' },
+  slack: { icon: '🟣', label: 'Slack', availability: 'planned' },
+  webhook: { icon: '🔗', label: 'Webhook', availability: 'planned' },
 };
 
 interface ChannelsProps {
   agents: Agent[];
   channelsData: ChannelsData | null;
   channelsLoading: boolean;
+  channelsError?: string | null;
   onRefresh?: () => void;
 }
 
-export default function Channels({ agents, channelsData, channelsLoading, onRefresh }: ChannelsProps) {
+export default function Channels({ agents, channelsData, channelsLoading, channelsError, onRefresh }: ChannelsProps) {
+  const [selectedChannelKey, setSelectedChannelKey] = useState<string | null>(null);
+  const localBridgeAvailable = isChannelsLocalBridgeAvailable();
+  const channelsBaseUrl = getChannelsBaseUrl();
+
   // 如果有 SDK 数据用 SDK 数据，否则从 agents 提取
   const hasApiData = channelsData !== null;
+  const selectedChannel = channelsData?.items.find((item) => item.channelKey === selectedChannelKey) ?? null;
+
+  const plannedChannels = useMemo(
+    () => Object.entries(CHANNEL_META)
+      .filter(([, meta]) => meta.availability === 'planned')
+      .map(([key, meta]) => ({ key, ...meta })),
+    [],
+  );
 
   // 从 agents 提取的渠道统计（fallback）
   const withChannel = agents.filter((a) => a.channel);
@@ -45,7 +60,15 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
             <Radio size={20} className="text-terracotta" />
             通讯中心
           </h1>
-          <p className="text-sm mt-0.5 text-stone-gray">渠道接入管理与状态监控</p>
+          <p className="text-sm mt-0.5 text-stone-gray">4 个 SDK 渠道可直接配置，其他渠道仅展示规划状态</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+            <span className={`rounded-full px-2.5 py-1 ${localBridgeAvailable ? 'bg-sage-green/10 text-sage-green' : 'bg-terracotta/10 text-terracotta'}`}>
+              {localBridgeAvailable ? '本地隐私模式' : '未连接本地 bridge'}
+            </span>
+            <span className="rounded-full bg-warm-sand/40 px-2.5 py-1 text-stone-gray">
+              {channelsBaseUrl ? `hermes-bridge: ${channelsBaseUrl}` : 'hermes-bridge: 未解析到本地地址'}
+            </span>
+          </div>
         </div>
         {onRefresh && (
           <button
@@ -75,19 +98,33 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
         </div>
       )}
 
+      {channelsError && (
+        <div className="rounded-2xl border border-terracotta/20 bg-terracotta/5 px-4 py-3 text-sm text-charcoal-warm">
+          {channelsError}
+        </div>
+      )}
+
+      {localBridgeAvailable && (
+        <div className="rounded-2xl border border-sage-green/20 bg-sage-green/8 px-4 py-3 text-sm text-charcoal-warm">
+          当前通讯渠道运行在本地 hermes-bridge，配置、绑定码和扫码状态不会自动回落到云端后端。
+        </div>
+      )}
+
       {/* API 渠道列表（优先展示） */}
       {hasApiData && channelsData.items.length > 0 && (
-        <div className="card-glass">
+        <div className="card-glass overflow-hidden">
           <div className="px-5 py-3 border-b border-border-cream">
-            <h2 className="text-sm font-medium text-near-black font-serif">渠道列表</h2>
+            <h2 className="text-sm font-medium text-near-black font-serif">SDK 渠道列表</h2>
+            <p className="mt-1 text-xs text-stone-gray">点击“配置”即可直接写入系统级渠道参数。</p>
           </div>
           {/* 表头 */}
-          <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr] px-5 py-3 text-[11px] uppercase tracking-wider border-b border-border-cream text-stone-gray">
+          <div className="grid grid-cols-[2fr_1.2fr_1fr_1fr_1fr_0.9fr] px-5 py-3 text-[11px] uppercase tracking-wider border-b border-border-cream text-stone-gray">
             <span>渠道</span>
             <span>分组</span>
             <span>配置</span>
             <span>状态</span>
             <span>风险</span>
+            <span>操作</span>
           </div>
 
           {channelsData.items.map((ch: ChannelItem, i: number) => {
@@ -99,7 +136,7 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
-                className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr] items-center px-5 py-3.5 last:border-0 transition-colors border-b border-border-cream hover:bg-parchment-hover"
+                className="grid grid-cols-[2fr_1.2fr_1fr_1fr_1fr_0.9fr] items-center px-5 py-3.5 last:border-0 transition-colors border-b border-border-cream hover:bg-parchment-hover"
               >
                 {/* 渠道 */}
                 <div className="flex items-center gap-3">
@@ -142,9 +179,59 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
                     {ch.riskLevel === 'low' ? '低风险' : ch.riskLevel === 'medium' ? '中风险' : '高风险'}
                   </span>
                 </div>
+
+                <div>
+                  <button
+                    onClick={() => setSelectedChannelKey(ch.channelKey)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border-warm px-2.5 py-1.5 text-[11px] font-medium text-olive-gray transition-colors hover:text-near-black"
+                  >
+                    <Settings size={12} />
+                    {ch.channelKey === 'wechat_personal_plugin' ? '配置 / 绑定' : '配置'}
+                  </button>
+                </div>
               </motion.div>
             );
           })}
+        </div>
+      )}
+
+      {selectedChannel && (
+        <ChannelConfigPanel
+          channel={selectedChannel}
+          onClose={() => setSelectedChannelKey(null)}
+          onSaved={onRefresh}
+        />
+      )}
+
+      <div className="card-glass overflow-hidden">
+        <div className="border-b border-border-cream px-5 py-3">
+          <h2 className="text-sm font-medium text-near-black font-serif">规划中渠道</h2>
+          <p className="mt-1 text-xs text-stone-gray">这些渠道目前没有对应 SDK 配置接口，先明确标注为规划中。</p>
+        </div>
+        <div className="grid gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-3">
+          {plannedChannels.map((channel) => (
+            <div key={channel.key} className="rounded-2xl border border-border-cream bg-white/60 p-4">
+              <div className="mb-3 flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{channel.icon}</span>
+                  <div>
+                    <div className="text-sm font-medium text-near-black">{channel.label}</div>
+                    <div className="text-[11px] text-stone-gray">{channel.key}</div>
+                  </div>
+                </div>
+                <span className="rounded-full bg-stone-gray/10 px-2 py-0.5 text-[11px] text-stone-gray">规划中</span>
+              </div>
+              <p className="text-xs leading-5 text-charcoal-warm">
+                当前前端只保留渠道占位，不提供保存入口，也不会伪装成已接入系统。
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {!hasApiData && (
+        <div className="rounded-2xl border border-amber/25 bg-amber/8 px-4 py-3 text-sm text-charcoal-warm">
+          当前未拿到本地 hermes-bridge 的渠道数据。只有本地 bridge 可用于通讯渠道配置和绑定码管理，不会自动回落到云端后端。
         </div>
       )}
 
@@ -228,14 +315,14 @@ export default function Channels({ agents, channelsData, channelsLoading, onRefr
 
       {/* 提示 */}
       <p className="text-[11px] text-center text-stone-gray">
-        如需配置或修改渠道，请进入「员工管理 → 花名册 → 员工档案卡」操作
+        渠道配置入口已在本页开放；员工档案仅保留员工与渠道的绑定展示，不再承担系统级渠道配置。
       </p>
     </div>
   );
 }
 
 // ─── 统计卡片 ───
-function StatCard({ label, value, colorClass, icon }: { label: string; value: number; colorClass: string; icon?: React.ReactNode }) {
+function StatCard({ label, value, colorClass, icon }: { label: string; value: number; colorClass: string; icon?: ReactNode }) {
   return (
     <div className="card-glass p-4">
       <div className="text-xs mb-1 flex items-center gap-1 text-stone-gray">

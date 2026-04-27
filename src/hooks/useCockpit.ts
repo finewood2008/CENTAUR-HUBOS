@@ -1,8 +1,8 @@
 // Hub OS - Cockpit 数据加载与会话管理
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getClientAsync } from '../services/qeeclaw';
-import type { ChatMessage, ReportItem, InputFile, Task, ScheduledTask, PartnerProfile } from '../data/partner';
-import { DEFAULT_PARTNER, ONBOARDING_MESSAGES } from '../data/partner';
+import type { ChatMessage, ReportItem, InputFile, Task, ScheduledTask, PartnerProfile, MessageSender, TeamMember } from '../data/partner';
+import { DEFAULT_PARTNER, ALL_EMPLOYEES } from '../data/partner';
 
 type QeeClawClient = Awaited<ReturnType<typeof getClientAsync>>;
 
@@ -15,10 +15,28 @@ interface CockpitData {
   sessionId: string | null;
 }
 
+function makeCockpitStatusMessages(isConnected: boolean): ChatMessage[] {
+  const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  if (!isConnected) {
+    return [{
+      id: 'cockpit-offline',
+      sender: { type: 'system' },
+      content: '当前未连接到本地合伙人运行时，驾驶舱只显示本地状态，不展示演示对话。',
+      time,
+    }];
+  }
+  return [{
+    id: 'cockpit-ready',
+    sender: { type: 'system' },
+    content: '本地合伙人会话已就绪。先输入你希望如何称呼你的数字合伙人，再开始对话。',
+    time,
+  }];
+}
+
 export function useCockpit(isConnected: boolean) {
   const [data, setData] = useState<CockpitData>({
     partner: { ...DEFAULT_PARTNER, name: '', isConfigured: false },
-    messages: ONBOARDING_MESSAGES,
+    messages: makeCockpitStatusMessages(isConnected),
     tasks: [],
     scheduledTasks: [],
     reports: [],
@@ -27,6 +45,12 @@ export function useCockpit(isConnected: boolean) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const sessionInitialized = useRef(false);
+
+  useEffect(() => {
+    if (!sessionInitialized.current) {
+      setData(prev => ({ ...prev, messages: makeCockpitStatusMessages(isConnected) }));
+    }
+  }, [isConnected]);
 
   const createCockpitSession = useCallback(async (agentProfile = 'default') => {
     const response = await fetch(`${window.location.origin}/sessions`, {
@@ -156,6 +180,7 @@ export function useCockpit(isConnected: boolean) {
       } else {
          setData(prev => ({
           ...prev,
+          messages: prev.messages.length > 0 ? prev.messages : makeCockpitStatusMessages(true),
           sessionId,
         }));
       }
@@ -165,6 +190,7 @@ export function useCockpit(isConnected: boolean) {
       // Fallback
       setData(prev => ({
         ...prev,
+        messages: makeCockpitStatusMessages(false),
         reports: [],
         sessionId: null,
       }));
@@ -241,20 +267,6 @@ export function useCockpit(isConnected: boolean) {
       //   fileIds.push(res.id);
       // }
 
-      // 调用流式 API
-      const response = await fetch(`${window.location.origin}/invoke/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: displayContent, // Todo: 包含 fileIds
-          session_id: data.sessionId,
-          user_id: 'hubos-cockpit',
-          agent_profile: 'default',
-        }),
-      });
-
-      if (!response.ok) throw new Error('Stream failed');
-
       // 创建 AI 消息占位符
       const aiMsgId = `ai-${Date.now()}`;
       const aiMsg: ChatMessage = {
@@ -269,92 +281,69 @@ export function useCockpit(isConnected: boolean) {
         messages: [...prev.messages, aiMsg],
       }));
 
-      // 读取流式响应
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let receivedText = false;
-      let streamError: string | null = null;
-      let streamDone = false;
-      let lastTextChunk = '';
+      // 直接调用云端平台 API（与微信 gateway 保持一致）
+      try {
+        const apiUrl = 'https://paas.qeeshu.com/api/platform/models/invoke';
+        const apiKey = 'mJXR0OavZjP8-unrkrDUNw';
+        const now = new Date();
+        const currentDateContext = `当前系统时间是 ${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日 ${now.toLocaleDateString('zh-CN', { weekday: 'long' })}。回答涉及今天、当前日期、星期几、现在时间等问题时，必须以这个时间为准，不要使用训练数据中的过期日期。`;
+        const prompt = `${currentDateContext}\n\n用户消息：${displayContent}`;
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            prompt,
+            // 不指定 model，让平台根据用户选择的模型自动处理
+          }),
+        });
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const resData = line.slice(6);
-              if (resData === '[DONE]') {
-                streamDone = true;
-                break;
-              }
-
-              try {
-                const parsed = JSON.parse(resData) as {
-                  type?: string;
-                  delta?: string;
-                  content?: string;
-                  error?: string;
-                  session_id?: string;
-                };
-                if (parsed.type === 'session' && parsed.session_id) {
-                  setData(prev => ({ ...prev, sessionId: parsed.session_id ?? prev.sessionId }));
-                  continue;
-                }
-                if (parsed.type === 'error') {
-                  streamError = parsed.error ?? '模型服务暂时不可用';
-                  streamDone = true;
-                  break;
-                }
-                const textChunk = parsed.delta ?? parsed.content ?? '';
-                if (textChunk && textChunk !== lastTextChunk) {
-                  receivedText = true;
-                  lastTextChunk = textChunk;
-                  setData(prev => ({
-                    ...prev,
-                    messages: prev.messages.map(m =>
-                      m.id === aiMsgId
-                        ? { ...m, content: m.content + textChunk }
-                        : m
-                    ),
-                  }));
-                }
-              } catch {
-                // Ignore parse errors
-              }
-            }
-          }
-
-          if (streamDone) {
-            break;
-          }
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
         }
 
-        if (!receivedText || streamError) {
-          const fallbackMessage = streamError ?? '当前模型服务未返回内容，请检查 bridge 模型鉴权或上游配置。';
-          setData(prev => ({
-            ...prev,
-            messages: prev.messages.map(m =>
-              m.id === aiMsgId
-                ? { ...m, content: fallbackMessage }
-                : m
-            ),
-          }));
+        const result = await response.json() as {
+          code?: number;
+          data?: { text?: string };
+          message?: string;
+        };
+
+        let replyText = '';
+        if (result.code === 0) {
+          replyText = result.data?.text || '抱歉，我无法处理您的消息。';
+        } else {
+          replyText = `抱歉，处理您的消息时出错了：${result.message || '未知错误'}`;
         }
+
+        setData(prev => ({
+          ...prev,
+          messages: prev.messages.map(m =>
+            m.id === aiMsgId
+              ? { ...m, content: replyText }
+              : m
+          ),
+        }));
+      } catch (apiErr) {
+        const errorMessage = apiErr instanceof Error ? apiErr.message : '未知错误';
+        setData(prev => ({
+          ...prev,
+          messages: prev.messages.map(m =>
+            m.id === aiMsgId
+              ? { ...m, content: `抱歉，处理您的消息时出错了：${errorMessage}` }
+              : m
+          ),
+        }));
       }
     } catch (err) {
       console.error('[Cockpit] 发送消息失败:', err);
       // 添加错误消息
       const errorMsg: ChatMessage = {
         id: `error-${Date.now()}`,
-        sender: { type: 'partner' },
-        content: '抱歉，我暂时无法回复。请稍后再试。',
+        sender: { type: 'system' },
+        content: isConnected ? '当前本地合伙人运行时未返回响应，请检查 bridge 与模型配置。' : '当前未连接到本地合伙人运行时。',
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       };
       setData(prev => ({

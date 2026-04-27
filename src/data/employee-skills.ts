@@ -4,7 +4,7 @@
 
 import type { DigitalEmployeeId } from '../types';
 
-type EmployeeId = Exclude<DigitalEmployeeId, string & Record<never, never>>;
+type EmployeeId = 'spark' | 'xiaoke' | 'shuxi' | 'shuibao' | 'lvan';
 
 export interface EmployeeSkill {
   id: string;
@@ -85,6 +85,6 @@ export const EMPLOYEE_SKILLS: Record<EmployeeId, EmployeeSkill[]> = {
   lvan: LVAN_SKILLS,
 };
 
-export function getEmployeeSkills(id: EmployeeId): EmployeeSkill[] {
-  return EMPLOYEE_SKILLS[id] || [];
+export function getEmployeeSkills(id: DigitalEmployeeId): EmployeeSkill[] {
+  return id in EMPLOYEE_SKILLS ? EMPLOYEE_SKILLS[id as EmployeeId] : [];
 }

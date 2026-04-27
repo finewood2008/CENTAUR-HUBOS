@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getClientAsync } from '../services/qeeclaw';
 import type { DigitalEmployee } from '../types';
+import { normalizeMemoryStats } from '../features/memory/category';
+import { searchAgentMemory, storeAgentMemory } from '../features/memory/repository';
+import type { MemoryCategory } from '../features/memory/types';
 
 // ── 类型定义 ──────────────────────────────────────
 
@@ -106,11 +109,11 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
         : [];
 
       const routeProfile = routeResult.status === 'fulfilled' ? routeResult.value : null;
-      const currentModel = routeProfile?.resolvedModel || employee.model || '';
+      const currentModel = routeProfile?.resolvedModel || '';
 
       const memStats = memStatsResult.status === 'fulfilled'
-        ? (memStatsResult.value as any)
-        : { total: 0 };
+        ? normalizeMemoryStats(memStatsResult.value as Record<string, unknown>)
+        : { total: 0, categories: {} };
 
       const knowledgeDocs = knowledgeResult.status === 'fulfilled'
         ? (Array.isArray((knowledgeResult.value as any)?.items)
@@ -143,7 +146,7 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
       console.error('[EmployeeConfig] load error:', err);
       setError(err instanceof Error ? err.message : 'unknown error');
       // 移除 mock，直接置空
-      setData({ ...EMPTY_CONFIG, currentModel: employee.model || '' });
+      setData(EMPTY_CONFIG);
     } finally {
       setLoading(false);
     }
@@ -154,7 +157,7 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
       loadConfig();
     } else if (employee) {
       // 离线模式：由于无 mock，直接用空配置
-      setData({ ...EMPTY_CONFIG, currentModel: employee.model || '' });
+      setData(EMPTY_CONFIG);
     }
   }, [employee?.id, isConnected, loadConfig]);
 
@@ -174,14 +177,7 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
   const addMemory = useCallback(async (content: string, category?: string) => {
     if (!employee) return;
     try {
-      const client = await getClientAsync();
-      await client.memory.store({
-        teamId: 1,
-        runtimeType: 'hermes',
-        agentId: employee.id,
-        content,
-        category: (category as any) || 'other',
-      });
+      await storeAgentMemory(employee.id, content, (category as MemoryCategory | undefined) ?? 'correction');
       await loadConfig();
     } catch { /* mock fallback */ }
   }, [employee, loadConfig]);
@@ -189,14 +185,7 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
   const searchMemory = useCallback(async (query: string) => {
     if (!employee) return [];
     try {
-      const client = await getClientAsync();
-      return await client.memory.search({
-        teamId: 1,
-        runtimeType: 'hermes',
-        agentId: employee.id,
-        query,
-        limit: 20,
-      });
+      return await searchAgentMemory(employee.id, query, 20);
     } catch {
       return [];
     }

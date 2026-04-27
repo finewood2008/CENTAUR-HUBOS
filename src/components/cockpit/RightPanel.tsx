@@ -1,42 +1,21 @@
 import {
   Sparkles,
-  TrendingUp,
   Zap,
-  CheckCircle2,
-  Clock,
-  Target,
-  Users,
   Activity,
 } from 'lucide-react';
 import type { CentaurIndex } from '../../data/partner';
 import { CENTAUR_LEVELS } from '../../data/partner';
 
 interface RightPanelProps {
-  centaur: CentaurIndex;
+  connected: boolean;
+  centaur: CentaurIndex | null;
 }
 
-// ── Team Feed Items ──
-const FEED_ITEMS = [
-  { time: '10:30', text: '税宝 提交了4月税务申报', color: 'bg-amber-400' },
-  { time: '10:00', text: '小可 新增12条线索', color: 'bg-blue-400' },
-  { time: '09:30', text: '火花 完成文章初稿', color: 'bg-orange-400' },
-  { time: '09:00', text: '阿拓 分配3项任务', color: 'bg-amber-500' },
-];
-
-// ── Team Performance Metrics ──
-const PERF_METRICS = [
-  { icon: CheckCircle2, color: 'text-emerald-500', value: '23项', label: '本周任务' },
-  { icon: Clock, color: 'text-blue-500', value: '18h', label: '节省时间' },
-  { icon: Target, color: 'text-terracotta', value: '87%', label: 'AI处理率' },
-  { icon: Users, color: 'text-amber-500', value: '96%', label: '满意度' },
-];
-
-export default function RightPanel({ centaur }: RightPanelProps) {
-  const levelConfig = CENTAUR_LEVELS[centaur.level];
-  const maxTrend = Math.max(...centaur.trend);
-
-  // Trend diff: last value minus first value
-  const trendDiff = centaur.trend[centaur.trend.length - 1] - centaur.trend[0];
+export default function RightPanel({ connected, centaur }: RightPanelProps) {
+  const levelConfig = centaur ? CENTAUR_LEVELS[centaur.level] : null;
+  const maxTrend = centaur ? Math.max(...centaur.trend) : 0;
+  const trendDiff = centaur ? centaur.trend[centaur.trend.length - 1] - centaur.trend[0] : 0;
+  const trend = centaur?.trend ?? [0, 0, 0, 0, 0, 0, 0];
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar px-4 py-4 space-y-5">
@@ -52,15 +31,15 @@ export default function RightPanel({ centaur }: RightPanelProps) {
         {/* Big number + level */}
         <div className="flex items-baseline gap-0.5 mb-1">
           <span
-            className={`text-[28px] font-bold font-serif ${levelConfig.color}`}
+            className={`text-[28px] font-bold font-serif ${centaur && levelConfig ? levelConfig.color : 'text-stone-gray/50'}`}
             style={{ lineHeight: 1 }}
           >
-            {centaur.overall}
+            {centaur ? centaur.overall : '--'}
           </span>
           <span className="text-[11px] text-stone-gray">/100</span>
         </div>
-        <div className={`text-[11px] ${levelConfig.color} mb-3`}>
-          {centaur.levelLabel}
+        <div className={`text-[11px] ${centaur && levelConfig ? levelConfig.color : 'text-stone-gray/60'} mb-3`}>
+          {centaur ? centaur.levelLabel : connected ? '未接入真实指标' : '运行时离线'}
         </div>
 
         {/* Progress bar */}
@@ -68,7 +47,7 @@ export default function RightPanel({ centaur }: RightPanelProps) {
           <div className="h-2 rounded-full bg-gradient-to-r from-blue-200 to-blue-300 overflow-hidden">
             <div
               className="h-full rounded-full bg-gradient-to-r from-terracotta to-amber-400 transition-all"
-              style={{ width: `${centaur.overall}%` }}
+              style={{ width: `${centaur ? centaur.overall : 0}%` }}
             />
           </div>
           <div className="flex justify-between mt-0.5">
@@ -80,9 +59,9 @@ export default function RightPanel({ centaur }: RightPanelProps) {
         {/* 7-day sparkline */}
         <div className="mt-3">
           <div className="flex items-end gap-[3px] h-[28px]">
-            {centaur.trend.map((value, i) => {
+            {trend.map((value, i) => {
               const heightPct = maxTrend > 0 ? (value / maxTrend) * 100 : 0;
-              const isLast = i === centaur.trend.length - 1;
+              const isLast = i === trend.length - 1;
               return (
                 <div
                   key={i}
@@ -108,14 +87,11 @@ export default function RightPanel({ centaur }: RightPanelProps) {
         </div>
 
         {/* Trend diff */}
-        {trendDiff !== 0 && (
-          <div className="flex items-center gap-0.5 mt-1">
-            <TrendingUp size={10} className="text-emerald-500" />
-            <span className="text-[10px] text-emerald-500 font-medium">
-              +{trendDiff}
-            </span>
-          </div>
-        )}
+        <div className="text-[10px] text-stone-gray/60 mt-2">
+          {centaur
+            ? (trendDiff !== 0 ? `近7天变化 ${trendDiff > 0 ? '+' : ''}${trendDiff}` : '近7天无显著变化')
+            : '当前未接入可验证的半人马指数来源'}
+        </div>
       </div>
 
       {/* ── Section 2: Team Performance ── */}
@@ -126,23 +102,11 @@ export default function RightPanel({ centaur }: RightPanelProps) {
           <h3 className="text-[12px] font-semibold text-charcoal-warm">团队效能</h3>
         </div>
 
-        {/* 2x2 Grid */}
-        <div className="grid grid-cols-2 gap-2">
-          {PERF_METRICS.map((metric) => {
-            const Icon = metric.icon;
-            return (
-              <div
-                key={metric.label}
-                className="bg-white rounded-xl border border-border-cream/30 p-2.5 text-center"
-              >
-                <Icon size={15} className={`${metric.color} mx-auto mb-1`} />
-                <div className="text-[16px] font-bold font-serif text-near-black">
-                  {metric.value}
-                </div>
-                <div className="text-[10px] text-stone-gray">{metric.label}</div>
-              </div>
-            );
-          })}
+        <div className="bg-white rounded-xl border border-border-cream/30 p-3 text-center">
+          <div className="text-[16px] font-bold font-serif text-stone-gray/50">--</div>
+          <div className="text-[10px] text-stone-gray mt-1">
+            {connected ? '团队效能指标尚未接入真实数据源' : '连接本地运行时后显示真实团队效能'}
+          </div>
         </div>
       </div>
 
@@ -154,27 +118,8 @@ export default function RightPanel({ centaur }: RightPanelProps) {
           <h3 className="text-[12px] font-semibold text-charcoal-warm">团队动态</h3>
         </div>
 
-        {/* Timeline */}
-        <div className="space-y-0">
-          {FEED_ITEMS.map((item, i) => (
-            <div key={i} className="flex gap-2.5 pb-2.5">
-              {/* Left: dot + line */}
-              <div className="flex flex-col items-center">
-                <div className={`w-2 h-2 rounded-full ${item.color} shrink-0`} />
-                {i < FEED_ITEMS.length - 1 && (
-                  <div className="w-px flex-1 bg-border-cream/50 my-0.5" />
-                )}
-              </div>
-
-              {/* Right: content */}
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] text-stone-gray/60">{item.time}</div>
-                <div className="text-[11px] text-charcoal-warm leading-snug">
-                  {item.text}
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="rounded-xl border border-border-cream/30 bg-white px-3 py-4 text-center text-[11px] text-stone-gray">
+          {connected ? '暂无真实团队动态事件流' : '运行时离线，暂无团队动态'}
         </div>
       </div>
     </div>

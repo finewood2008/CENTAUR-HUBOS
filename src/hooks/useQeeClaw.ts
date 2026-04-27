@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   checkConnection,
+  getBridgePort,
+  getChannelsClientAsync,
+  getChannelsLocalOnlyError,
   getClientAsync,
 } from '../services/qeeclaw';
-import { usePersonaStore, type MemoryEntry as PersonaMemoryEntry } from '../stores/personaStore';
 import { DIGITAL_EMPLOYEES } from '../data/digital-employees';
 // mock 数据已移除，全部使用 SDK 真实数据
 import type { Agent, Template, Alert, UsageStat, ActivityItem, DigitalEmployee } from '../types';
@@ -24,377 +26,64 @@ export function useConnection() {
   const [connected, setConnected] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const result = await checkConnection();
-      if (!cancelled) {
-        setConnected(result.connected);
-        setChecking(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  const recheck = useCallback(async () => {
-    setChecking(true);
+  const runCheck = useCallback(async (showChecking: boolean) => {
+    if (showChecking) {
+      setChecking(true);
+    }
     const result = await checkConnection();
     setConnected(result.connected);
     setChecking(false);
     return result.connected;
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const safeCheck = async (showChecking: boolean) => {
+      if (showChecking && !cancelled) {
+        setChecking(true);
+      }
+      const result = await checkConnection();
+      if (!cancelled) {
+        setConnected(result.connected);
+        setChecking(false);
+      }
+    };
+
+    void safeCheck(true);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void safeCheck(false);
+      }
+    };
+
+    const handleFocus = () => {
+      void safeCheck(false);
+    };
+
+    const timer = window.setInterval(() => {
+      void safeCheck(false);
+    }, 10000);
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [runCheck]);
+
+  const recheck = useCallback(async () => {
+    return runCheck(true);
+  }, [runCheck]);
+
   return { connected, checking, recheck };
 }
 
-type MemoryCategory = PersonaMemoryEntry['category'];
-
-interface MemoryStatsSummary {
-  total: number;
-  categories: Record<MemoryCategory, number>;
-}
-
-interface MemoryMutationResult {
-  ok: boolean;
-  usedFallback: boolean;
-}
-
-const MEMORY_SCOPE = {
-  teamId: 1,
-  runtimeType: 'hermes',
-} as const;
-
-const DEFAULT_MEMORY_FETCH_LIMIT = 200;
-const MAX_MEMORY_FETCH_LIMIT = 2000;
-
-const EMPTY_MEMORY_STATS: MemoryStatsSummary = {
-  total: 0,
-  categories: {
-    preference: 0,
-    fact: 0,
-    lesson: 0,
-    correction: 0,
-  },
-};
-
-function mapSdkMemoryCategory(category: unknown): MemoryCategory {
-  switch (category) {
-    case 'preference':
-      return 'preference';
-    case 'fact':
-    case 'entity':
-      return 'fact';
-    case 'decision':
-      return 'lesson';
-    case 'other':
-      return 'correction';
-    default:
-      return 'fact';
-  }
-}
-
-function mapUiMemoryCategory(category: MemoryCategory): 'preference' | 'fact' | 'decision' | 'entity' | 'other' {
-  switch (category) {
-    case 'preference':
-      return 'preference';
-    case 'fact':
-      return 'fact';
-    case 'lesson':
-      return 'decision';
-    case 'correction':
-      return 'other';
-    default:
-      return 'fact';
-  }
-}
-
-function clampConfidence(value: unknown): number {
-  if (typeof value !== 'number' || Number.isNaN(value)) return 1;
-  return Math.min(1, Math.max(0, value));
-}
-
-function normalizeSdkMemoryEntry(item: Record<string, unknown>): PersonaMemoryEntry | null {
-  const content = typeof item.content === 'string' ? item.content.trim() : '';
-  if (!content) return null;
-
-  const id = typeof item.id === 'string'
-    ? item.id
-    : typeof item.entry_id === 'string'
-      ? item.entry_id
-      : `sdk-${Math.random().toString(36).slice(2, 10)}`;
-
-  const createdAt = typeof item.created_at === 'string'
-    ? item.created_at
-    : typeof item.createdAt === 'string'
-      ? item.createdAt
-      : new Date().toISOString();
-
-  const updatedAt = typeof item.updated_at === 'string'
-    ? item.updated_at
-    : typeof item.updatedAt === 'string'
-      ? item.updatedAt
-      : createdAt;
-
-  return {
-    id,
-    content,
-    source: 'manual',
-    category: mapSdkMemoryCategory(item.category),
-    target: 'memory',
-    confidence: clampConfidence(item.importance),
-    createdAt,
-    updatedAt,
-  };
-}
-
-function buildMemoryStats(memories: PersonaMemoryEntry[]): MemoryStatsSummary {
-  return memories.reduce<MemoryStatsSummary>((summary, entry) => {
-    summary.total += 1;
-    summary.categories[entry.category] += 1;
-    return summary;
-  }, {
-    total: 0,
-    categories: {
-      preference: 0,
-      fact: 0,
-      lesson: 0,
-      correction: 0,
-    },
-  });
-}
-
-function normalizeMemoryStats(raw: Record<string, unknown> | null | undefined): MemoryStatsSummary {
-  const categories = {
-    preference: 0,
-    fact: 0,
-    lesson: 0,
-    correction: 0,
-  } satisfies Record<MemoryCategory, number>;
-
-  const source = raw && typeof raw.by_category === 'object' && raw.by_category !== null
-    ? raw.by_category as Record<string, unknown>
-    : raw && typeof raw.categories === 'object' && raw.categories !== null
-      ? raw.categories as Record<string, unknown>
-      : {};
-
-  for (const [key, value] of Object.entries(source)) {
-    const mappedKey = mapSdkMemoryCategory(key);
-    categories[mappedKey] += Number(value) || 0;
-  }
-
-  const total = typeof raw?.total === 'number'
-    ? raw.total
-    : Object.values(categories).reduce((sum, value) => sum + value, 0);
-
-  return { total, categories };
-}
-
-function sortMemories(memories: PersonaMemoryEntry[]): PersonaMemoryEntry[] {
-  return [...memories].sort(
-    (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime(),
-  );
-}
-
-export function useMemoryData(employee: DigitalEmployee | null) {
-  const getMemories = usePersonaStore((state) => state.getMemories);
-  const queuePendingMemoryAdd = usePersonaStore((state) => state.queuePendingMemoryAdd);
-  const queuePendingMemoryDelete = usePersonaStore((state) => state.queuePendingMemoryDelete);
-  const getPendingMemoryOps = usePersonaStore((state) => state.getPendingMemoryOps);
-  const resolvePendingMemoryOp = usePersonaStore((state) => state.resolvePendingMemoryOp);
-  const appendSystemLog = usePersonaStore((state) => state.appendSystemLog);
-  const replaceMemories = usePersonaStore((state) => state.replaceMemories);
-
-  const [memories, setMemories] = useState<PersonaMemoryEntry[]>([]);
-  const [stats, setStats] = useState<MemoryStatsSummary>(EMPTY_MEMORY_STATS);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [usingFallback, setUsingFallback] = useState(false);
-  const [didTruncate, setDidTruncate] = useState(false);
-
-  const loadFallback = useCallback((message?: string) => {
-    if (!employee) {
-      setMemories([]);
-      setStats(EMPTY_MEMORY_STATS);
-      setDidTruncate(false);
-      setUsingFallback(true);
-      return;
-    }
-
-    const fallbackMemories = sortMemories(getMemories(employee.id));
-    setMemories(fallbackMemories);
-    setStats(buildMemoryStats(fallbackMemories));
-    setDidTruncate(false);
-    setUsingFallback(true);
-    if (message) {
-      setError(message);
-    }
-  }, [employee, getMemories]);
-
-  const refresh = useCallback(async () => {
-    if (!employee) {
-      setMemories([]);
-      setStats(EMPTY_MEMORY_STATS);
-      setError(null);
-      setUsingFallback(false);
-      setDidTruncate(false);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const client = await getClientAsync();
-      const rawStats = await client.memory.stats({
-        ...MEMORY_SCOPE,
-        agentId: employee.id,
-      }).catch(() => null);
-      const normalizedStats = normalizeMemoryStats(rawStats as Record<string, unknown> | null);
-      const requestedLimit = Math.max(DEFAULT_MEMORY_FETCH_LIMIT, normalizedStats.total || 0);
-      const effectiveLimit = Math.min(requestedLimit, MAX_MEMORY_FETCH_LIMIT);
-      const pendingOps = getPendingMemoryOps(employee.id)
-        .slice()
-        .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
-
-      for (const op of pendingOps) {
-        if (op.type === 'add' && op.entry) {
-          await client.memory.store({
-            ...MEMORY_SCOPE,
-            agentId: employee.id,
-            content: op.entry.content,
-            category: mapUiMemoryCategory(op.entry.category),
-            importance: op.entry.confidence,
-          });
-          resolvePendingMemoryOp(op.opId);
-          appendSystemLog(
-            'memory_added',
-            `Memory synced for ${employee.id}: [${op.entry.category}] ${op.entry.content.slice(0, 60)}`,
-            employee.id,
-          );
-        }
-
-        if (op.type === 'delete' && op.memoryId) {
-          await client.memory.delete(op.memoryId, {
-            ...MEMORY_SCOPE,
-            agentId: employee.id,
-          });
-          resolvePendingMemoryOp(op.opId);
-          appendSystemLog(
-            'memory_removed',
-            `Memory deletion synced for ${employee.id}: ${op.memoryId}`,
-            employee.id,
-          );
-        }
-      }
-
-      const result = await client.memory.search({
-        ...MEMORY_SCOPE,
-        agentId: employee.id,
-        query: '',
-        limit: effectiveLimit,
-        threshold: 0,
-      });
-
-      const normalized = Array.isArray(result)
-        ? sortMemories(
-            result
-              .map((item) => normalizeSdkMemoryEntry(item as Record<string, unknown>))
-              .filter((item): item is PersonaMemoryEntry => item !== null),
-          )
-        : [];
-
-      setMemories(normalized);
-      setStats(normalizedStats.total > 0 ? normalizedStats : buildMemoryStats(normalized));
-      replaceMemories(employee.id, normalized);
-      setUsingFallback(false);
-      setDidTruncate(normalizedStats.total > normalized.length || requestedLimit > effectiveLimit);
-      setError(null);
-    } catch (err) {
-      loadFallback(err instanceof Error ? err.message : 'memory sdk unavailable');
-    } finally {
-      setLoading(false);
-    }
-  }, [appendSystemLog, employee, getPendingMemoryOps, loadFallback, replaceMemories, resolvePendingMemoryOp]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const addMemory = useCallback(async (content: string, category: MemoryCategory): Promise<MemoryMutationResult> => {
-    if (!employee) return { ok: false, usedFallback: false };
-
-    const trimmed = content.trim();
-    if (!trimmed) return { ok: false, usedFallback: false };
-
-    try {
-      const client = await getClientAsync();
-      await client.memory.store({
-        ...MEMORY_SCOPE,
-        agentId: employee.id,
-        content: trimmed,
-        category: mapUiMemoryCategory(category),
-        importance: 1,
-      });
-      appendSystemLog(
-        'memory_added',
-        `Memory added for ${employee.id}: [${category}] ${trimmed.slice(0, 60)}`,
-        employee.id,
-      );
-      await refresh();
-      return { ok: true, usedFallback: false };
-    } catch (err) {
-      const queued = queuePendingMemoryAdd(employee.id, {
-        content: trimmed,
-        source: 'manual',
-        category,
-        target: 'memory',
-        confidence: 1,
-      });
-      if (!queued) {
-        return { ok: false, usedFallback: true };
-      }
-      loadFallback(err instanceof Error ? err.message : 'memory sdk unavailable');
-      return { ok: true, usedFallback: true };
-    }
-  }, [appendSystemLog, employee, loadFallback, queuePendingMemoryAdd, refresh]);
-
-  const deleteMemory = useCallback(async (memoryId: string): Promise<MemoryMutationResult> => {
-    if (!employee) return { ok: false, usedFallback: false };
-
-    try {
-      const client = await getClientAsync();
-      await client.memory.delete(memoryId, {
-        ...MEMORY_SCOPE,
-        agentId: employee.id,
-      });
-      appendSystemLog(
-        'memory_removed',
-        `Memory removed for ${employee.id}: ${memoryId}`,
-        employee.id,
-      );
-      await refresh();
-      return { ok: true, usedFallback: false };
-    } catch (err) {
-      queuePendingMemoryDelete(employee.id, memoryId);
-      loadFallback(err instanceof Error ? err.message : 'memory sdk unavailable');
-      return { ok: true, usedFallback: true };
-    }
-  }, [appendSystemLog, employee, loadFallback, queuePendingMemoryDelete, refresh]);
-
-  return {
-    memories,
-    stats,
-    loading,
-    error,
-    usingFallback,
-    didTruncate,
-    supportsOrganize: false,
-    refresh,
-    addMemory,
-    deleteMemory,
-  };
-}
 
 // ── 将 SDK MyAgent 转换为 Hub OS Agent 类型 ───────
 function sdkAgentToHubAgent(agent: MyAgent): Agent {
@@ -405,7 +94,7 @@ function sdkAgentToHubAgent(agent: MyAgent): Agent {
     avatar: agent.avatar || '🤖',
     status: 'running', // SDK 目前没有 status 字段，默认 running
     model: agent.model || 'unknown',
-    port: 21747,
+    port: getBridgePort(),
     harnessDir: `/harness/${agent.code}/`,
     skills: [],
     tools: [],
@@ -987,20 +676,24 @@ export interface ChannelsData {
 export function useChannelsData(isConnected: boolean) {
   const [data, setData] = useState<ChannelsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     if (!isConnected) {
       setData(null);
+      setError(null);
       setLoading(false);
       return;
     }
     try {
-      const client = await getClientAsync();
+      const client = await getChannelsClientAsync();
       const overview = await client.channels.getOverview(1);
       setData(overview as unknown as ChannelsData);
-    } catch {
+      setError(null);
+    } catch (err) {
       setData(null);
+      setError(err instanceof Error ? err.message : getChannelsLocalOnlyError());
     } finally {
       setLoading(false);
     }
@@ -1010,7 +703,7 @@ export function useChannelsData(isConnected: boolean) {
     refresh();
   }, [refresh]);
 
-  return { data, loading, refresh };
+  return { data, loading, error, refresh };
 }
 
 // ── 知识库数据加载 ──────────────────────────────────

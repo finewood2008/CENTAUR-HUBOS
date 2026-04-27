@@ -9,8 +9,7 @@ import {
 import { useFinanceData, type FinanceData } from '../../hooks/useQeeClaw';
 import { getApiKeyModule } from '../../services/qeeclaw';
 import { useToast } from '../shared/Toast';
-import { FINANCE_DATA } from '../../data/digital-employees';
-import type { AppKeyRecord, LLMKeyRecord, ModelCostBreakdownItem } from '@qeeclaw/core-sdk';
+import type { AppKeyRecord, LLMKeyRecord } from '@qeeclaw/core-sdk';
 
 interface FinanceProps {
   isConnected: boolean;
@@ -29,6 +28,13 @@ function formatCurrency(n: number): string {
   return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function formatAmount(n: number, currency?: string | null): string {
+  const resolved = String(currency || 'CNY').toUpperCase();
+  if (resolved === 'USD') return `$${formatCurrency(n)}`;
+  if (resolved === 'CNY') return `¥${formatCurrency(n)}`;
+  return `${resolved} ${formatCurrency(n)}`;
+}
+
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
@@ -40,10 +46,14 @@ export default function Finance({ isConnected }: FinanceProps) {
   const { toast } = useToast();
   const hasSdkData = data.wallet !== null;
 
-  const totalBalance = hasSdkData ? data.wallet!.balance : FINANCE_DATA.totalBalance;
-  const monthlySpent = hasSdkData ? data.wallet!.currentMonthSpent : FINANCE_DATA.monthlySpent;
-  const monthlyBudget = data.quota?.monthlyLimit ?? FINANCE_DATA.monthlyBudget;
-  const spentPercent = Math.min((monthlySpent / (monthlyBudget || 1)) * 100, 100);
+  const primaryCurrency = data.costSummary?.primaryCurrency ?? data.wallet?.currency ?? data.quota?.currency ?? 'CNY';
+  const totalBalance = data.wallet?.balance ?? 0;
+  const monthlySpent = data.wallet?.currentMonthSpent ?? data.quota?.monthlySpent ?? 0;
+  const monthlyBudget = data.quota?.monthlyUnlimited ? null : (data.quota?.monthlyLimit ?? null);
+  const spentPercent = monthlyBudget && monthlyBudget > 0
+    ? Math.min((monthlySpent / monthlyBudget) * 100, 100)
+    : 0;
+  const remainingBudget = monthlyBudget === null ? null : Math.max(monthlyBudget - monthlySpent, 0);
 
   return (
     <div className="flex-1 overflow-y-auto bg-parchment">
@@ -80,7 +90,7 @@ export default function Finance({ isConnected }: FinanceProps) {
                 <span className="text-xs text-stone-gray font-medium">账户余额</span>
               </div>
               <p className="text-2xl font-serif text-success-green font-semibold">
-                {hasSdkData ? data.wallet!.currency : '¥'}{formatCurrency(totalBalance)}
+                {formatAmount(totalBalance, data.wallet?.currency ?? primaryCurrency)}
               </p>
               <p className="text-xs text-olive-gray mt-1">QeeClaw AI 账户</p>
             </motion.div>
@@ -93,12 +103,12 @@ export default function Finance({ isConnected }: FinanceProps) {
                 <span className="text-xs text-stone-gray font-medium">本月消费</span>
               </div>
               <p className="text-2xl font-serif text-near-black font-semibold">
-                ¥{formatCurrency(monthlySpent)}
+                {formatAmount(monthlySpent, primaryCurrency)}
               </p>
               <div className="mt-3">
                 <div className="flex justify-between text-xs text-olive-gray mb-1">
-                  <span>已用 {spentPercent.toFixed(0)}%</span>
-                  <span>预算 ¥{formatCurrency(monthlyBudget)}</span>
+                  <span>{monthlyBudget === null ? '无限额' : `已用 ${spentPercent.toFixed(0)}%`}</span>
+                  <span>{monthlyBudget === null ? '未设置预算' : `预算 ${formatAmount(monthlyBudget, primaryCurrency)}`}</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-warm-sand overflow-hidden">
                   <motion.div
@@ -121,10 +131,10 @@ export default function Finance({ isConnected }: FinanceProps) {
                 <span className="text-xs text-stone-gray font-medium">月度预算</span>
               </div>
               <p className="text-2xl font-serif text-near-black font-semibold">
-                ¥{formatCurrency(monthlyBudget)}
+                {monthlyBudget === null ? '无限额' : formatAmount(monthlyBudget, primaryCurrency)}
               </p>
               <p className="text-xs text-olive-gray mt-1">
-                {data.quota?.monthlyUnlimited ? '无限额' : `剩余 ¥${formatCurrency(monthlyBudget - monthlySpent)}`}
+                {monthlyBudget === null ? '当前未设置月度封顶' : `剩余 ${formatAmount(remainingBudget ?? 0, primaryCurrency)}`}
               </p>
             </motion.div>
           </div>
@@ -313,6 +323,7 @@ function LLMKeyRow({ record, idx, revealed, onToggle, onDelete }: { record: LLMK
 // ── 用量明细区 ───────────────────────────────────────
 function UsageSection({ data, hasSdkData }: { data: FinanceData; hasSdkData: boolean }) {
   const breakdown: { name: string; label: string; calls: number; chars: number; cost: number }[] = [];
+  const costCurrency = data.costSummary?.primaryCurrency ?? data.wallet?.currency ?? data.quota?.currency ?? 'CNY';
 
   if (hasSdkData && data.costSummary && data.costSummary.breakdown.length > 0) {
     const usageMap = new Map<string, { inputChars: number; outputChars: number }>();
@@ -334,18 +345,6 @@ function UsageSection({ data, hasSdkData }: { data: FinanceData; hasSdkData: boo
     }
   }
 
-  if (breakdown.length === 0 && !hasSdkData) {
-    for (const eu of FINANCE_DATA.employeeUsage) {
-      breakdown.push({
-        name: eu.employeeId,
-        label: eu.employeeName,
-        calls: 0,
-        chars: eu.monthlyTokens,
-        cost: eu.monthlyCost,
-      });
-    }
-  }
-
   const maxChars = Math.max(...breakdown.map(b => b.chars), 1);
 
   return (
@@ -357,7 +356,7 @@ function UsageSection({ data, hasSdkData }: { data: FinanceData; hasSdkData: boo
       <div className="flex items-center gap-2 mb-4">
         <BarChart3 size={18} className="text-terracotta" />
         <h2 className="font-serif text-lg text-near-black">
-          {hasSdkData ? '模型用量明细（近7天）' : '员工用量明细'}
+          模型用量明细（近7天）
         </h2>
       </div>
 
@@ -379,10 +378,10 @@ function UsageSection({ data, hasSdkData }: { data: FinanceData; hasSdkData: boo
                   <h3 className="font-serif text-near-black font-medium">{item.label}</h3>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-xs text-olive-gray">
-                      {hasSdkData ? `${item.calls} 次调用` : `月 Tokens: ${formatTokens(item.chars)}`}
+                      {`${item.calls} 次调用`}
                     </span>
                     <span className="text-xs text-terracotta font-medium">
-                      ¥{formatCurrency(item.cost)}
+                      {formatAmount(item.cost, costCurrency)}
                     </span>
                   </div>
                 </div>

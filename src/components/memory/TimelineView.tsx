@@ -1,5 +1,5 @@
-// TimelineView.tsx — 时间线视图
-// 垂直时间线，按日期分组，筛选栏
+// TimelineView.tsx — 记忆同步时间线
+// 展示前端本地操作与同步日志，不代表服务端审计流水
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -167,7 +167,7 @@ function TimelineNode({ log, isLast }: { log: SystemLog; isLast: boolean }) {
           {/* Source badge */}
           <div className="flex items-center gap-2 mt-2">
             <span className="badge text-[10px]">
-              {log.action.includes('memory') ? '记忆操作' : log.action === 'soul_edited' ? '灵魂编辑' : '共享知识'}
+              {log.action.includes('memory') ? '本地记忆日志' : log.action === 'soul_edited' ? '本地灵魂日志' : '本地共享日志'}
             </span>
           </div>
         </div>
@@ -201,6 +201,13 @@ export default function TimelineView() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
+      <div className="mb-4 rounded-2xl border border-border-cream bg-warm-sand/35 px-5 py-4">
+        <p className="text-sm font-medium text-near-black">本地同步日志</p>
+        <p className="mt-1 text-xs leading-relaxed text-stone-gray">
+          这里展示的是前端记录的记忆编辑、缓存与同步事件，便于排查本地状态变化；它不是服务端审计流水，也不保证覆盖所有后端操作。
+        </p>
+      </div>
+
       {/* ── Filter Bar ── */}
       <div className="card-glass rounded-2xl px-5 py-4 mb-6">
         <div className="flex items-center gap-4 flex-wrap">
@@ -316,11 +323,11 @@ export default function TimelineView() {
           <div className="w-16 h-16 rounded-2xl bg-warm-sand/50 flex items-center justify-center mb-4">
             <Clock size={32} className="text-stone-gray opacity-40" />
           </div>
-          <p className="text-lg font-medium text-charcoal-warm mb-1">暂无时间线记录</p>
+          <p className="text-lg font-medium text-charcoal-warm mb-1">暂无本地同步记录</p>
           <p className="text-caption text-stone-gray max-w-sm">
-            当 AI 员工产生记忆变更时，操作记录将在这里按时间线展示。
+            当页面发生记忆编辑、缓存回退或同步动作时，本地日志会按时间线展示在这里。
             <br />
-            试试与员工对话，让他们开始学习吧。
+            试试新增、删除记忆，或在离线后恢复连接观察同步行为。
           </p>
         </motion.div>
       )}

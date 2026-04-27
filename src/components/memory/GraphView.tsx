@@ -1,10 +1,11 @@
 // GraphView.tsx — Cognitive Graph visualization for CENTAUR-HUBOS
 // Force-directed graph showing leader(center) → employees → memories, boss → leader relationships
 
-// @ts-expect-error — react-force-graph-2d has no type declarations
 import ForceGraph2D from 'react-force-graph-2d';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePersonaStore } from '../../stores/personaStore';
+import { useMemoryCenter } from '../../features/memory/useMemoryCenter';
+import { useSharedContext } from '../../features/shared-context/useSharedContext';
 
 // ─── Color constants ────────────────────────────────────────────────
 
@@ -96,7 +97,8 @@ function GraphView() {
 
   // Store data
   const employees = usePersonaStore((s) => s.employees);
-  const shared = usePersonaStore((s) => s.shared);
+  const { agentMemories } = useMemoryCenter();
+  const { shared } = useSharedContext();
 
   // ── Resize observer ───────────────────────────────────────────────
 
@@ -192,8 +194,7 @@ function GraphView() {
       links.push({ source: 'leader', target: eid, color: color + '55' });
 
       // Memory nodes
-      if (emp?.memories) {
-        for (const mem of emp.memories) {
+      for (const mem of agentMemories[eid] ?? []) {
           const memNodeId = `mem-${eid}-${mem.id}`;
           const memColor = CATEGORY_COLORS[mem.category] || '#888888';
           const contentLen = mem.content.length;
@@ -213,11 +214,10 @@ function GraphView() {
 
           links.push({ source: eid, target: memNodeId, color: memColor + '44' });
         }
-      }
     }
 
     return { nodes, links };
-  }, [employees, shared]);
+  }, [agentMemories, employees, shared]);
 
   // ── Empty state check ─────────────────────────────────────────────
 

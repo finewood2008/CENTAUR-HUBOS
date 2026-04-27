@@ -148,23 +148,15 @@ function ScheduleContent() {
 }
 
 function FinanceContent() {
-  const balance = 8420.5;
-  const monthSpent = 3180.0;
-  const budgetPct = 38;
   return (
     <div className="space-y-2">
-      <div className="flex items-baseline gap-2">
-        <span className="text-[11px] text-stone-gray">余额</span>
-        <span className="text-[15px] font-bold text-near-black font-serif">¥{balance.toFixed(0)}</span>
-        <span className="text-[11px] text-stone-gray ml-auto">本月 ¥{monthSpent.toFixed(0)}</span>
+      <div className="text-[12px] text-charcoal-warm leading-5">
+        财务数据已切换为本地实时账本，不再在看板里展示静态演示数值。
       </div>
-      <div className="h-1.5 bg-border-cream rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full bg-terracotta/60 transition-all"
-          style={{ width: `${budgetPct}%` }}
-        />
+      <div className="flex items-center gap-2 text-[11px] text-stone-gray">
+        <Wallet size={12} className="text-terracotta" />
+        打开财务中心查看账户余额、近 7 天用量和真实消费记录。
       </div>
-      <div className="text-[10px] text-stone-gray">预算使用 {budgetPct}%</div>
     </div>
   );
 }

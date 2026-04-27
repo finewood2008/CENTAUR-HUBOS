@@ -4,8 +4,9 @@ import { CENTAUR_LEVELS, ALL_EMPLOYEES, type TeamMember, type PartnerProfile, ty
 import type { DigitalEmployeeId } from '../../types';
 
 interface TeamHeaderProps {
+  connected: boolean;
   partner: PartnerProfile;
-  centaur: CentaurIndex;
+  centaur: CentaurIndex | null;
   teamMembers: TeamMember[];
   onPartnerNameChange?: (name: string) => void;
   onMemberClick?: (id: string) => void;
@@ -30,6 +31,7 @@ const CURRENT_TASKS: Record<string, string> = {
 };
 
 export default function TeamHeader({
+  connected,
   partner,
   centaur,
   teamMembers,
@@ -73,10 +75,16 @@ export default function TeamHeader({
     setEditing(false);
   };
 
-  const levelInfo = CENTAUR_LEVELS[centaur.level];
+  const levelInfo = centaur ? CENTAUR_LEVELS[centaur.level] : null;
+  const visibleTeamMembers = connected
+    ? teamMembers
+    : teamMembers.map((member) => ({ ...member, status: 'offline' as const }));
+  const onlineTeamCount = connected
+    ? visibleTeamMembers.filter((member) => member.status === 'online' || member.status === 'working').length
+    : 0;
 
   // Employees available to add (in ALL_EMPLOYEES but not in teamMembers)
-  const teamIds = new Set(teamMembers.map(m => m.id));
+  const teamIds = new Set(visibleTeamMembers.map(m => m.id));
   const availableToAdd = ALL_EMPLOYEES.filter(e => e.id !== 'leader' && !teamIds.has(e.id));
 
   return (
@@ -113,7 +121,7 @@ export default function TeamHeader({
               </button>
             )}
             <div className="text-[11px] text-stone-gray/70 mt-0.5">
-              {partner.tagline || '你的数字合伙人'} · 在线
+              {partner.tagline || '你的数字合伙人'} · {connected ? '在线' : '离线'}
             </div>
             <div className="text-[10px] text-indigo-500/60 mt-0.5">
               COO · 统管团队
@@ -127,12 +135,12 @@ export default function TeamHeader({
         {/* ── Team Members Row ── */}
         <div className="flex flex-col gap-1 flex-1 min-w-0">
           <div className="flex items-center gap-1 px-3">
-            <span className="text-[10px] text-stone-gray/60">团队在线</span>
-            <span className="text-[10px] text-stone-gray/60 font-medium">{teamMembers.length}人</span>
+            <span className="text-[10px] text-stone-gray/60">{connected ? '团队在线' : '团队状态'}</span>
+            <span className="text-[10px] text-stone-gray/60 font-medium">{connected ? `${onlineTeamCount}人` : '离线'}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="bg-warm-sand/20 rounded-2xl px-3 py-2 flex items-center gap-1 overflow-x-auto flex-1 min-w-0">
-          {teamMembers.map(m => (
+          {visibleTeamMembers.map(m => (
             <div
               key={m.id}
               onClick={() => onMemberClick?.(m.id)}
@@ -239,8 +247,8 @@ export default function TeamHeader({
             <div className="flex items-center gap-2 w-full">
               <Sparkles size={13} className="text-terracotta shrink-0" />
               <span className="text-[10px] text-stone-gray font-medium">半人马指数</span>
-              <span className={`text-[18px] font-bold leading-none ml-auto ${levelInfo.color}`}>
-                {centaur.overall}
+              <span className={`text-[18px] font-bold leading-none ml-auto ${connected && levelInfo ? levelInfo.color : 'text-stone-gray/50'}`}>
+                {connected && centaur ? centaur.overall : '--'}
               </span>
             </div>
 
@@ -250,11 +258,11 @@ export default function TeamHeader({
               <div className="flex-1 h-[6px] rounded-full bg-gray-100 overflow-hidden flex">
                 <div
                   className="h-full rounded-l-full bg-gradient-to-r from-terracotta to-amber-400 transition-all duration-700"
-                  style={{ width: `${centaur.overall}%` }}
+                  style={{ width: `${connected && centaur ? centaur.overall : 0}%` }}
                 />
                 <div
                   className="h-full rounded-r-full bg-gradient-to-r from-blue-200 to-blue-300"
-                  style={{ width: `${100 - centaur.overall}%` }}
+                  style={{ width: `${connected && centaur ? 100 - centaur.overall : 100}%` }}
                 />
               </div>
               <span className="text-[9px] text-blue-400/70 shrink-0">人</span>
@@ -262,8 +270,8 @@ export default function TeamHeader({
 
             {/* Level label */}
             <div className="flex items-center gap-1 w-full justify-end">
-              <span className={`text-[10px] font-medium ${levelInfo.color}`}>{centaur.levelLabel}</span>
-              <span className="text-[9px] text-stone-gray/50">AI {centaur.overall}% · 人 {100 - centaur.overall}%</span>
+              <span className={`text-[10px] font-medium ${connected && levelInfo ? levelInfo.color : 'text-stone-gray/50'}`}>{connected && centaur ? centaur.levelLabel : '未接入'}</span>
+              <span className="text-[9px] text-stone-gray/50">{connected && centaur ? `AI ${centaur.overall}% · 人 ${100 - centaur.overall}%` : '等待真实运行时指标'}</span>
             </div>
           </div>
         </div>

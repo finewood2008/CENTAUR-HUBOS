@@ -10,6 +10,13 @@ interface FinanceSnapshotProps {
   onNav?: (tab: NavTab) => void;
 }
 
+function formatFinanceAmount(amount: number, currency?: string | null) {
+  const resolved = String(currency || 'CNY').toUpperCase();
+  if (resolved === 'USD') return `$${amount.toFixed(2)}`;
+  if (resolved === 'CNY') return `¥${amount.toFixed(2)}`;
+  return `${resolved} ${amount.toFixed(2)}`;
+}
+
 export function FinanceSnapshotWidget({ data, loading, isConnected, onNav }: FinanceSnapshotProps) {
   if (loading) {
     return (
@@ -28,12 +35,13 @@ export function FinanceSnapshotWidget({ data, loading, isConnected, onNav }: Fin
   const useSDK = isConnected && data?.wallet;
   const balance = useSDK ? (data!.wallet!.balance ?? 0) : 0;
   const monthSpent = useSDK ? (data!.wallet!.currentMonthSpent ?? 0) : 0;
+  const currency = data?.costSummary?.primaryCurrency ?? data?.wallet?.currency ?? data?.quota?.currency ?? 'CNY';
   // 7日消耗趋势 — SDK有costSummary时用真实数据
   const weeklySpent = useSDK && data!.costSummary
-    ? (data!.costSummary as any).totalCost ?? monthSpent * 0.25
-    : monthSpent * 0.25;
+    ? (data!.costSummary.totalAmount ?? 0)
+    : 0;
   const budgetPercent = useSDK
-    ? Math.min(100, Math.round((monthSpent / Math.max(balance + monthSpent, 1)) * 100))
+    ? (data?.quota?.monthlyLimit ? Math.min(100, Math.round((monthSpent / Math.max(data.quota.monthlyLimit, 1)) * 100)) : 0)
     : 0;
 
   return (
@@ -45,19 +53,19 @@ export function FinanceSnapshotWidget({ data, loading, isConnected, onNav }: Fin
       <div className="space-y-3">
         <div>
           <div className="text-[11px] text-stone-gray">账户余额</div>
-          <div className="text-lg font-bold text-near-black font-serif">¥{balance.toFixed(2)}</div>
+          <div className="text-lg font-bold text-near-black font-serif">{formatFinanceAmount(balance, data?.wallet?.currency ?? currency)}</div>
         </div>
         <div className="flex gap-4">
           <div className="flex-1">
             <div className="text-[11px] text-stone-gray">本月消耗</div>
             <div className="flex items-center gap-1">
-              <span className="text-[13px] font-semibold text-near-black">¥{monthSpent.toFixed(1)}</span>
+              <span className="text-[13px] font-semibold text-near-black">{formatFinanceAmount(monthSpent, currency)}</span>
               <TrendingDown size={12} className="text-success-green" />
             </div>
           </div>
           <div className="flex-1">
             <div className="text-[11px] text-stone-gray">近7日消耗</div>
-            <div className="text-[13px] font-semibold text-near-black">¥{weeklySpent.toFixed(1)}</div>
+            <div className="text-[13px] font-semibold text-near-black">{formatFinanceAmount(weeklySpent, currency)}</div>
           </div>
         </div>
         {/* Budget bar */}
@@ -67,7 +75,7 @@ export function FinanceSnapshotWidget({ data, loading, isConnected, onNav }: Fin
             style={{ width: `${budgetPercent}%` }}
           />
         </div>
-        <div className="text-[10px] text-stone-gray">本月预算使用 {budgetPercent}%</div>
+        <div className="text-[10px] text-stone-gray">{data?.quota?.monthlyLimit ? `本月预算使用 ${budgetPercent}%` : '未设置月度预算'}</div>
       </div>
     </div>
   );

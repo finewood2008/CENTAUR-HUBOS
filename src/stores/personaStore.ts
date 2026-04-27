@@ -88,6 +88,11 @@ export interface PersonaState {
   // Employee persona actions
   getSoul: (employeeId: string) => string;
   setSoul: (employeeId: string, content: string) => void;
+  getCachedMemories: (employeeId: string) => MemoryEntry[];
+  replaceCachedMemories: (employeeId: string, entries: MemoryEntry[]) => void;
+  addLocalMemory: (employeeId: string, entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateLocalMemory: (employeeId: string, memoryId: string, content: string) => void;
+  removeLocalMemory: (employeeId: string, memoryId: string) => void;
   getMemories: (employeeId: string) => MemoryEntry[];
   replaceMemories: (employeeId: string, entries: MemoryEntry[]) => void;
   queuePendingMemoryAdd: (employeeId: string, entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt'>) => MemoryEntry | null;
@@ -258,12 +263,16 @@ export const usePersonaStore = create<PersonaState>()(
 
       // ── Memories ────────────────────────────────────────────────
 
-      getMemories: (employeeId: string): MemoryEntry[] => {
+      getCachedMemories: (employeeId: string): MemoryEntry[] => {
         const emp = get().employees[employeeId];
         return emp?.memories ?? [];
       },
 
-      replaceMemories: (employeeId: string, entries: MemoryEntry[]): void => {
+      getMemories: (employeeId: string): MemoryEntry[] => {
+        return get().getCachedMemories(employeeId);
+      },
+
+      replaceCachedMemories: (employeeId: string, entries: MemoryEntry[]): void => {
         set((s) => {
           const employees = ensureEmployee(s.employees, employeeId);
           const persona = employees[employeeId];
@@ -279,6 +288,10 @@ export const usePersonaStore = create<PersonaState>()(
             },
           };
         });
+      },
+
+      replaceMemories: (employeeId: string, entries: MemoryEntry[]): void => {
+        get().replaceCachedMemories(employeeId, entries);
       },
 
       queuePendingMemoryAdd: (
@@ -415,7 +428,7 @@ export const usePersonaStore = create<PersonaState>()(
         }));
       },
 
-      addMemory: (
+      addLocalMemory: (
         employeeId: string,
         entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt'>,
       ): void => {
@@ -456,14 +469,21 @@ export const usePersonaStore = create<PersonaState>()(
             logs: appendLog(
               s.logs,
               'memory_added',
-              `Memory added for ${employeeId}: [${entry.category}] ${entry.content.slice(0, 60)}`,
+              `Local memory cached for ${employeeId}: [${entry.category}] ${entry.content.slice(0, 60)}`,
               employeeId,
             ),
           };
         });
       },
 
-      updateMemory: (employeeId: string, memoryId: string, content: string): void => {
+      addMemory: (
+        employeeId: string,
+        entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt'>,
+      ): void => {
+        get().addLocalMemory(employeeId, entry);
+      },
+
+      updateLocalMemory: (employeeId: string, memoryId: string, content: string): void => {
         set((s) => {
           const persona = s.employees[employeeId];
           if (!persona) return s;
@@ -506,14 +526,18 @@ export const usePersonaStore = create<PersonaState>()(
             logs: appendLog(
               s.logs,
               'memory_updated',
-              `Memory ${memoryId} updated for ${employeeId}`,
+              `Local memory cache updated for ${employeeId}: ${memoryId}`,
               employeeId,
             ),
           };
         });
       },
 
-      removeMemory: (employeeId: string, memoryId: string): void => {
+      updateMemory: (employeeId: string, memoryId: string, content: string): void => {
+        get().updateLocalMemory(employeeId, memoryId, content);
+      },
+
+      removeLocalMemory: (employeeId: string, memoryId: string): void => {
         set((s) => {
           const persona = s.employees[employeeId];
           if (!persona) return s;
@@ -529,17 +553,21 @@ export const usePersonaStore = create<PersonaState>()(
             logs: appendLog(
               s.logs,
               'memory_removed',
-              `Memory ${memoryId} removed for ${employeeId}`,
+              `Local memory cache removed for ${employeeId}: ${memoryId}`,
               employeeId,
             ),
           };
         });
       },
 
+      removeMemory: (employeeId: string, memoryId: string): void => {
+        get().removeLocalMemory(employeeId, memoryId);
+      },
+
       getMemoryText: (employeeId: string): string => {
-        const emp = get().employees[employeeId];
-        if (!emp || emp.memories.length === 0) return '';
-        return emp.memories.map((m) => m.content).join('\n§\n');
+        const memories = get().getCachedMemories(employeeId);
+        if (memories.length === 0) return '';
+        return memories.map((m) => m.content).join('\n§\n');
       },
 
       // ── Shared Knowledge ───────────────────────────────────────

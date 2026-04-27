@@ -6,15 +6,14 @@ import LeftPanel from './LeftPanel';
 import RightPanel from './RightPanel';
 import type { NavTab } from '../../types';
 import {
-  DEFAULT_PARTNER,
-  MOCK_CENTAUR_INDEX,
   TEAM_MEMBERS,
   ALL_EMPLOYEES,
   DEFAULT_TEAM_IDS,
+  type TeamMember,
 } from '../../data/partner';
 import type { ChatMessage, Task, PartnerProfile, ScheduledTask } from '../../data/partner';
 import type { DigitalEmployeeId } from '../../types';
-import { useConnection } from '../../hooks/useQeeClaw';
+import { useAgentManagement, useConnection } from '../../hooks/useQeeClaw';
 import { useCockpit } from '../../hooks/useCockpit';
 
 interface CockpitProps {
@@ -23,6 +22,7 @@ interface CockpitProps {
 
 export default function Cockpit({ onNav }: CockpitProps) {
   const { connected } = useConnection();
+  const { data: agentManagementData } = useAgentManagement(connected);
   const {
     data,
     loading,
@@ -39,9 +39,34 @@ export default function Cockpit({ onNav }: CockpitProps) {
 
   // Team members (dynamic — users can add/remove)
   const [teamIds, setTeamIds] = useState<DigitalEmployeeId[]>([...DEFAULT_TEAM_IDS]);
-  const teamMembers = teamIds
+  const draftTeamMembers = teamIds
     .map(id => ALL_EMPLOYEES.find(e => e.id === id))
     .filter(Boolean) as typeof ALL_EMPLOYEES;
+
+  const normalizeTeamToken = (value: string) => value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  const runtimeTeamMembers: TeamMember[] = agentManagementData.agents.map((agent) => {
+    const agentTokens = [agent.id, agent.name, agent.role]
+      .map((value) => normalizeTeamToken(String(value || '')))
+      .filter(Boolean);
+    const matchedPreset = ALL_EMPLOYEES.find((employee) => {
+      const employeeTokens = [employee.id, employee.name, employee.role]
+        .map((value) => normalizeTeamToken(String(value || '')))
+        .filter(Boolean);
+      return employeeTokens.some((token) => agentTokens.some((agentToken) => agentToken === token || agentToken.includes(token)));
+    });
+
+    return {
+      id: (matchedPreset?.id ?? agent.id) as DigitalEmployeeId,
+      name: matchedPreset?.name ?? agent.name,
+      avatar: matchedPreset?.avatar ?? agent.avatar ?? '🤖',
+      color: matchedPreset?.color ?? 'border-l-indigo-400',
+      role: matchedPreset?.role ?? agent.role,
+      status: 'online',
+      locked: false,
+    };
+  });
+
+  const teamMembers = connected ? runtimeTeamMembers : draftTeamMembers;
 
   // ── Derived ──
   const reviewTasks = data.tasks.filter((t: Task) => t.status === 'review');
@@ -80,13 +105,14 @@ export default function Cockpit({ onNav }: CockpitProps) {
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-parchment">
       {/* ── Top: Team Header ── */}
       <TeamHeader
+        connected={connected}
         partner={data.partner}
-        centaur={MOCK_CENTAUR_INDEX}
+        centaur={null}
         teamMembers={teamMembers}
         onPartnerNameChange={handlePartnerNameChange}
         onMemberClick={handleMemberClick}
-        onAddMember={handleAddMember}
-        onRemoveMember={handleRemoveMember}
+        onAddMember={connected ? undefined : handleAddMember}
+        onRemoveMember={connected ? undefined : handleRemoveMember}
       />
 
       {/* ── Main: Three-column layout — chat is center stage ── */}
@@ -130,7 +156,7 @@ export default function Cockpit({ onNav }: CockpitProps) {
         {/* Right Panel: Centaur Index + Stats + Feed (toggle) */}
         {rightPanelOpen && (
           <aside className="w-[280px] min-w-[280px] border-l border-border-cream/30 bg-white/30 backdrop-blur-sm flex flex-col overflow-hidden max-lg:hidden">
-            <RightPanel centaur={MOCK_CENTAUR_INDEX} />
+            <RightPanel connected={connected} centaur={null} />
           </aside>
         )}    </div>
     </div>

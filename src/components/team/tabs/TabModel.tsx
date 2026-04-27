@@ -10,6 +10,7 @@ interface Props {
 
 export default function TabModel({ emp, config, readonly }: Props) {
   const { data, loading, updateModel } = config;
+  const hasCurrentModel = Boolean(data.currentModel);
 
   return (
     <div className="space-y-5">
@@ -20,7 +21,7 @@ export default function TabModel({ emp, config, readonly }: Props) {
           <h3 className="font-serif text-sm text-near-black font-medium">当前模型</h3>
         </div>
         <div className="grid grid-cols-2 gap-3 text-xs">
-          <InfoCell label="基座模型" value={data.currentModel || emp.modelInfo.base} />
+          <InfoCell label="基座模型" value={hasCurrentModel ? data.currentModel : '未配置'} muted={!hasCurrentModel} />
           <InfoCell label="推理能力" value={emp.modelInfo.reasoning} />
           <InfoCell label="上下文" value={emp.modelInfo.context} />
           <InfoCell label="专精方向" value={emp.modelInfo.specialization} />
@@ -70,7 +71,10 @@ export default function TabModel({ emp, config, readonly }: Props) {
             );
           })}
           {data.availableModels.length === 0 && !loading && (
-            <p className="text-xs text-stone-gray text-center py-6">暂无可用模型</p>
+            <div className="text-center py-6 space-y-1">
+              <p className="text-xs text-stone-gray">暂无可用模型</p>
+              <p className="text-[11px] text-olive-gray">当前本地 bridge 未配置真实 LLM 凭证</p>
+            </div>
           )}
         </div>
       </section>
@@ -84,11 +88,11 @@ export default function TabModel({ emp, config, readonly }: Props) {
   );
 }
 
-function InfoCell({ label, value }: { label: string; value: string }) {
+function InfoCell({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="bg-warm-sand/50 rounded-lg p-3">
       <p className="text-stone-gray">{label}</p>
-      <p className="text-near-black font-medium mt-0.5">{value}</p>
+      <p className={`font-medium mt-0.5 ${muted ? 'text-stone-gray' : 'text-near-black'}`}>{value}</p>
     </div>
   );
 }

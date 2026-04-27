@@ -4,7 +4,7 @@
 
 import type { DigitalEmployeeId } from '../types';
 
-type EmployeeId = Exclude<DigitalEmployeeId, string & Record<never, never>>;
+type EmployeeId = 'spark' | 'xiaoke' | 'shuxi' | 'shuibao' | 'lvan';
 
 export interface HarnessModule {
   key: string;
@@ -374,6 +374,6 @@ export const EMPLOYEE_HARNESSES: Record<EmployeeId, EmployeeHarness> = {
   lvan: LVAN_HARNESS,
 };
 
-export function getEmployeeHarness(id: EmployeeId): EmployeeHarness | null {
-  return EMPLOYEE_HARNESSES[id] || null;
+export function getEmployeeHarness(id: DigitalEmployeeId): EmployeeHarness | null {
+  return id in EMPLOYEE_HARNESSES ? EMPLOYEE_HARNESSES[id as EmployeeId] : null;
 }

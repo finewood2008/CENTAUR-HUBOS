@@ -1,4 +1,5 @@
 // 统一对话流类型
+export type { CardMessage } from '../cards/types';
 import type { CardMessage } from '../cards/types';
 
 export interface ChatMsg {

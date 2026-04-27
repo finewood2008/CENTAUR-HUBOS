@@ -1,7 +1,9 @@
 // SystemMemory — 系统级记忆总览（共享认知 + 操作日志 + 各员工记忆概览）
 import { useState, useMemo } from 'react';
-import { Building2, User, Users, ScrollText, Sparkles, Plus, Minus, Pencil, Globe, Brain, Save, Clock, ChevronDown, ChevronRight } from 'lucide-react';
+import { ScrollText, Sparkles, Plus, Minus, Pencil, Globe, Brain, Clock, ChevronDown, ChevronRight } from 'lucide-react';
 import { usePersonaStore } from '../../stores/personaStore';
+import { useSharedContext } from '../../features/shared-context/useSharedContext';
+import { SharedContextCards } from '../shared/SharedContextCards';
 
 const ACTION_META: Record<string, { icon: typeof Plus; label: string; color: string }> = {
   memory_added:   { icon: Plus,     label: '新增记忆', color: 'text-success-green' },
@@ -27,88 +29,11 @@ function formatTime(ts: string): string {
   return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
 }
 
-interface SharedCardProps {
-  title: string;
-  icon: typeof Building2;
-  value: string;
-  storeKey: 'boss' | 'company' | 'team';
-  placeholder: string;
-}
-
-function SharedCard({ title, icon: Icon, value, storeKey, placeholder }: SharedCardProps) {
-  const store = usePersonaStore();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const [toast, setToast] = useState('');
-
-  const save = () => {
-    store.updateShared(storeKey, draft);
-    setEditing(false);
-    setToast('已保存');
-    setTimeout(() => setToast(''), 1500);
-  };
-
-  const charCount = (editing ? draft : value).length;
-
-  return (
-    <div className="card-glass-warm p-4 flex flex-col">
-      {toast && (
-        <div className="absolute -top-2 right-2 bg-near-black text-white text-[10px] px-2 py-1 rounded shadow-lg z-10">
-          {toast}
-        </div>
-      )}
-      <div className="flex items-center gap-2 mb-3">
-        <Icon size={13} className="text-terracotta" />
-        <h4 className="font-serif text-xs text-near-black font-medium">{title}</h4>
-        <span className="ml-auto text-[10px] text-stone-gray">{charCount} 字</span>
-      </div>
-      {editing ? (
-        <>
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            className="flex-1 text-xs bg-warm-sand/30 border border-border-cream rounded-lg p-3 min-h-[120px] focus:outline-none focus:border-terracotta/40 leading-relaxed resize-none"
-            placeholder={placeholder}
-          />
-          <div className="flex justify-end gap-2 mt-2">
-            <button onClick={() => setEditing(false)} className="text-[11px] text-stone-gray hover:text-near-black px-2 py-1">取消</button>
-            <button onClick={save} className="flex items-center gap-1 text-[11px] text-white bg-terracotta hover:bg-terracotta/90 px-2.5 py-1 rounded-md">
-              <Save size={10} />保存
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          {value ? (
-            <div className="flex-1 text-xs text-olive-gray leading-relaxed whitespace-pre-wrap">
-              {value.split('§').map((seg, i) => (
-                <p key={i} className={i > 0 ? 'mt-2 pt-2 border-t border-border-cream/30' : ''}>
-                  {seg.trim()}
-                </p>
-              ))}
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center py-6">
-              <p className="text-[11px] text-stone-gray">暂未建立，通过日常对话自动积累，或手动添加</p>
-            </div>
-          )}
-          <button
-            onClick={() => { setDraft(value); setEditing(true); }}
-            className="mt-3 flex items-center gap-1 text-[11px] text-terracotta hover:text-terracotta/80 self-end"
-          >
-            <Pencil size={10} />{value ? '编辑' : '手动添加'}
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
 export default function SystemMemory() {
   const store = usePersonaStore();
-  const shared = store.getShared();
   const logs = store.getLogs();
   const [logExpanded, setLogExpanded] = useState(true);
+  const { shared } = useSharedContext();
 
   // Employee memory overview
   const employeeIds = ['spark', 'xiaoke', 'shuxi', 'shuibao', 'lvan'];
@@ -148,29 +73,7 @@ export default function SystemMemory() {
           <Globe size={13} className="text-terracotta" />
           共享认知
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <SharedCard
-            title="老板画像"
-            icon={User}
-            value={shared.boss}
-            storeKey="boss"
-            placeholder="记录老板的沟通风格、审美偏好、决策习惯等..."
-          />
-          <SharedCard
-            title="企业画像"
-            icon={Building2}
-            value={shared.company}
-            storeKey="company"
-            placeholder="记录企业行业、主营业务、目标客户、竞品等..."
-          />
-          <SharedCard
-            title="团队认知"
-            icon={Users}
-            value={shared.team}
-            storeKey="team"
-            placeholder="记录团队成员特长、协作方式、任务分工等..."
-          />
-        </div>
+        <SharedContextCards shared={shared} tone="warm" />
       </section>
 
       {/* Employee Memory Overview */}
