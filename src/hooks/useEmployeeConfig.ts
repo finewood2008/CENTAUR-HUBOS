@@ -145,7 +145,6 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
     } catch (err) {
       console.error('[EmployeeConfig] load error:', err);
       setError(err instanceof Error ? err.message : 'unknown error');
-      // 移除 mock，直接置空
       setData(EMPTY_CONFIG);
     } finally {
       setLoading(false);
@@ -156,7 +155,6 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
     if (employee && isConnected) {
       loadConfig();
     } else if (employee) {
-      // 离线模式：由于无 mock，直接用空配置
       setData(EMPTY_CONFIG);
     }
   }, [employee?.id, isConnected, loadConfig]);
@@ -179,7 +177,7 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
     try {
       await storeAgentMemory(employee.id, content, (category as MemoryCategory | undefined) ?? 'correction');
       await loadConfig();
-    } catch { /* mock fallback */ }
+    } catch { /* keep current state on API failure */ }
   }, [employee, loadConfig]);
 
   const searchMemory = useCallback(async (query: string) => {
@@ -204,7 +202,7 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
         contentType: file.type,
       });
       await loadConfig();
-    } catch { /* mock fallback */ }
+    } catch { /* keep current state on API failure */ }
   }, [employee, loadConfig]);
 
   return {
@@ -218,5 +216,4 @@ export function useEmployeeConfig(employee: DigitalEmployee | null, isConnected:
     uploadKnowledge,
   };
 }
-
 

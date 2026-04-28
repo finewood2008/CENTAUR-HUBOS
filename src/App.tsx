@@ -1,13 +1,14 @@
 // Hub OS - 主应用入口
-// SDK 连接 → 真实数据；后端未启动 → 自动 fallback mock
-import { Suspense, lazy, useState } from 'react';
-import type { NavTab } from './types';
+// SDK 连接 → 真实数据；后端未启动 → 空态/错误态
+import { Suspense, lazy, useCallback, useState } from 'react';
+import type { NavFocusIntent, NavTab } from './types';
 import Sidebar from './components/layout/Sidebar';
-import type { EmployeeSpecV2 } from './components/builder';
+import type { DigitalEmployee } from './types';
 import { ToastProvider, useToast } from './components/shared/Toast';
 import { AppProvider, useTheme } from './stores/useAppStore';
 import { useConnection, useEnhancedDashboardData, useChannelsData, useKnowledgeData } from './hooks/useQeeClaw';
 import { getClientAsync } from './services/qeeclaw';
+import { refreshBuilderPreflightProjects } from './features/builder/preflight';
 
 const Cockpit = lazy(() => import('./components/cockpit'));
 const Team = lazy(() => import('./components/team/Team'));
@@ -37,8 +38,22 @@ function TabFallback() {
   );
 }
 
+function storeCustomEmployee(spec: DigitalEmployee) {
+  try {
+    const raw = localStorage.getItem('hubos_custom_employees');
+    const list = raw ? JSON.parse(raw) : [];
+    const next = Array.isArray(list)
+      ? [spec, ...list.filter((item: DigitalEmployee) => item.id !== spec.id)]
+      : [spec];
+    localStorage.setItem('hubos_custom_employees', JSON.stringify(next));
+  } catch {
+    /* ignore local display cache failures */
+  }
+}
+
 function AppInner() {
   const [tab, setTab] = useState<NavTab>('team');
+  const [focusIntent, setFocusIntent] = useState<NavFocusIntent | null>(null);
   const [building, setBuilding] = useState(false);
   const { connected, checking } = useConnection();
   const { bgStyle } = useTheme();
@@ -49,38 +64,61 @@ function AppInner() {
   const { data: channelsData, loading: channelsLoading, error: channelsError, refresh: refreshChannels } = useChannelsData(connected);
   const { data: knowledgeData, loading: knowledgeLoading, refresh: refreshKnowledge } = useKnowledgeData(connected);
 
-  const handleBuilderComplete = async (spec: EmployeeSpecV2) => {
-    try {
-      const raw = localStorage.getItem('hubos_custom_employees');
-      const list = raw ? JSON.parse(raw) : [];
-      list.push(spec);
-      localStorage.setItem('hubos_custom_employees', JSON.stringify(list));
-    } catch { /* ignore */ }
+  const refreshBuilderPreflight = useCallback(() => {
+    void refreshBuilderPreflightProjects();
+  }, []);
 
-    if (connected) {
+  const handleChannelsRefresh = useCallback(async () => {
+    await refreshChannels();
+    refreshBuilderPreflight();
+  }, [refreshBuilderPreflight, refreshChannels]);
+
+  const handleKnowledgeRefresh = useCallback(async () => {
+    await refreshKnowledge();
+    refreshBuilderPreflight();
+  }, [refreshBuilderPreflight, refreshKnowledge]);
+
+  const handleBuilderComplete = async (spec: DigitalEmployee) => {
+    if (spec.builder?.agentId) {
+      storeCustomEmployee({ ...spec, status: 'active' });
+      toast('success', `${spec?.name || '员工'} 已创建并入职`);
+    } else if (connected) {
       try {
         const client = await getClientAsync();
-        await client.agent.create({
+        const created = await client.agent.create({
           name: spec?.name || '自定义员工',
-          description: spec?.description || spec?.role || '',
-          model: spec?.layers?.capability?.model || 'gpt-4o',
+          description: spec?.tagline || spec?.role || '',
+          model: spec?.model || 'gpt-4o',
           runtimeType: 'hermes',
+        });
+        storeCustomEmployee({
+          ...spec,
+          status: 'active',
+          builder: spec.builder
+            ? { ...spec.builder, agentId: Number(created.id) }
+            : spec.builder,
         });
         toast('success', `${spec?.name || '员工'} 已创建并入职`);
       } catch (err) {
         toast('error', `创建失败：${err instanceof Error ? err.message : '未知错误'}`);
+        return;
       }
     } else {
-      toast('info', '已保存到本地，SDK 离线暂未落库');
+      storeCustomEmployee(spec);
+      toast('info', '已保存为本地草稿，SDK 离线暂未创建真实员工');
     }
     setBuilding(false);
   };
 
+  const handleNav = (nextTab: NavTab, intent?: NavFocusIntent) => {
+    setTab(nextTab);
+    setFocusIntent(intent ?? null);
+  };
+
   return (
     <>
-    <ToastProvider>
       <div className="h-screen w-screen bg-parchment text-near-black flex overflow-hidden">
-        <Sidebar active={tab} onNav={setTab} />
+        <Sidebar active={tab} onNav={(nextTab) => handleNav(nextTab)} />
         <main className={`flex-1 flex flex-col overflow-hidden bg-parchment ${BG_CLASS_MAP[bgStyle] || ''}`}>
           {/* 连接状态指示 — 仅在团队页面显示，极简化 */}
           {!checking && tab === 'team' && (
@@ -93,13 +131,14 @@ function AppInner() {
           )}
           <Suspense fallback={<TabFallback />}>
             {tab === 'team' && (
-              <Cockpit onNav={setTab} />
+              <Cockpit onNav={(nextTab) => handleNav(nextTab)} />
             )}
-            {tab === 'employees' && !building && <Team isConnected={connected} />}
+            {tab === 'employees' && !building && <Team isConnected={connected} onNav={handleNav} />}
             {tab === 'employees' && building && (
               <EmployeeBuilderV2
                 onBack={() => setBuilding(false)}
                 onComplete={handleBuilderComplete}
+                onNavigate={handleNav}
               />
             )}
             {tab === 'finance' && <Finance isConnected={connected} />}
@@ -109,7 +148,8 @@ function AppInner() {
                 channelsData={channelsData}
                 channelsLoading={channelsLoading}
                 channelsError={channelsError}
-                onRefresh={refreshChannels}
+                onRefresh={handleChannelsRefresh}
+                focusChannelKey={focusIntent?.tab === 'channels' ? focusIntent.target : undefined}
               />
             )}
             {tab === 'memory' && <MemoryCenter />}
@@ -119,7 +159,9 @@ function AppInner() {
                 knowledgeData={knowledgeData}
                 knowledgeLoading={knowledgeLoading}
                 isConnected={connected}
-                onRefresh={refreshKnowledge}
+                onRefresh={handleKnowledgeRefresh}
+                focusAction={focusIntent?.tab === 'knowledge' ? focusIntent.action : undefined}
+                focusQuery={focusIntent?.tab === 'knowledge' ? focusIntent.target : undefined}
               />
             )}
             {tab === 'settings' && (
@@ -128,7 +170,6 @@ function AppInner() {
           </Suspense>
         </main>
       </div>
-    </ToastProvider>
     </>
   );
 }
@@ -137,7 +178,9 @@ function AppInner() {
 export default function App() {
   return (
     <AppProvider>
-      <AppInner />
+      <ToastProvider>
+        <AppInner />
+      </ToastProvider>
     </AppProvider>
   );
 }

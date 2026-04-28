@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import apiMockPlugin from './src/vite-api-mock-plugin'
+import apiProxyPlugin from './src/vite-api-proxy-plugin'
 
 const BRIDGE_URL = process.env.VITE_BRIDGE_URL || 'http://127.0.0.1:21747'
 
@@ -10,31 +10,11 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    apiMockPlugin(),
+    apiProxyPlugin(),
   ],
-  build: {
-    rollupOptions: {
-      external: [
-        '@qeeclaw/core-sdk',
-        '@qeeclaw/product-sdk',
-        '@qeeclaw/runtime-sidecar',
-      ],
-      output: {
-        // 外部模块作为全局空对象处理（SDK 离线时 fallback 逻辑已覆盖）
-        globals: {
-          '@qeeclaw/core-sdk': '{}',
-          '@qeeclaw/product-sdk': '{}',
-          '@qeeclaw/runtime-sidecar': '{}',
-        },
-      },
-    },
-  },
-  optimizeDeps: {
-    exclude: ['@qeeclaw/core-sdk', '@qeeclaw/product-sdk', '@qeeclaw/runtime-sidecar'],
-  },
   server: {
     proxy: {
-      // /api/* 由 apiMockPlugin 处理（rewrite或mock）
+      // /api/* 由 apiProxyPlugin 处理（rewrite/proxy）
       // 以下是 bridge_server 原生支持的路径，直接转发
       '/invoke': { target: BRIDGE_URL, changeOrigin: true },
       '/health': { target: BRIDGE_URL, changeOrigin: true },

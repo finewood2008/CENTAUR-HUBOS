@@ -50,7 +50,7 @@ export default function EmployeeConfigPanel({ emp, isConnected, onBack, onActiva
   const config = useEmployeeConfig(emp, isConnected);
 
   const isLocked = emp.status !== 'active';
-  const workspaceUnlocked = emp.id === 'spark' || emp.id === 'xiaoke';
+  const workspaceUnlocked = emp.id === 'spark' || emp.id === 'xiaoke' || Boolean(emp.builder) || !emp.workspace.comingSoon;
   const st = statusConfig[emp.status];
 
   return (
@@ -108,7 +108,7 @@ export default function EmployeeConfigPanel({ emp, isConnected, onBack, onActiva
                 onClick={() => onActivate(emp)}
                 disabled
                 className="px-4 py-2 rounded-xl bg-warm-sand text-stone-gray text-sm font-medium flex items-center gap-1.5 cursor-not-allowed opacity-70"
-                title="演示版本暂不可激活"
+                title="当前版本暂不可激活"
               >
                 <Sparkles size={14} /> 激活入职
               </button>

@@ -5,14 +5,8 @@ import TeamHeader from './TeamHeader';
 import LeftPanel from './LeftPanel';
 import RightPanel from './RightPanel';
 import type { NavTab } from '../../types';
-import {
-  TEAM_MEMBERS,
-  ALL_EMPLOYEES,
-  DEFAULT_TEAM_IDS,
-  type TeamMember,
-} from '../../data/partner';
+import type { TeamMember } from '../../data/partner';
 import type { ChatMessage, Task, PartnerProfile, ScheduledTask } from '../../data/partner';
-import type { DigitalEmployeeId } from '../../types';
 import { useAgentManagement, useConnection } from '../../hooks/useQeeClaw';
 import { useCockpit } from '../../hooks/useCockpit';
 
@@ -37,36 +31,19 @@ export default function Cockpit({ onNav }: CockpitProps) {
     deleteSchedule
   } = useCockpit(connected);
 
-  // Team members (dynamic — users can add/remove)
-  const [teamIds, setTeamIds] = useState<DigitalEmployeeId[]>([...DEFAULT_TEAM_IDS]);
-  const draftTeamMembers = teamIds
-    .map(id => ALL_EMPLOYEES.find(e => e.id === id))
-    .filter(Boolean) as typeof ALL_EMPLOYEES;
-
-  const normalizeTeamToken = (value: string) => value.trim().toLowerCase().replace(/[\s_-]+/g, '');
   const runtimeTeamMembers: TeamMember[] = agentManagementData.agents.map((agent) => {
-    const agentTokens = [agent.id, agent.name, agent.role]
-      .map((value) => normalizeTeamToken(String(value || '')))
-      .filter(Boolean);
-    const matchedPreset = ALL_EMPLOYEES.find((employee) => {
-      const employeeTokens = [employee.id, employee.name, employee.role]
-        .map((value) => normalizeTeamToken(String(value || '')))
-        .filter(Boolean);
-      return employeeTokens.some((token) => agentTokens.some((agentToken) => agentToken === token || agentToken.includes(token)));
-    });
-
     return {
-      id: (matchedPreset?.id ?? agent.id) as DigitalEmployeeId,
-      name: matchedPreset?.name ?? agent.name,
-      avatar: matchedPreset?.avatar ?? agent.avatar ?? '🤖',
-      color: matchedPreset?.color ?? 'border-l-indigo-400',
-      role: matchedPreset?.role ?? agent.role,
+      id: agent.id,
+      name: agent.name,
+      avatar: agent.avatar ?? '🤖',
+      color: 'border-l-indigo-400',
+      role: agent.role,
       status: 'online',
       locked: false,
     };
   });
 
-  const teamMembers = connected ? runtimeTeamMembers : draftTeamMembers;
+  const teamMembers = connected ? runtimeTeamMembers : [];
 
   // ── Derived ──
   const reviewTasks = data.tasks.filter((t: Task) => t.status === 'review');
@@ -76,8 +53,7 @@ export default function Cockpit({ onNav }: CockpitProps) {
   const [pendingQuickAction, setPendingQuickAction] = useState<{ id: number; text: string } | null>(null);
 
   const handleMemberClick = useCallback((id: string) => {
-    const member = TEAM_MEMBERS.find(m => m.id === id);
-    if (member && member.locked) {
+    if (id) {
       onNav?.('employees');
     }
   }, [onNav]);
@@ -91,16 +67,6 @@ export default function Cockpit({ onNav }: CockpitProps) {
     sendMessage(action);
   }, [connected, data.partner.isConfigured, data.sessionId, sendMessage, sending]);
 
-
-
-  const handleAddMember = useCallback((id: DigitalEmployeeId) => {
-    setTeamIds(prev => prev.includes(id) ? prev : [...prev, id]);
-  }, []);
-
-  const handleRemoveMember = useCallback((id: DigitalEmployeeId) => {
-    setTeamIds(prev => prev.filter(tid => tid !== id));
-  }, []);
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-parchment">
       {/* ── Top: Team Header ── */}
@@ -111,8 +77,8 @@ export default function Cockpit({ onNav }: CockpitProps) {
         teamMembers={teamMembers}
         onPartnerNameChange={handlePartnerNameChange}
         onMemberClick={handleMemberClick}
-        onAddMember={connected ? undefined : handleAddMember}
-        onRemoveMember={connected ? undefined : handleRemoveMember}
+        onAddMember={undefined}
+        onRemoveMember={undefined}
       />
 
       {/* ── Main: Three-column layout — chat is center stage ── */}
@@ -145,6 +111,7 @@ export default function Cockpit({ onNav }: CockpitProps) {
             <PartnerChat
               messages={data.messages}
               partner={data.partner}
+              teamMembers={teamMembers}
               onSendMessage={sendMessage}
               onMemberClick={handleMemberClick}
               pendingQuickAction={pendingQuickAction}
@@ -156,7 +123,13 @@ export default function Cockpit({ onNav }: CockpitProps) {
         {/* Right Panel: Centaur Index + Stats + Feed (toggle) */}
         {rightPanelOpen && (
           <aside className="w-[280px] min-w-[280px] border-l border-border-cream/30 bg-white/30 backdrop-blur-sm flex flex-col overflow-hidden max-lg:hidden">
-            <RightPanel connected={connected} centaur={null} />
+            <RightPanel
+              connected={connected}
+              centaur={null}
+              teamMembers={teamMembers}
+              reviewTasks={reviewTasks}
+              scheduledTasks={data.scheduledTasks}
+            />
           </aside>
         )}    </div>
     </div>

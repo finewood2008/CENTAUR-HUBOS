@@ -77,11 +77,6 @@ function SkillRow({ skill, onToggle, readonly }: { skill: EmployeeSkill; onToggl
           <span className="text-[9px] text-stone-gray/60">{skill.version}</span>
         </div>
         <p className="text-[11px] text-olive-gray mt-0.5 truncate">{skill.description}</p>
-        {skill.enabled && skill.invocations !== undefined && (
-          <p className="text-[10px] text-stone-gray/80 mt-1">
-            调用 {skill.invocations} 次 · 成功率 {skill.successRate}%
-          </p>
-        )}
       </div>
       <button
         onClick={onToggle}

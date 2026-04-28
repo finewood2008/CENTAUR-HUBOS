@@ -1,4 +1,4 @@
-// 超级工作台 — 信息流 Mock 数据（与 5 名核心数字员工统一）
+// 超级工作台 — 信息流类型定义
 export interface FeedItem {
   id: string;
   agentId: string;
@@ -13,5 +13,4 @@ export interface FeedItem {
   actionable?: boolean;       // 需要用户操作
   actionLabel?: string;
 }
-
 

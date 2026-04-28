@@ -1,22 +1,53 @@
-// spark-ai.ts — Gemini 客户端 (OpenAI 兼容格式)
-// 代理地址: Cloudflare Worker → Gemini 2.5 Flash
-// 注意：CF Worker 代理暂不支持 SSE 流式，使用非流式 + 模拟逐字输出
-
-const PROXY_URL = 'https://spark-gemini-proxy.finewood2008.workers.dev/v1/chat/completions';
-const MODEL = 'gemini-2.5-flash';
+// spark-ai.ts — Hub OS 统一模型调用适配层
+// 所有员工工作台都通过 QeeClaw SDK 进入平台模型路由、计费和审计链路。
+import { getClientAsync } from '../services/qeeclaw';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
-// ── 模拟流式输出（非流式 API + 逐字推送）──────────
-async function simulateStream(
+function formatPrompt(messages: ChatMessage[]): string {
+  return messages
+    .map((message) => {
+      const label = message.role === 'system'
+        ? '系统'
+        : message.role === 'assistant'
+          ? '助手'
+          : '用户';
+      return `${label}：${message.content}`;
+    })
+    .join('\n\n');
+}
+
+function extractModelText(result: unknown): string {
+  if (typeof result === 'string') return result;
+  if (!result || typeof result !== 'object') return '';
+
+  const record = result as Record<string, unknown>;
+  const candidates = [
+    record.text,
+    record.content,
+    record.output,
+    record.message,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate;
+    }
+  }
+
+  return '';
+}
+
+// ── 前端分块输出（非流式 API + 逐块推送）──────────
+async function emitChunkedText(
   fullText: string,
   onDelta: (text: string) => void,
   onDone: () => void,
 ) {
-  // 按句子/标点切分，逐块推送，模拟流式效果
+  // 按句子/标点切分，逐块推送
   const chunks: string[] = [];
   let current = '';
   for (const char of fullText) {
@@ -31,7 +62,6 @@ async function simulateStream(
 
   for (const chunk of chunks) {
     onDelta(chunk);
-    // 每块之间加 30-60ms 延迟
     await new Promise(r => setTimeout(r, 30 + Math.random() * 30));
   }
   onDone();
@@ -58,32 +88,17 @@ export async function streamChat({
   allMessages.push(...messages);
 
   try {
-    const resp = await fetch(PROXY_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: allMessages,
-        stream: false,
-        temperature: 0.8,
-        max_tokens: 4096,
-      }),
+    const client = await getClientAsync();
+    const result = await client.models.invoke({
+      prompt: formatPrompt(allMessages),
     });
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      throw new Error(`API error ${resp.status}: ${errText}`);
-    }
-
-    const data = await resp.json();
-    const content = data.choices?.[0]?.message?.content || '';
+    const content = extractModelText(result);
 
     if (!content) {
-      throw new Error('API returned empty content');
+      throw new Error('平台模型 API 未返回文本');
     }
 
-    // 模拟流式输出
-    await simulateStream(content, onDelta, onDone);
+    await emitChunkedText(content, onDelta, onDone);
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     if (onError) onError(error);

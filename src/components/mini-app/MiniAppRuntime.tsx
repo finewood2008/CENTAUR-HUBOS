@@ -98,8 +98,9 @@ ${history}
         break;
       }
       case 'show_toast':
-        // 简单 toast（后续可接 sonner）
-        alert(String(action.params.message || ''));
+        window.dispatchEvent(new CustomEvent('hubos:toast', {
+          detail: { type: 'info', message: String(action.params.message || '') },
+        }));
         break;
       case 'agent_invoke':
         handleSend(String(action.params.prompt || ''));

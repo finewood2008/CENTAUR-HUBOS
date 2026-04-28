@@ -64,6 +64,26 @@ export interface WorkspaceConfig {
   comingSoon?: boolean;
 }
 
+export interface BuilderEmployeeMetadata {
+  projectId: string;
+  roleType?: string;
+  agentId?: number;
+  agentCode?: string;
+  agentRuntimeType?: string | null;
+  lastSyncedAt?: string;
+  viewConfig?: {
+    template?: string;
+    title?: string;
+    subtitle?: string;
+    kpis?: { key: string; label: string; value: string; tone?: string }[];
+    leftList?: { title: string; filters: string[]; primaryField: string; secondaryField: string };
+    mainPanel?: { key: string; title: string; fields: string[] }[];
+    rightActions?: { key: string; label: string; approvalRequired: boolean; riskLevel: string }[];
+    bottomLogs?: { title: string; fields: string[] };
+    highlightRules?: { key: string; condition: string; tone: string }[];
+  };
+}
+
 export interface OnboardingPreference {
   key: string;
   label: string;
@@ -105,12 +125,13 @@ export interface DigitalEmployee {
   
   // 工作台
   workspace: WorkspaceConfig;
+  builder?: BuilderEmployeeMetadata;
   
   // 入职配置
   onboardingPreferences: OnboardingPreference[];
   trainingDataSources: string[];  // 可导入的数据源
   
-  // 工作统计 (mock)
+  // 工作统计（由运行时或构建器写入）
   stats: {
     monthlyTasks: number;
     hoursSaved: number;
@@ -261,3 +282,10 @@ export interface ActivityItem {
 }
 
 export type NavTab = 'team' | 'employees' | 'channels' | 'memory' | 'knowledge' | 'finance' | 'office' | 'settings';
+
+export interface NavFocusIntent {
+  tab: NavTab;
+  target?: string;
+  action?: string;
+  source?: string;
+}

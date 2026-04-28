@@ -13,6 +13,7 @@ import { buildBuilderAgentDescription, buildBuilderAgentMetadata, syncBuilderPro
 import BuilderCanvas, { type CanvasNode } from './BuilderCanvas';
 import BuilderChat, { buildNodesFromProject } from './BuilderChat';
 import NodeDetailPanel from './NodeDetailPanel';
+import { useToast } from '../shared/Toast';
 
 interface Props {
   onBack: () => void;
@@ -46,6 +47,7 @@ function stageIndex(stage: BuilderStage | undefined): number {
 }
 
 export default function EmployeeBuilderV2({ onBack, onComplete, onNavigate }: Props) {
+  const { toast } = useToast();
   const [project, setProject] = useState<BuilderProject | null>(null);
   const [nodes, setNodes] = useState<CanvasNode[]>(EMPTY_NODES);
   const [activeLayer, setActiveLayer] = useState(1);
@@ -136,7 +138,6 @@ export default function EmployeeBuilderV2({ onBack, onComplete, onNavigate }: Pr
     };
     try {
       let syncedProject = deployedProject;
-      let agentCreationFailed = false;
       try {
         const createdAgent = await getAgentModule().create({
           name: deployedProject.blueprint.name,
@@ -156,8 +157,7 @@ export default function EmployeeBuilderV2({ onBack, onComplete, onNavigate }: Pr
         };
       } catch (error) {
         console.error('[Builder] Agent creation failed:', error);
-        agentCreationFailed = true;
-        alert('员工创建失败，请稍后在员工详情页重试激活。错误：' + (error instanceof Error ? error.message : String(error)));
+        toast('error', '员工创建失败，项目已保留为待激活草稿');
       }
 
       await saveBuilderProject(syncedProject);
@@ -171,7 +171,7 @@ export default function EmployeeBuilderV2({ onBack, onComplete, onNavigate }: Pr
     } finally {
       setLaunching(false);
     }
-  }, [canLaunch, launching, onComplete, project]);
+  }, [canLaunch, launching, onComplete, project, toast]);
 
   const handleRollback = useCallback((versionId: string) => {
     if (!project) return;

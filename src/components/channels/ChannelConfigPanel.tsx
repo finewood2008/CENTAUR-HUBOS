@@ -11,12 +11,10 @@ import {
   X,
 } from 'lucide-react';
 import type {
-  ChannelBindingRecord,
   ChannelKey,
   FeishuChannelConfig,
   WechatPersonalOpenClawChannelConfig,
   WechatPersonalOpenClawQrSession,
-  WechatPersonalPluginChannelConfig,
   WechatWorkChannelConfig,
 } from '@qeeclaw/core-sdk';
 import { getChannelsBaseUrl, getChannelsClientAsync, globalRuntimeContext, isChannelsLocalBridgeAvailable } from '../../services/qeeclaw';
@@ -51,26 +49,6 @@ type ChannelDraft =
       encryptKey: string;
     }
   | {
-      kind: 'wechat_personal_plugin';
-      channelName: string;
-      enabled: boolean;
-      configured: boolean;
-      callbackUrl: string;
-      riskLevel: string;
-      displayName: string;
-      assistantName: string;
-      welcomeMessage: string;
-      kernelCorpId: string;
-      kernelAgentId: string;
-      kernelSecret: string;
-      kernelSecretConfigured: boolean;
-      kernelVerifyToken: string;
-      kernelAesKey: string;
-      bindingEnabled: boolean;
-      setupStatus: string;
-      capabilityStage: string;
-    }
-  | {
       kind: 'wechat_personal_openclaw';
       channelName: string;
       enabled: boolean;
@@ -92,14 +70,6 @@ interface ChannelConfigPanelProps {
   channel: ChannelItem;
   onClose: () => void;
   onSaved?: () => void;
-}
-
-interface BindingFormState {
-  bindingType: 'assistant' | 'device' | 'workspace';
-  bindingTargetId: string;
-  bindingTargetName: string;
-  expiresInHours: string;
-  notes: string;
 }
 
 function formatTime(value?: string | null): string {
@@ -150,29 +120,6 @@ function toFeishuDraft(config: FeishuChannelConfig): ChannelDraft {
   };
 }
 
-function toPluginDraft(config: WechatPersonalPluginChannelConfig): ChannelDraft {
-  return {
-    kind: 'wechat_personal_plugin',
-    channelName: config.channelName,
-    enabled: config.enabled,
-    configured: config.configured,
-    callbackUrl: config.callbackUrl,
-    riskLevel: config.riskLevel,
-    displayName: config.displayName,
-    assistantName: config.assistantName,
-    welcomeMessage: config.welcomeMessage,
-    kernelCorpId: config.kernelCorpId,
-    kernelAgentId: config.kernelAgentId,
-    kernelSecret: '',
-    kernelSecretConfigured: config.kernelSecretConfigured,
-    kernelVerifyToken: config.kernelVerifyToken,
-    kernelAesKey: config.kernelAesKey,
-    bindingEnabled: config.bindingEnabled,
-    setupStatus: config.setupStatus,
-    capabilityStage: config.capabilityStage,
-  };
-}
-
 function toOpenClawDraft(config: WechatPersonalOpenClawChannelConfig): ChannelDraft {
   return {
     kind: 'wechat_personal_openclaw',
@@ -202,8 +149,6 @@ async function loadChannelDraft(channelKey: ChannelKey): Promise<ChannelDraft> {
       return toWechatWorkDraft(await client.channels.getWechatWorkConfig(teamId));
     case 'feishu':
       return toFeishuDraft(await client.channels.getFeishuConfig(teamId));
-    case 'wechat_personal_plugin':
-      return toPluginDraft(await client.channels.getWechatPersonalPluginConfig(teamId));
     case 'wechat_personal_openclaw':
       return toOpenClawDraft(await client.channels.getWechatPersonalOpenClawConfig(teamId));
     default:
@@ -215,32 +160,12 @@ export default function ChannelConfigPanel({ channel, onClose, onSaved }: Channe
   const localBridgeAvailable = isChannelsLocalBridgeAvailable();
   const channelsBaseUrl = getChannelsBaseUrl();
   const [draft, setDraft] = useState<ChannelDraft | null>(null);
-  const [bindings, setBindings] = useState<ChannelBindingRecord[]>([]);
-  const [bindingForm, setBindingForm] = useState<BindingFormState>({
-    bindingType: 'assistant',
-    bindingTargetId: '',
-    bindingTargetName: '',
-    expiresInHours: '72',
-    notes: '',
-  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [bindingBusyId, setBindingBusyId] = useState<number | 'create' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [qrSession, setQrSession] = useState<WechatPersonalOpenClawQrSession | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
-
-  const loadPluginBindings = async (): Promise<ChannelBindingRecord[]> => {
-    const client = await getChannelsClientAsync();
-    const result = await client.channels.listChannelBindings(globalRuntimeContext.teamId, 'wechat_personal_plugin');
-    return result.items;
-  };
-
-  const canCreatePluginBinding = draft?.kind === 'wechat_personal_plugin'
-    && draft.configured
-    && draft.enabled
-    && draft.bindingEnabled;
 
   useEffect(() => {
     let cancelled = false;
@@ -253,18 +178,13 @@ export default function ChannelConfigPanel({ channel, onClose, onSaved }: Channe
 
       try {
         const nextDraft = await loadChannelDraft(channel.channelKey as ChannelKey);
-        const nextBindings = channel.channelKey === 'wechat_personal_plugin'
-          ? await loadPluginBindings()
-          : [];
         if (!cancelled) {
           setDraft(nextDraft);
-          setBindings(nextBindings);
         }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : '加载渠道配置失败');
           setDraft(null);
-          setBindings([]);
         }
       } finally {
         if (!cancelled) {
@@ -279,11 +199,6 @@ export default function ChannelConfigPanel({ channel, onClose, onSaved }: Channe
       cancelled = true;
     };
   }, [channel]);
-
-  const reloadPluginBindings = async () => {
-    const nextBindings = await loadPluginBindings();
-    setBindings(nextBindings);
-  };
 
   const handleSave = async () => {
     if (!draft || draft.kind === 'wechat_personal_openclaw') {
@@ -318,29 +233,10 @@ export default function ChannelConfigPanel({ channel, onClose, onSaved }: Channe
           });
           break;
         }
-        case 'wechat_personal_plugin': {
-          await client.channels.updateWechatPersonalPluginConfig({
-            teamId,
-            displayName: draft.displayName.trim(),
-            assistantName: draft.assistantName.trim() || undefined,
-            welcomeMessage: draft.welcomeMessage.trim() || undefined,
-            kernelCorpId: draft.kernelCorpId.trim() || undefined,
-            kernelAgentId: draft.kernelAgentId.trim() || undefined,
-            kernelSecret: draft.kernelSecret.trim() || undefined,
-            kernelVerifyToken: draft.kernelVerifyToken.trim() || undefined,
-            kernelAesKey: draft.kernelAesKey.trim() || undefined,
-            bindingEnabled: draft.bindingEnabled,
-            enabled: draft.enabled,
-          });
-          break;
-        }
       }
 
       const freshDraft = await loadChannelDraft(channel.channelKey as ChannelKey);
       setDraft(freshDraft);
-      if (channel.channelKey === 'wechat_personal_plugin') {
-        await reloadPluginBindings();
-      }
       setSuccess('渠道配置已保存');
       onSaved?.();
     } catch (err) {
@@ -398,103 +294,15 @@ export default function ChannelConfigPanel({ channel, onClose, onSaved }: Channe
     }
   };
 
-  const handleCreateBinding = async () => {
-    if (!draft || draft.kind !== 'wechat_personal_plugin') {
-      return;
-    }
-
-    setBindingBusyId('create');
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const bindingTargetId = bindingForm.bindingTargetId.trim();
-      const expiresInHours = Number(bindingForm.expiresInHours || 72);
-      if (!bindingTargetId) {
-        throw new Error('请先填写绑定目标 ID');
-      }
-      if (!Number.isFinite(expiresInHours) || expiresInHours < 1) {
-        throw new Error('绑定有效期必须大于 0');
-      }
-
-      const client = await getChannelsClientAsync();
-      await client.channels.createChannelBinding({
-        teamId: globalRuntimeContext.teamId,
-        channelKey: 'wechat_personal_plugin',
-        bindingType: bindingForm.bindingType,
-        bindingTargetId,
-        bindingTargetName: bindingForm.bindingTargetName.trim() || undefined,
-        expiresInHours,
-        notes: bindingForm.notes.trim() || undefined,
-      });
-
-      await reloadPluginBindings();
-      setBindingForm((prev) => ({
-        ...prev,
-        bindingTargetId: '',
-        bindingTargetName: '',
-        notes: '',
-      }));
-      setSuccess('绑定码已生成，请让用户在个人微信中发送该绑定码完成接入');
-      onSaved?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '生成绑定码失败');
-    } finally {
-      setBindingBusyId(null);
-    }
-  };
-
-  const handleDisableBinding = async (bindingId: number) => {
-    setBindingBusyId(bindingId);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const client = await getChannelsClientAsync();
-      await client.channels.disableChannelBinding(bindingId);
-      await reloadPluginBindings();
-      setSuccess('绑定记录已停用');
-      onSaved?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '停用绑定失败');
-    } finally {
-      setBindingBusyId(null);
-    }
-  };
-
-  const handleRegenerateBinding = async (bindingId: number) => {
-    setBindingBusyId(bindingId);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const expiresInHours = Number(bindingForm.expiresInHours || 72);
-      if (!Number.isFinite(expiresInHours) || expiresInHours < 1) {
-        throw new Error('绑定有效期必须大于 0');
-      }
-
-      const client = await getChannelsClientAsync();
-      await client.channels.regenerateChannelBindingCode(bindingId, expiresInHours);
-      await reloadPluginBindings();
-      setSuccess('绑定码已重新生成');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '重置绑定码失败');
-    } finally {
-      setBindingBusyId(null);
-    }
-  };
-
   return (
     <div className="card-glass overflow-hidden border border-border-cream/70">
       <div className="flex items-center justify-between border-b border-border-cream px-5 py-4">
         <div>
           <h3 className="font-serif text-base text-near-black">渠道配置</h3>
           <p className="mt-1 text-xs text-stone-gray">
-            {channel.channelKey === 'wechat_personal_plugin'
-              ? '个人微信插件模式：先完成系统配置，再生成绑定码，让用户在微信里发送绑定码接入。'
-              : channel.channelKey === 'wechat_personal_openclaw'
-                ? 'Hermes 插件模式：通过二维码扫码完成连接。'
-                : `${channel.channelName} 的系统级配置入口`}
+            {channel.channelKey === 'wechat_personal_openclaw'
+              ? 'Hermes 插件模式：通过二维码扫码完成连接。'
+              : `${channel.channelName} 的系统级配置入口`}
           </p>
           <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
             <span className={`rounded-full px-2.5 py-1 ${localBridgeAvailable ? 'bg-sage-green/10 text-sage-green' : 'bg-terracotta/10 text-terracotta'}`}>
@@ -570,170 +378,6 @@ export default function ChannelConfigPanel({ channel, onClose, onSaved }: Channe
                 onChange={(value) => setDraft({ ...draft, verificationToken: value })}
               />
               <Field label="Encrypt Key" value={draft.encryptKey} onChange={(value) => setDraft({ ...draft, encryptKey: value })} />
-            </div>
-          )}
-
-          {draft.kind === 'wechat_personal_plugin' && (
-            <div className="space-y-4">
-              <div className="rounded-2xl border border-amber/25 bg-amber/8 px-4 py-3 text-sm text-charcoal-warm">
-                这里不是二维码扫码通道。个人微信插件模式的真实流程是：管理员先保存通道配置，再生成绑定码，最后让真实用户在微信里发送绑定码完成接入。
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="显示名称" value={draft.displayName} onChange={(value) => setDraft({ ...draft, displayName: value })} />
-                <Field label="助手名称" value={draft.assistantName} onChange={(value) => setDraft({ ...draft, assistantName: value })} />
-                <Field label="Kernel Corp ID" value={draft.kernelCorpId} onChange={(value) => setDraft({ ...draft, kernelCorpId: value })} />
-                <Field label="Kernel Agent ID" value={draft.kernelAgentId} onChange={(value) => setDraft({ ...draft, kernelAgentId: value })} />
-                <Field
-                  label="Kernel Secret"
-                  value={draft.kernelSecret}
-                  onChange={(value) => setDraft({ ...draft, kernelSecret: value })}
-                  placeholder={draft.kernelSecretConfigured ? '已配置，留空则不更新' : '请输入 Kernel Secret'}
-                />
-                <Field
-                  label="Kernel Verify Token"
-                  value={draft.kernelVerifyToken}
-                  onChange={(value) => setDraft({ ...draft, kernelVerifyToken: value })}
-                />
-                <Field label="Kernel AES Key" value={draft.kernelAesKey} onChange={(value) => setDraft({ ...draft, kernelAesKey: value })} />
-                <ReadonlyField label="回调地址" value={draft.callbackUrl || '未返回'} />
-              </div>
-
-              <TextAreaField
-                label="欢迎语"
-                value={draft.welcomeMessage}
-                onChange={(value) => setDraft({ ...draft, welcomeMessage: value })}
-              />
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <BooleanField
-                  label="允许绑定"
-                  checked={draft.bindingEnabled}
-                  onChange={(checked) => setDraft({ ...draft, bindingEnabled: checked })}
-                />
-                <BooleanField
-                  label="启用渠道"
-                  checked={draft.enabled}
-                  onChange={(checked) => setDraft({ ...draft, enabled: checked })}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <ReadonlyField label="接入阶段" value={draft.setupStatus} />
-                <ReadonlyField label="能力阶段" value={draft.capabilityStage} />
-              </div>
-
-              <div className="rounded-2xl border border-border-cream bg-white/60 p-4">
-                <div className="mb-3 text-sm font-medium text-near-black">绑定码管理</div>
-                <p className="mb-4 text-xs leading-5 text-stone-gray">
-                  保存并启用自建回调模式后，可以生成绑定码，把个人微信入口绑定到 assistant、device 或 workspace。
-                </p>
-
-                {(!draft.configured || !draft.enabled || !draft.bindingEnabled) && (
-                  <div className="mb-4 rounded-xl border border-amber/25 bg-amber/8 px-3 py-2 text-xs text-charcoal-warm">
-                    当前通道配置{draft.configured ? '已完成' : '未完成'}，通道{draft.enabled ? '已启用' : '未启用'}，允许绑定{draft.bindingEnabled ? '已开启' : '未开启'}。若要让新用户接入，请先补全 Kernel 回调配置，再打开“启用渠道”和“允许绑定”。
-                  </div>
-                )}
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <SelectField
-                    label="绑定目标类型"
-                    value={bindingForm.bindingType}
-                    onChange={(value) => setBindingForm((prev) => ({
-                      ...prev,
-                      bindingType: value as BindingFormState['bindingType'],
-                    }))}
-                    options={[
-                      { label: 'assistant', value: 'assistant' },
-                      { label: 'device', value: 'device' },
-                      { label: 'workspace', value: 'workspace' },
-                    ]}
-                  />
-                  <Field
-                    label="绑定有效期（小时）"
-                    value={bindingForm.expiresInHours}
-                    onChange={(value) => setBindingForm((prev) => ({ ...prev, expiresInHours: value }))}
-                  />
-                  <Field
-                    label="绑定目标 ID"
-                    value={bindingForm.bindingTargetId}
-                    onChange={(value) => setBindingForm((prev) => ({ ...prev, bindingTargetId: value }))}
-                    placeholder="如 assistant-001 / device-12"
-                  />
-                  <Field
-                    label="绑定目标名称"
-                    value={bindingForm.bindingTargetName}
-                    onChange={(value) => setBindingForm((prev) => ({ ...prev, bindingTargetName: value }))}
-                    placeholder="如 销售助手 / 办公室 Mac mini"
-                  />
-                </div>
-
-                <div className="mt-4">
-                  <Field
-                    label="备注"
-                    value={bindingForm.notes}
-                    onChange={(value) => setBindingForm((prev) => ({ ...prev, notes: value }))}
-                    placeholder="可选，例如：给试点用户使用"
-                  />
-                </div>
-
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={handleCreateBinding}
-                    disabled={bindingBusyId === 'create' || !canCreatePluginBinding}
-                    className="inline-flex items-center gap-2 rounded-xl bg-terracotta px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {bindingBusyId === 'create' ? <LoaderCircle size={15} className="animate-spin" /> : <Save size={15} />}
-                    生成绑定码
-                  </button>
-                </div>
-
-                <div className="mt-5 space-y-3">
-                  <div className="text-sm font-medium text-near-black">已有绑定码</div>
-                  {bindings.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-border-cream bg-warm-sand/20 px-4 py-6 text-sm text-stone-gray">
-                      当前还没有绑定记录。
-                    </div>
-                  ) : (
-                    bindings.map((binding) => (
-                      <div key={binding.id} className="rounded-xl border border-border-cream bg-parchment/40 p-4">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-medium text-near-black">{binding.bindingTargetName || binding.bindingTargetId}</span>
-                              <span className="rounded-full bg-teal/10 px-2 py-0.5 text-[11px] text-teal">{binding.bindingType}</span>
-                              <span className={`rounded-full px-2 py-0.5 text-[11px] ${binding.status === 'pending' ? 'bg-amber/10 text-amber' : binding.status === 'disabled' ? 'bg-stone-gray/10 text-stone-gray' : 'bg-sage-green/10 text-sage-green'}`}>
-                                {binding.status}
-                              </span>
-                            </div>
-                            <div className="text-xs text-stone-gray">目标 ID：{binding.bindingTargetId}</div>
-                            <div className="text-xs text-stone-gray">绑定码：{binding.bindingCode}</div>
-                            <div className="text-xs text-stone-gray">
-                              过期时间：{formatTime(binding.codeExpiresAt)} | 创建时间：{formatTime(binding.createdTime)}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => handleRegenerateBinding(binding.id)}
-                              disabled={bindingBusyId === binding.id}
-                              className="rounded-lg border border-border-warm px-3 py-1.5 text-xs font-medium text-olive-gray transition-colors hover:text-near-black disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              重置绑定码
-                            </button>
-                            <button
-                              onClick={() => handleDisableBinding(binding.id)}
-                              disabled={bindingBusyId === binding.id}
-                              className="rounded-lg border border-terracotta/20 px-3 py-1.5 text-xs font-medium text-terracotta transition-colors hover:bg-terracotta/5 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              停用
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
             </div>
           )}
 

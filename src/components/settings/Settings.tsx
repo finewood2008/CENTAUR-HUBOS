@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Monitor, Cpu, HardDrive, Thermometer, Clock,
+  Monitor, Cpu, Clock,
   Key, Eye, EyeOff, Check, ExternalLink, Zap,
   Building2, Upload, Image,
   Users, Timer, Layers, Gauge,
@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useOrg, useTheme } from '../../stores/useAppStore';
 import type { OrgInfo, BackgroundStyle } from '../../stores/useAppStore';
-import { useFinanceData } from '../../hooks/useQeeClaw';
+import { useDevicesData, useFinanceData } from '../../hooks/useQeeClaw';
 
 // ─── 类型 ────────────────────────────────────────
 interface SettingsProps {
@@ -75,21 +75,6 @@ const DEFAULTS: SettingsState = {
   language: 'zh-CN',
 };
 
-// ─── 设备模拟数据 ────────────────────────────────
-const DEVICE = {
-  name: 'Centaur-HR Hub',
-  model: 'CH-200 Pro',
-  serial: 'CTR-2026-0417-PRO',
-  firmware: 'v2.4.1',
-  uptime: '12 天 7 小时',
-  cpu: 34,
-  memUsed: 6.2,
-  memTotal: 16,
-  diskUsed: 128,
-  diskTotal: 512,
-  temp: 42,
-};
-
 // ─── 动画 ────────────────────────────────────────
 const fadeUp = {
   hidden: { opacity: 0, y: 18 },
@@ -116,6 +101,7 @@ export default function Settings({ isConnected }: SettingsProps) {
   const { org, updateOrg } = useOrg();
   const { theme, setTheme, bgStyle, setBgStyle } = useTheme();
   const { data: financeData } = useFinanceData(isConnected);
+  const { devices, onlineState, loading: devicesLoading } = useDevicesData(isConnected);
 
   // 加载
   useEffect(() => {
@@ -141,9 +127,26 @@ export default function Settings({ isConnected }: SettingsProps) {
     });
   }, [persist]);
 
-  const memPct = Math.round((DEVICE.memUsed / DEVICE.memTotal) * 100);
-  const diskPct = Math.round((DEVICE.diskUsed / DEVICE.diskTotal) * 100);
   const hasKey = s.deviceKey.length > 0;
+  const primaryDevice = (devices[0] ?? null) as {
+    deviceName?: string;
+    hostname?: string | null;
+    osInfo?: string | null;
+    status?: string;
+    lastSeen?: string | null;
+    createdTime?: string | null;
+    installationId?: string | null;
+  } | null;
+  const runtime = (onlineState ?? null) as {
+    runtimeLabel?: string;
+    runtimeStatus?: string;
+    runtimeStage?: string;
+    supportsDeviceBridge?: boolean;
+    supportsManagedDownload?: boolean;
+    onlineTeamIds?: number[];
+    notes?: string;
+  } | null;
+  const runtimeOnline = isConnected && ['online', 'running', 'ready', 'connected'].includes(String(runtime?.runtimeStatus ?? '').toLowerCase());
 
   return (
     <div className="flex-1 overflow-y-auto bg-parchment">
@@ -172,27 +175,34 @@ export default function Settings({ isConnected }: SettingsProps) {
             {/* 顶部：名称 + 型号 + 状态 */}
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-serif text-lg text-near-black font-medium">{DEVICE.name}</h3>
-                <p className="text-xs text-stone-gray mt-0.5">{DEVICE.model} · {DEVICE.serial}</p>
+                <h3 className="font-serif text-lg text-near-black font-medium">
+                  {primaryDevice?.deviceName || runtime?.runtimeLabel || '本地运行时'}
+                </h3>
+                <p className="text-xs text-stone-gray mt-0.5">
+                  {devicesLoading
+                    ? '正在读取设备 API...'
+                    : primaryDevice
+                      ? [primaryDevice.hostname, primaryDevice.osInfo, primaryDevice.installationId].filter(Boolean).join(' · ')
+                      : runtime?.notes || '未从设备 API 读取到已注册设备'}
+                </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-success-green animate-pulse" />
-                <span className="text-xs text-success-green font-medium">运行中</span>
+                <span className={`inline-block w-2 h-2 rounded-full ${runtimeOnline ? 'bg-success-green animate-pulse' : 'bg-yellow-500'}`} />
+                <span className={`text-xs font-medium ${runtimeOnline ? 'text-success-green' : 'text-yellow-600'}`}>
+                  {runtime?.runtimeStatus || primaryDevice?.status || (isConnected ? '未知' : '未连接')}
+                </span>
               </div>
             </div>
 
             {/* 基础信息行 */}
             <div className="grid grid-cols-3 gap-3">
-              <InfoChip icon={Layers} label="固件版本" value={DEVICE.firmware} />
-              <InfoChip icon={Clock} label="运行时长" value={DEVICE.uptime} />
-              <InfoChip icon={Thermometer} label="设备温度" value={`${DEVICE.temp}°C`} valueColor={DEVICE.temp > 70 ? 'text-error-crimson' : 'text-success-green'} />
+              <InfoChip icon={Layers} label="运行时类型" value={runtime?.runtimeLabel || '-'} />
+              <InfoChip icon={Clock} label="最近在线" value={primaryDevice?.lastSeen ? new Date(primaryDevice.lastSeen).toLocaleString() : '-'} />
+              <InfoChip icon={Cpu} label="在线团队" value={String(runtime?.onlineTeamIds?.length ?? 0)} valueColor={runtimeOnline ? 'text-success-green' : 'text-stone-gray'} />
             </div>
 
-            {/* 资源使用 */}
-            <div className="space-y-3 pt-1">
-              <ResourceBar icon={Cpu} label="CPU" pct={DEVICE.cpu} detail={`${DEVICE.cpu}%`} />
-              <ResourceBar icon={Monitor} label="内存" pct={memPct} detail={`${DEVICE.memUsed} GB / ${DEVICE.memTotal} GB`} />
-              <ResourceBar icon={HardDrive} label="存储" pct={diskPct} detail={`${DEVICE.diskUsed} GB / ${DEVICE.diskTotal} GB`} />
+            <div className="rounded-lg border border-border-cream bg-parchment/50 p-3 text-xs leading-relaxed text-olive-gray">
+              设备信息来自本地 devices API。CPU、内存、温度等指标未由当前 API 返回时不展示静态占位值。
             </div>
           </div>
         </motion.section>
@@ -502,7 +512,7 @@ export default function Settings({ isConnected }: SettingsProps) {
               {isConnected ? '控制面已连接' : '离线模式 · 控制面断开连接'}
             </p>
             <p className="text-[10px] text-warm-silver">
-              Hub OS {DEVICE.firmware} · QeeClaw Runtime
+              Hub OS · {runtime?.runtimeLabel || 'QeeClaw Runtime'}
             </p>
           </div>
         </motion.section>
@@ -550,31 +560,6 @@ function InfoChip({ icon: Icon, label, value, valueColor = 'text-near-black' }: 
         <span className="text-[10px] text-stone-gray">{label}</span>
       </div>
       <p className={`text-sm font-medium ${valueColor}`}>{value}</p>
-    </div>
-  );
-}
-
-function ResourceBar({ icon: Icon, label, pct, detail }: {
-  icon: typeof Cpu; label: string; pct: number; detail: string;
-}) {
-  const barColor = pct > 80 ? 'bg-error-crimson' : pct > 60 ? 'bg-terracotta' : 'bg-success-green';
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-1.5">
-          <Icon size={12} className="text-stone-gray" />
-          <span className="text-xs text-olive-gray">{label}</span>
-        </div>
-        <span className="text-xs text-stone-gray">{detail}</span>
-      </div>
-      <div className="w-full h-2 rounded-full bg-warm-sand overflow-hidden">
-        <motion.div
-          className={`h-full rounded-full ${barColor}`}
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.2 }}
-        />
-      </div>
     </div>
   );
 }

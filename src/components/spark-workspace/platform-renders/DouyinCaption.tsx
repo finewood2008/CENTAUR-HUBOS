@@ -44,7 +44,7 @@ export default function DouyinCaption({ title, content, tags }: Props) {
 
   return (
     <div className="mx-auto max-w-[375px] bg-gray-950 rounded-3xl shadow-lg overflow-hidden text-white">
-      {/* 手机状态栏模拟 */}
+      {/* 手机状态栏预览 */}
       <div className="px-5 pt-3 pb-2 flex items-center justify-between text-xs text-gray-400">
         <span>9:41</span>
         <div className="flex items-center gap-2">

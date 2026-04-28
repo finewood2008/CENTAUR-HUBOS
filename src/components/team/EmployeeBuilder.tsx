@@ -19,7 +19,7 @@ interface ChatMsg {
   options?: string[]; // quick-reply options
 }
 
-// ── Conversation engine (mock, no LLM needed) ──
+// ── Legacy guided questionnaire ──
 
 interface ConvoState {
   step: number;
@@ -244,7 +244,7 @@ export default function EmployeeBuilder({ onBack, onComplete }: Props) {
     const nextState: ConvoState = { step: nextStep, spec: newSpec };
     setConvo(nextState);
 
-    // Simulate thinking delay, then ask next question
+    // Keep the legacy questionnaire flow readable without inventing business data.
     setTimeout(() => {
       const next = getNextQuestion(nextState);
       if (next) {

@@ -3,12 +3,8 @@ import {
   Plus,
   X,
   Check,
-  TrendingUp,
-  Users,
-  Zap,
   Calendar,
   Wallet,
-  Target,
   MessageSquare,
 } from 'lucide-react';
 import type {
@@ -17,7 +13,6 @@ import type {
 } from '../../data/partner';
 import {
   ALL_DASHBOARD_CARDS,
-  TEAM_MEMBERS,
 } from '../../data/partner';
 
 // ── Props ──
@@ -30,75 +25,25 @@ interface DashboardCardsProps {
 // ── Per-card content renderers ──
 
 function TodoContent() {
-  const items = [
-    { text: '审批火花文章初稿', done: false },
-    { text: '确认4月税务申报', done: false },
-    { text: '回复供应商合同意见', done: true },
-  ];
   return (
-    <div className="space-y-1.5">
-      {items.map((t) => (
-        <label key={t.text} className="flex items-center gap-2 text-[12px] cursor-pointer group">
-          <span
-            className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
-              t.done
-                ? 'bg-terracotta/80 border-terracotta/80'
-                : 'border-stone-gray/40 group-hover:border-terracotta/60'
-            }`}
-          >
-            {t.done && <Check size={10} className="text-white" />}
-          </span>
-          <span className={t.done ? 'line-through text-stone-gray' : 'text-charcoal-warm'}>
-            {t.text}
-          </span>
-        </label>
-      ))}
+    <div className="rounded-lg border border-dashed border-border-cream px-3 py-3 text-[12px] text-stone-gray">
+      暂无本地审批 API 返回的待办事项。
     </div>
   );
 }
 
 function TeamStatusContent() {
-  const statusDot: Record<string, string> = {
-    online: 'bg-green-400',
-    working: 'bg-amber-400 animate-pulse',
-    offline: 'bg-gray-300',
-  };
-  const statusText: Record<string, string> = {
-    online: '在线待命',
-    working: '执行任务中',
-    offline: '未激活',
-  };
   return (
-    <div className="space-y-1.5">
-      {TEAM_MEMBERS.filter((m) => !m.locked).map((m) => (
-        <div key={m.id} className="flex items-center gap-2 text-[12px]">
-          <span className="text-sm">{m.avatar}</span>
-          <span className="text-charcoal-warm font-medium">{m.name}</span>
-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot[m.status]}`} />
-          <span className="text-stone-gray text-[11px] ml-auto truncate">
-            {statusText[m.status]}
-          </span>
-        </div>
-      ))}
+    <div className="rounded-lg border border-dashed border-border-cream px-3 py-3 text-[12px] text-stone-gray">
+      团队状态请以本地运行时返回的员工列表为准。
     </div>
   );
 }
 
 function EfficiencyContent() {
-  const metrics = [
-    { label: '本周任务', value: '23项', icon: TrendingUp },
-    { label: '节省时间', value: '18h', icon: Zap },
-    { label: '满意度', value: '96%', icon: Users },
-  ];
   return (
-    <div className="flex gap-3">
-      {metrics.map((m) => (
-        <div key={m.label} className="flex-1 text-center">
-          <m.icon size={13} className="text-terracotta mx-auto mb-0.5" />
-          <div className="text-[13px] font-bold text-near-black">{m.value}</div>
-          <div className="text-[10px] text-stone-gray">{m.label}</div>
-        </div>
-      ))}
+    <div className="rounded-lg border border-dashed border-border-cream px-3 py-3 text-[12px] text-stone-gray">
+      团队效能请以右侧实时面板和本地运行时返回状态为准。
     </div>
   );
 }
@@ -127,22 +72,10 @@ function QuickActionsContent({ onNav }: { onNav?: (tab: string) => void }) {
 }
 
 function ScheduleContent() {
-  const items = [
-    { time: '14:00', text: '团队周会', tag: '会议' },
-    { time: '16:30', text: '客户演示 — 科技公司', tag: '外部' },
-  ];
   return (
-    <div className="space-y-1.5">
-      {items.map((s) => (
-        <div key={s.text} className="flex items-center gap-2 text-[12px]">
-          <Calendar size={12} className="text-terracotta shrink-0" />
-          <span className="text-stone-gray w-10 shrink-0">{s.time}</span>
-          <span className="text-charcoal-warm truncate flex-1">{s.text}</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-terracotta/10 text-terracotta shrink-0">
-            {s.tag}
-          </span>
-        </div>
-      ))}
+    <div className="flex items-center gap-2 rounded-lg border border-dashed border-border-cream px-3 py-3 text-[12px] text-stone-gray">
+      <Calendar size={12} className="text-terracotta shrink-0" />
+      暂无本地工作流 API 返回的日程。
     </div>
   );
 }
@@ -151,7 +84,7 @@ function FinanceContent() {
   return (
     <div className="space-y-2">
       <div className="text-[12px] text-charcoal-warm leading-5">
-        财务数据已切换为本地实时账本，不再在看板里展示静态演示数值。
+        财务数据已切换为本地实时账本，不再在看板里展示静态数值。
       </div>
       <div className="flex items-center gap-2 text-[11px] text-stone-gray">
         <Wallet size={12} className="text-terracotta" />
@@ -163,43 +96,17 @@ function FinanceContent() {
 
 function LeadsContent() {
   return (
-    <div className="flex gap-4">
-      <div className="flex-1">
-        <div className="flex items-center gap-1">
-          <Target size={12} className="text-terracotta" />
-          <span className="text-[11px] text-stone-gray">新线索</span>
-        </div>
-        <div className="text-[16px] font-bold text-near-black mt-0.5">12</div>
-        <div className="text-[10px] text-stone-gray">较上周 +3</div>
-      </div>
-      <div className="flex-1">
-        <div className="flex items-center gap-1">
-          <TrendingUp size={12} className="text-terracotta" />
-          <span className="text-[11px] text-stone-gray">转化率</span>
-        </div>
-        <div className="text-[16px] font-bold text-near-black mt-0.5">18%</div>
-        <div className="text-[10px] text-stone-gray">行业均值 12%</div>
-      </div>
+    <div className="rounded-lg border border-dashed border-border-cream px-3 py-3 text-[12px] text-stone-gray">
+      获客数据请进入小可工作台或通讯中心查看。
     </div>
   );
 }
 
 function RecentChatsContent() {
-  const chats = [
-    { name: '火花', msg: '文章初稿已完成，请查阅', time: '10:30' },
-    { name: '小可', msg: '新增3条高意向线索', time: '09:15' },
-    { name: '合伙人', msg: '今日安排已更新', time: '09:00' },
-  ];
   return (
-    <div className="space-y-1.5">
-      {chats.map((c) => (
-        <div key={c.name + c.time} className="flex items-center gap-2 text-[12px]">
-          <MessageSquare size={12} className="text-terracotta shrink-0" />
-          <span className="font-medium text-charcoal-warm shrink-0">{c.name}</span>
-          <span className="text-stone-gray truncate flex-1">{c.msg}</span>
-          <span className="text-[10px] text-stone-gray shrink-0">{c.time}</span>
-        </div>
-      ))}
+    <div className="flex items-center gap-2 rounded-lg border border-dashed border-border-cream px-3 py-3 text-[12px] text-stone-gray">
+      <MessageSquare size={12} className="text-terracotta shrink-0" />
+      暂无本地会话 API 返回的最近对话。
     </div>
   );
 }

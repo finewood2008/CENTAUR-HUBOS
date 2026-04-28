@@ -1,9 +1,10 @@
 import { Lock, Plus, Crown } from 'lucide-react';
-import { TEAM_MEMBERS, type TeamMember, type PartnerProfile } from '../../data/partner';
+import type { TeamMember, PartnerProfile } from '../../data/partner';
 
 // ── Props ──
 interface TeamSidebarProps {
   partner: PartnerProfile;
+  teamMembers?: TeamMember[];
   onSelectMember?: (id: string) => void;
   activeChatTarget?: string | null; // 'partner' or employee id
 }
@@ -21,13 +22,9 @@ const STATUS_TEXT: Record<TeamMember['status'], string> = {
   offline: '未激活',
 };
 
-// Hardcoded current-task strings for "working" employees
-const CURRENT_TASKS: Record<string, string> = {
-  spark: '设计展会海报...',
-};
-
 export default function TeamSidebar({
   partner,
+  teamMembers = [],
   onSelectMember,
   activeChatTarget,
 }: TeamSidebarProps) {
@@ -78,7 +75,7 @@ export default function TeamSidebar({
 
       {/* ── Employee list ── */}
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5 scrollbar-thin scrollbar-thumb-white/10">
-        {TEAM_MEMBERS.map((m) => (
+        {teamMembers.map((m) => (
           <EmployeeRow
             key={m.id}
             member={m}
@@ -86,6 +83,11 @@ export default function TeamSidebar({
             onSelect={() => onSelectMember?.(m.id)}
           />
         ))}
+        {teamMembers.length === 0 && (
+          <div className="px-2.5 py-3 text-[12px] text-white/35">
+            暂无本地运行时员工数据
+          </div>
+        )}
       </div>
 
       {/* ── Add employee button ── */}
@@ -113,7 +115,6 @@ function EmployeeRow({
   onSelect: () => void;
 }) {
   const locked = member.locked;
-  const task = CURRENT_TASKS[member.id] ?? '';
 
   return (
     <button
@@ -151,9 +152,7 @@ function EmployeeRow({
         <div className="text-[11px] text-white/40 truncate leading-tight">
           {locked
             ? member.role
-            : member.status === 'working' && task
-              ? task
-              : STATUS_TEXT[member.status]}
+            : STATUS_TEXT[member.status]}
         </div>
       </div>
 

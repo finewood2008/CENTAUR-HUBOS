@@ -713,7 +713,11 @@ export function OfficeCanvas({
                     if (ch.isSubagent) continue;
                     seats[ch.id] = { palette: ch.palette, seatId: ch.seatId };
                   }
-                  // TODO: persist seat assignments via Hub OS state
+                  try {
+                    localStorage.setItem('hubos_office_seats', JSON.stringify(seats));
+                  } catch {
+                    /* ignore local office layout persistence failures */
+                  }
                   return;
                 }
               }

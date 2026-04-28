@@ -1,6 +1,6 @@
 // Hub OS - QeeClaw SDK 适配层
 // 本地开发: 使用真实 @qeeclaw/core-sdk 连接 bridge_server
-// 生产部署(GitHub Pages): 使用内置 stub，UI 以演示模式运行
+// 未连接 bridge 时由调用方展示空态或错误态
 
 import { createQeeClawClient } from '@qeeclaw/core-sdk';
 
@@ -8,6 +8,7 @@ import { createQeeClawClient } from '@qeeclaw/core-sdk';
 export type QeeClawCoreSDK = {
   billing: { getWallet: () => Promise<any>; listRecords: (...args: any[]) => Promise<any>; [key: string]: any };
   agent: any;
+  builder: any;
   models: any;
   channels: any;
   knowledge: any;
@@ -129,7 +130,7 @@ export async function getChannelsClientAsync(): Promise<QeeClawCoreSDK> {
   return _channelsClientPromise;
 }
 
-// 同步版本：立即返回（可能是 stub，不推荐直接使用）
+// 同步版本：立即返回（不推荐直接使用）
 export function getClient(): QeeClawCoreSDK {
   if (!_client) {
     console.trace('[QeeClaw SDK] getClient() 被同步调用，调用栈：');
@@ -170,6 +171,7 @@ export async function checkConnection(): Promise<{
 
 // ── 便捷访问器 ────────────────────────────────────
 export function getAgentModule() { return getClient().agent; }
+export function getBuilderModule() { return getClient().builder; }
 export function getBillingModule() { return getClient().billing; }
 export function getModelsModule() { return getClient().models; }
 export function getChannelsModule() {

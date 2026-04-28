@@ -45,7 +45,7 @@ Hub OS 把大模型 Agent 包装成"数字员工"，让企业老板像管理真�
 │       │                                                   │
 │  ┌────┴─────────────────────────────────────────┐         │
 │  │ 真实 SDK (@qeeclaw/core-sdk)                 │ ← 本地   │
-│  │ Stub Client (Proxy-based fallback)           │ ← 线上   │
+│  │ 离线空态 / 本地草稿缓存                       │ ← 断连   │
 │  └──────────────────────────────────────────────┘         │
 └──────────────────┬───────────────────────────────────────┘
                    │ HTTP API
@@ -91,7 +91,7 @@ Claude / Anthropic 风格暖色调设计：
 ```bash
 npm install
 
-# 浏览器开发（使用 mock 数据）
+# 浏览器开发（通过 Vite proxy 连接本地 bridge / HubOS API）
 npm run dev
 
 # 连接真实 SDK（需要 bridge_server 运行在 :21747）
@@ -108,7 +108,6 @@ src/
 ├── App.tsx                        # 主入口 + 路由（8 个导航页面）
 ├── types/index.ts                 # TypeScript 类型定义
 ├── data/
-│   ├── mock.ts                    # Dashboard/Cockpit mock 数据
 │   ├── digital-employees.ts       # 6 名数字员工（含主管）
 │   └── persona-defaults.ts        # 员工人格/记忆默认值
 ├── components/

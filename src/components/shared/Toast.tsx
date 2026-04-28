@@ -1,5 +1,5 @@
 // 全局 Toast 通知
-import { useState, useCallback, createContext, useContext } from 'react';
+import { useState, useCallback, createContext, useContext, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
 
@@ -28,6 +28,26 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => [...prev, { id, type, message }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
   }, []);
+
+  useEffect(() => {
+    const handleToast = (event: Event) => {
+      const detail = (event as CustomEvent<Partial<Toast>>).detail;
+      if (!detail?.message) return;
+      toast(detail.type ?? 'info', detail.message);
+    };
+
+    const handleBuilderWarning = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      toast('info', detail?.message || '远程保存失败，项目已保存到本地草稿');
+    };
+
+    window.addEventListener('hubos:toast', handleToast);
+    window.addEventListener('builder:save-warning', handleBuilderWarning);
+    return () => {
+      window.removeEventListener('hubos:toast', handleToast);
+      window.removeEventListener('builder:save-warning', handleBuilderWarning);
+    };
+  }, [toast]);
 
   const dismiss = (id: number) => setToasts((prev) => prev.filter((t) => t.id !== id));
 

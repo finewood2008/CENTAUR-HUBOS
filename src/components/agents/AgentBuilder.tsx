@@ -10,6 +10,7 @@ import { getModelsModule } from '../../services/qeeclaw';
 import type { ChatMessage } from '../../types';
 import type { MiniAppSchema } from '../../types/mini-app';
 import MiniAppRuntime from '../mini-app/MiniAppRuntime';
+import { useToast } from '../shared/Toast';
 
 // ─── 架构师 System Prompt ───
 const ARCHITECT_SYSTEM = `你是半人马架构师，负责帮助用户通过自然语言创建 Mini App。
@@ -73,6 +74,7 @@ interface BuilderMessage extends ChatMessage {
 
 // ─── 主组件 ───
 export default function AgentBuilder({ isConnected }: Props) {
+  const { toast } = useToast();
   const [messages, setMessages] = useState<BuilderMessage[]>([
     {
       role: 'ai',
@@ -121,14 +123,15 @@ export default function AgentBuilder({ isConnected }: Props) {
       const { displayText, schema } = extractSchema(String(reply));
       if (schema) setLatestSchema(schema);
       setMessages((prev) => [...prev, { role: 'ai', content: displayText, schema }]);
-    } catch {
-      const fallbacks = [
-        '明白了！让我想想怎么设计...\n\n你希望这个应用主要用什么布局？\n1. 左聊天 + 右工作区\n2. 纯工作区（表格/表单为主）\n3. 仪表盘（数据卡片网格）\n4. 纯聊天机器人',
-        '好的，最后确认一下：这个应用需要哪些核心模块？比如数据表格、表单、统计卡片、聊天面板等。',
-        '完美！让我来生成 Mini App Schema...',
-      ];
-      const idx = Math.min(Math.floor((messages.length - 1) / 2), fallbacks.length - 1);
-      setMessages((prev) => [...prev, { role: 'ai', content: fallbacks[Math.max(0, idx)] }]);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : '模型 API 调用失败';
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'ai',
+          content: `当前无法连接真实模型 API，不能继续生成应用方案。\n\n错误：${detail}`,
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -168,8 +171,8 @@ export default function AgentBuilder({ isConnected }: Props) {
     if (existing >= 0) saved[existing] = latestSchema;
     else saved.push(latestSchema);
     localStorage.setItem('hubos_mini_apps', JSON.stringify(saved));
-    alert(`"${latestSchema.meta.name}" 已保存到本地`);
-  }, [latestSchema]);
+    toast('info', `"${latestSchema.meta.name}" 已保存为本地 Mini App 草稿`);
+  }, [latestSchema, toast]);
 
   return (
     <div className="flex flex-col h-full max-w-full">
@@ -180,7 +183,7 @@ export default function AgentBuilder({ isConnected }: Props) {
             <Sparkles size={18} className="text-terracotta" />
             打造员工
             <span className="text-[10px] px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/15 font-normal ml-1">
-              概念演示 · 未来功能
+              未来功能
             </span>
           </h2>
           <p className="text-xs text-stone-gray mt-0.5">

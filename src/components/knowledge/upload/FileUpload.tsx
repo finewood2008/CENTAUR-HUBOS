@@ -2,6 +2,7 @@
 import { Upload, X, FileText, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useCallback } from 'react';
+import { getKnowledgeModule, globalRuntimeContext } from '../../../services/qeeclaw';
 
 interface FileUploadProps {
   kbName: string;
@@ -13,6 +14,7 @@ export default function FileUpload({ kbName, onClose }: FileUploadProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
+  const [error, setError] = useState('');
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -44,13 +46,26 @@ export default function FileUpload({ kbName, onClose }: FileUploadProps) {
   const handleUpload = useCallback(async () => {
     if (files.length === 0) return;
     setUploading(true);
-    // 模拟上传过程（实际接 SDK API）
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setUploading(false);
-    setUploaded(true);
-    setTimeout(() => {
-      onClose();
-    }, 1200);
+    setError('');
+    try {
+      const knowledge = getKnowledgeModule();
+      for (const file of files) {
+        await knowledge.ingest({
+          ...globalRuntimeContext,
+          file,
+          filename: file.name,
+          contentType: file.type || 'application/octet-stream',
+        });
+      }
+      setUploaded(true);
+      setTimeout(() => {
+        onClose();
+      }, 1200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '上传失败');
+    } finally {
+      setUploading(false);
+    }
   }, [files, onClose]);
 
   const formatFileSize = (bytes: number) => {
@@ -167,6 +182,11 @@ export default function FileUpload({ kbName, onClose }: FileUploadProps) {
               </motion.div>
             )}
           </AnimatePresence>
+          {error && (
+            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+              {error}
+            </div>
+          )}
         </div>
 
         {/* 底部操作 */}

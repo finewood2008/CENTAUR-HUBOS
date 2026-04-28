@@ -17,7 +17,23 @@ export default function TabHarness({ emp }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   if (!harness) {
-    return <p className="text-sm text-stone-gray">该员工暂无 Harness 配置</p>;
+    if (emp.harness.length === 0) {
+      return <p className="text-sm text-stone-gray">该员工暂无执行蓝图</p>;
+    }
+
+    return (
+      <div className="space-y-3">
+        {emp.harness.map((section) => (
+          <section key={section.title} className="card-glass-warm p-5">
+            <div className="mb-2 flex items-center gap-2">
+              <Shield size={14} className="text-terracotta" />
+              <h3 className="font-serif text-sm font-medium text-near-black">{section.title}</h3>
+            </div>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-olive-gray">{section.content || '暂无内容'}</p>
+          </section>
+        ))}
+      </div>
+    );
   }
 
   return (

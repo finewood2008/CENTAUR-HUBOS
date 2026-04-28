@@ -1,5 +1,5 @@
 // TabOverview — 员工概览
-import { Zap, Clock, Star, MessageSquare, Sparkles } from 'lucide-react';
+import { Zap, Clock, Star, MessageSquare, Sparkles, ClipboardCheck } from 'lucide-react';
 import type { DigitalEmployee } from '../../../types';
 
 interface Props {
@@ -18,6 +18,21 @@ export default function TabOverview({ emp }: Props) {
         </div>
         <p className="text-sm text-olive-gray leading-relaxed">{emp.introduction}</p>
       </section>
+
+      {emp.builder?.viewConfig && (
+        <section className="card-glass-warm p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <ClipboardCheck size={14} className="text-terracotta" />
+            <h3 className="font-serif text-sm text-near-black font-medium">Builder 岗位蓝图</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <InfoCell label="项目编号" value={emp.builder.projectId} />
+            <InfoCell label="岗位类型" value={emp.builder.roleType || '-'} />
+            <InfoCell label="工作台模板" value={emp.builder.viewConfig.template || '-'} />
+            <InfoCell label="工作台名称" value={emp.builder.viewConfig.title || emp.workspace.label} />
+          </div>
+        </section>
+      )}
 
       {/* 核心能力 */}
       <section className="card-glass-warm p-5">
@@ -73,6 +88,15 @@ function StatBox({ icon, value, label }: { icon: React.ReactNode; value: string 
       <div className="flex justify-center mb-1.5">{icon}</div>
       <p className="font-serif text-2xl text-near-black">{value}</p>
       <p className="text-[10px] text-stone-gray mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+function InfoCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-warm-sand/50 p-3">
+      <p className="text-stone-gray">{label}</p>
+      <p className="mt-0.5 break-words font-medium text-near-black">{value}</p>
     </div>
   );
 }

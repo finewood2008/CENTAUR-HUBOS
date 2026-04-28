@@ -1,5 +1,5 @@
-// CENTAUR Hub OS — 数字员工完整档案 + 财务数据
-import type { DigitalEmployee, FinanceOverview } from '../types';
+// CENTAUR Hub OS — 数字员工完整档案
+import type { DigitalEmployee } from '../types';
 
 export const DIGITAL_EMPLOYEES: DigitalEmployee[] = [
   // ─── 0. 主管 Leader — COO / 首席运营官 ───
@@ -328,77 +328,3 @@ export const DIGITAL_EMPLOYEES: DigitalEmployee[] = [
     stats: { monthlyTasks: 12, hoursSaved: 8, satisfaction: 88 },
   },
 ];
-
-// ── 财务数据 ──────────────────────────────────────
-export const FINANCE_DATA: FinanceOverview = {
-  totalBalance: 5280.00,
-  monthlySpent: 1720.50,
-  monthlyBudget: 5000,
-  keys: [
-    {
-      id: 'key-1',
-      name: '主生产密钥',
-      key: 'qc-****7x2K',
-      employeeId: 'all',
-      createdAt: '2026-03-15',
-      lastUsed: '2026-04-17 05:30',
-      status: 'active',
-      monthlyLimit: 3000,
-      monthlyUsed: 1280.50,
-    },
-    {
-      id: 'key-2',
-      name: 'Spark 专用',
-      key: 'qc-****pQ9m',
-      employeeId: 'spark',
-      createdAt: '2026-03-20',
-      lastUsed: '2026-04-17 04:15',
-      status: 'active',
-      monthlyLimit: 1500,
-      monthlyUsed: 440.00,
-    },
-    {
-      id: 'key-3',
-      name: '测试密钥',
-      key: 'qc-****tEsT',
-      employeeId: 'all',
-      createdAt: '2026-04-01',
-      lastUsed: '2026-04-10 11:00',
-      status: 'disabled',
-      monthlyLimit: 500,
-      monthlyUsed: 62.30,
-    },
-  ],
-  employeeUsage: [
-    {
-      employeeId: 'spark',
-      employeeName: '火花 Spark',
-      monthlyTokens: 3_850_000,
-      monthlyCost: 892.50,
-      dailyBreakdown: [
-        { date: '04-11', tokens: 420000, cost: 98 },
-        { date: '04-12', tokens: 580000, cost: 135 },
-        { date: '04-13', tokens: 510000, cost: 118 },
-        { date: '04-14', tokens: 620000, cost: 144 },
-        { date: '04-15', tokens: 550000, cost: 128 },
-        { date: '04-16', tokens: 680000, cost: 158 },
-        { date: '04-17', tokens: 490000, cost: 111 },
-      ],
-    },
-    {
-      employeeId: 'xiaoke',
-      employeeName: '小可 Xiaoke',
-      monthlyTokens: 2_960_000,
-      monthlyCost: 828.00,
-      dailyBreakdown: [
-        { date: '04-11', tokens: 380000, cost: 106 },
-        { date: '04-12', tokens: 420000, cost: 118 },
-        { date: '04-13', tokens: 350000, cost: 98 },
-        { date: '04-14', tokens: 480000, cost: 134 },
-        { date: '04-15', tokens: 410000, cost: 115 },
-        { date: '04-16', tokens: 520000, cost: 145 },
-        { date: '04-17', tokens: 400000, cost: 112 },
-      ],
-    },
-  ],
-};

@@ -103,7 +103,6 @@ interface TeamOverviewProps {
 
 export function TeamOverviewWidget({ agents, loading, isConnected, onNav }: TeamOverviewProps) {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  // SDK 数据可用时用真实数据，否则 fallback mock
   const useSDK = isConnected && agents && agents.length > 0;
 
   const statusLabel: Record<string, string> = {
@@ -154,6 +153,11 @@ export function TeamOverviewWidget({ agents, loading, isConnected, onNav }: Team
           {workingCount}/{items.length} 工作中
         </span>
       </div>
+      {items.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border-cream bg-parchment/50 px-3 py-4 text-center text-xs text-stone-gray">
+          暂无本地运行时员工数据
+        </div>
+      )}
       <div className="space-y-2">
         {items.map((a, idx) => (
           <div
@@ -203,7 +207,7 @@ export function PendingTasksWidget({ approvals, activities, loading, isConnected
   const [handledItems, setHandledItems] = useState<Map<string | number, 'approved' | 'rejected'>>(new Map());
   const [notes, setNotes] = useState<Record<string | number, string>>({});
 
-  // 优先用 SDK approvals，其次用 activities 中的 approval_needed，最后 mock
+  // 优先用 SDK approvals，其次用真实 activities 中的 approval_needed
   const useSDK = isConnected && approvals && approvals.length > 0;
   const useActivities = !useSDK && activities && activities.filter(a => a.type === 'approval_needed').length > 0;
 

@@ -8,14 +8,10 @@ function getGreeting(): string {
   return '晚上好';
 }
 
-// Mock data
-const humanPercent = 12;
-const aiPercent = 88;
-const hoursSaved = 32;
 const stats = [
-  { icon: Sparkles, label: '任务完成', value: '47' },
-  { icon: Users, label: '员工在线', value: '5/5' },
-  { icon: Wallet, label: '消耗', value: '¥126.4' },
+  { icon: Sparkles, label: '任务完成', value: '--' },
+  { icon: Users, label: '员工在线', value: '--' },
+  { icon: Wallet, label: '消耗', value: '--' },
 ] as const;
 
 export default function CentaurIndex() {
@@ -36,20 +32,20 @@ export default function CentaurIndex() {
       {/* Progress bar — human vs AI */}
       <div className="mb-3">
         <div className="flex justify-between text-[11px] mb-1.5">
-          <span className="text-terracotta font-medium">人工 {humanPercent}%</span>
-          <span className="text-teal font-medium">AI {aiPercent}%</span>
+          <span className="text-terracotta font-medium">人工 --</span>
+          <span className="text-teal font-medium">AI --</span>
         </div>
         <div className="h-2.5 rounded-full overflow-hidden bg-border-cream flex">
           {/* Human segment */}
           <div
             className="h-full rounded-l-full bg-terracotta transition-all duration-700"
-            style={{ width: `${humanPercent}%` }}
+            style={{ width: '0%' }}
           />
           {/* AI segment */}
           <div
             className="h-full rounded-r-full transition-all duration-700"
             style={{
-              width: `${aiPercent}%`,
+              width: '0%',
               background: 'linear-gradient(90deg, #4a7c94, #3898ec)',
             }}
           />
@@ -58,8 +54,7 @@ export default function CentaurIndex() {
 
       {/* Hours saved */}
       <p className="text-[12px] text-stone-gray mb-4">
-        本周 AI 为你节省了{' '}
-        <span className="text-teal font-semibold">{hoursSaved} 小时</span>
+        半人马指数等待本地运行时返回真实指标。
       </p>
 
       {/* Stats row */}

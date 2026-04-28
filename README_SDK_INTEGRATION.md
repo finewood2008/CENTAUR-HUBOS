@@ -1,30 +1,22 @@
 # qeeshu-hubos SDK 集成说明
 
-> 最后更新：2026-04-17
+> 最后更新：2026-04-28
 
 ## 概述
 
-qeeshu-hubos（CENTAUR-HUBOS）是一个基于 React 19 + Electron 22 的 AI 数字员工操作系统桌面应用。本次集成将其从 mock-server 中间层迁移到直接使用 `@qeeclaw/core-sdk` 连接本地 bridge_server (21747)。
+qeeshu-hubos（CENTAUR-HUBOS）是一个基于 React 19 + Electron 22 的 AI 数字员工操作系统桌面应用。当前实现直接使用 `@qeeclaw/core-sdk` 连接本地 bridge_server，并使用 `/api/hubos/*` 产品后端承载本地审计、审批和组织数据。
 
 ## 架构变更
-
-### 之前的架构
-
-```
-qeeshu-hubos (前端)
-    ↓ http://127.0.0.1:3456
-mock-server.cjs (部分 mock + 部分代理)
-    ↓ http://127.0.0.1:21747
-bridge_server.py (真实后端)
-```
-
-### 现在的架构
 
 ```
 qeeshu-hubos (前端)
     ↓ 开发模式：相对路径 → Vite proxy
     ↓ 生产模式：http://127.0.0.1:21747
 bridge_server.py (真实后端，145+ 端点)
+
+qeeshu-hubos (前端)
+    ↓ /api/hubos/*
+server/index.cjs (HubOS 产品后端，SQLite)
 ```
 
 ## 主要改动
@@ -140,19 +132,19 @@ npm run app:dev
 
 1. 打开浏览器访问 `http://localhost:5173/CENTAUR-HUBOS/`
 2. 查看页面顶部状态栏：
-   - ✅ **绿色**："SDK 已连接 · 控制面在线" → bridge_server 正常
-   - ⚠️ **黄色**："SDK 离线 · 使用演示数据" → bridge_server 未启动或连接失败
+   - ✅ **绿色**："已连接" → bridge_server 正常
+   - ⚠️ **黄色**："离线" → bridge_server 未启动或连接失败，页面展示空态或本地草稿状态
 3. 打开浏览器控制台，查看 `[QeeClaw SDK]` 日志
 
-## 移除的文件
+## 移除的旧链路
 
 - ❌ `mock-server.cjs` — 不再需要中间层，前端直接连接 bridge_server
 
 ## 下一步工作
 
 1. **测试所有页面**：Dashboard / Team / Finance / Channels / Knowledge / Settings
-2. **补充 UI 组件**：将新增的 hooks（devices/audit/approval/workflow）接入对应页面
-3. **错误处理**：完善 SDK 调用失败时的 fallback 逻辑和用户提示
+2. **补充 UI 组件**：将 devices/audit/approval/workflow 的更多字段接入对应页面
+3. **错误处理**：继续完善 SDK 调用失败时的重试、回滚和用户提示
 4. **生产构建**：测试 `npm run build` 后的 Electron 打包
 
 ## 技术栈

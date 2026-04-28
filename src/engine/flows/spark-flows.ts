@@ -96,7 +96,7 @@ export const SPARK_WRITE_XIAOHONGSHU: HarnessFlow = {
       id: 'understand',
       type: 'ai',
       label: '理解需求',
-      waitForUser: false,  // 跳过追问，直接推进到 write（让演示更流畅）
+      waitForUser: false,
       prompt:
         '你是一位温暖专业的小红书内容专家。认真阅读用户的需求，简要总结你理解到的关键信息（产品/话题、受众、风格），然后直接进入创作环节，不要提问。用简洁友好的语气，中文回复。',
       next: 'write',

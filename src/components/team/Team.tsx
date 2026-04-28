@@ -1,6 +1,6 @@
 // Team 数字团队 — 员工卡片 + 详情面板 + 激活入口 + 自定义员工创建
 // SDK 连接后合并真实 agent 状态
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
   Users, Sparkles, ArrowLeft, ChevronRight, Zap, Brain,
@@ -8,18 +8,25 @@ import {
   Cpu, Layers, MessageSquare, BookOpen, Plus,
 } from 'lucide-react';
 import type { DigitalEmployee, ActivationStatus } from '../../types';
+import type { NavFocusIntent, NavTab } from '../../types';
 import { DIGITAL_EMPLOYEES } from '../../data/digital-employees';
 import { useAgentManagement } from '../../hooks/useQeeClaw';
 import { getAgentModule } from '../../services/qeeclaw';
+import type { BuilderProject } from '../../features/builder/types';
+import { blueprintToEmployee } from '../../features/builder/mappers/blueprintToEmployee';
+import { loadBuilderProjects, saveBuilderProject } from '../../features/builder/persistence';
+import { buildBuilderAgentDescription, buildBuilderAgentMetadata } from '../../features/builder/agentSync';
 import { useToast } from '../shared/Toast';
 import EmployeeBuilderV2 from '../builder';
 import SparkWorkspaceV2 from '../spark-workspace/SparkWorkspaceV2';
 import XiaokeWorkspace from '../xiaoke-workspace/XiaokeWorkspace';
+import EmployeeWorkspaceRuntime from '../employee-workspace/EmployeeWorkspaceRuntime';
 import EmployeeConfigPanel from './EmployeeConfigPanel';
 import { registerAllCards } from '../cards';
 
 interface TeamProps {
   isConnected: boolean;
+  onNav?: (tab: NavTab, intent?: NavFocusIntent) => void;
 }
 
 // ── animations ──
@@ -320,17 +327,62 @@ function DetailPanel({ emp, onBack, onActivate, onWorkbench }: { emp: DigitalEmp
 }
 
 // ── main: Team ──
-export default function Team({ isConnected }: TeamProps) {
+export default function Team({ isConnected, onNav }: TeamProps) {
   const [selectedEmployee, setSelectedEmployee] = useState<DigitalEmployee | null>(null);
   const [showBuilder, setShowBuilder] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState<string | null>(null);
-  const [customEmployees, setCustomEmployees] = useState<DigitalEmployee[]>([]);
+  const [customEmployees, setCustomEmployees] = useState<DigitalEmployee[]>(() => {
+    try {
+      const raw = localStorage.getItem('hubos_custom_employees');
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const { data: sdkData, loading, refresh } = useAgentManagement(isConnected);
   const { toast } = useToast();
   const [activating, setActivating] = useState(false);
 
   // 注册卡片模板（幂等）
   registerAllCards();
+
+  useEffect(() => {
+    if (!isConnected) return;
+    let cancelled = false;
+
+    void loadBuilderProjects()
+      .then((projects: unknown[]) => {
+        if (cancelled) return;
+        const deployedEmployees = projects
+          .filter((project): project is BuilderProject => {
+            const candidate = project as Partial<BuilderProject>;
+            return candidate.status === 'deployed' && Boolean(candidate.blueprint);
+          })
+          .map((project) => ({ ...blueprintToEmployee(project), status: 'active' as ActivationStatus }));
+
+        if (deployedEmployees.length === 0) return;
+
+        setCustomEmployees((prev) => {
+          const deployedIds = new Set(deployedEmployees.map((employee) => employee.id));
+          const next = [
+            ...deployedEmployees,
+            ...prev.filter((employee) => !deployedIds.has(employee.id)),
+          ];
+          try {
+            localStorage.setItem('hubos_custom_employees', JSON.stringify(next));
+          } catch {
+            /* ignore local persistence failures */
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isConnected]);
 
   // SDK agents 按 name 建立查询表，用于合并状态
   const sdkAgentMap = new Map(sdkData.agents.map(a => [a.name.toLowerCase(), a]));
@@ -383,26 +435,88 @@ export default function Team({ isConnected }: TeamProps) {
       trainingDataSources: a.dataSources || [],
     }));
 
-  // 团队展示: 预设的核心员工 + SDK 获取的新员工 + 尚未存入后端的当前状态创建员工
-  const allEmployees = [...employees, ...sdkExtraEmployees, ...customEmployees];
+  const customEmployeeNames = new Set(customEmployees.map((employee) => employee.name.toLowerCase()));
+  const visibleSdkExtraEmployees = sdkExtraEmployees.filter((employee) => !customEmployeeNames.has(employee.name.toLowerCase()));
+
+  // 团队展示: 预设的核心员工 + SDK 获取的新员工 + Builder 创建员工
+  const allEmployees = [...employees, ...visibleSdkExtraEmployees, ...customEmployees];
   const activeCount = allEmployees.filter((e) => e.status === 'active').length;
+  const runtimeEmployee = activeWorkspace?.startsWith('employee:')
+    ? allEmployees.find((item) => String(item.id) === activeWorkspace.slice('employee:'.length)) ?? null
+    : null;
 
   const handleAddEmployee = (employee: DigitalEmployee) => {
-    setCustomEmployees((prev) => [...prev, employee]);
+    setCustomEmployees((prev) => {
+      const next = [employee, ...prev.filter((item) => item.id !== employee.id)];
+      try {
+        localStorage.setItem('hubos_custom_employees', JSON.stringify(next));
+      } catch {
+        /* ignore local persistence failures */
+      }
+      return next;
+    });
     setShowBuilder(false);
     toast('success', `${employee.name} 已加入团队，等待激活`);
+  };
+
+  const handleUpdateEmployee = (employee: DigitalEmployee) => {
+    setCustomEmployees((prev) => {
+      const next = [employee, ...prev.filter((item) => item.id !== employee.id)];
+      try {
+        localStorage.setItem('hubos_custom_employees', JSON.stringify(next));
+      } catch {
+        /* ignore local persistence failures */
+      }
+      return next;
+    });
   };
 
   const handleActivate = async (emp: DigitalEmployee) => {
     if (!isConnected) { toast('error', 'SDK 离线，无法激活'); return; }
     setActivating(true);
     try {
-      await getAgentModule().create({
-        name: emp.name,
-        description: emp.tagline,
-        model: emp.model || 'gpt-4o',
-        runtimeType: 'hermes',
-      });
+      if (emp.builder?.projectId) {
+        const projects = await loadBuilderProjects();
+        const project = projects.find((item) => item.id === emp.builder?.projectId);
+        if (project) {
+          const createdAgent = await getAgentModule().create({
+            name: project.blueprint.name,
+            description: buildBuilderAgentDescription(project),
+            model: project.blueprint.runtime.model || emp.model || 'gpt-4o',
+            runtimeType: 'hermes',
+            metadata: buildBuilderAgentMetadata(project),
+          });
+          const syncedProject: BuilderProject = {
+            ...project,
+            status: 'deployed',
+            stage: 'optimize',
+            employeeId: String(emp.id),
+            updatedAt: new Date().toISOString(),
+            deployedAgent: {
+              id: createdAgent.id,
+              code: createdAgent.code,
+              runtimeType: createdAgent.runtimeType ?? 'hermes',
+              syncedAt: new Date().toISOString(),
+            },
+          };
+          await saveBuilderProject(syncedProject);
+          handleUpdateEmployee({ ...blueprintToEmployee(syncedProject), status: 'active' });
+        } else {
+          await getAgentModule().create({
+            name: emp.name,
+            description: emp.tagline,
+            model: emp.model || 'gpt-4o',
+            runtimeType: 'hermes',
+          });
+        }
+      } else {
+        await getAgentModule().create({
+          name: emp.name,
+          description: emp.tagline,
+          model: emp.model || 'gpt-4o',
+          runtimeType: 'hermes',
+        });
+      }
       toast('success', `${emp.name} 激活成功！`);
       await refresh();
     } catch {
@@ -416,6 +530,9 @@ export default function Team({ isConnected }: TeamProps) {
     const target = emp || selectedEmployee;
     if (target?.id === 'spark' || target?.id === 'xiaoke') {
       setActiveWorkspace(target.id);
+      setSelectedEmployee(null);
+    } else if (target?.builder || (target && !target.workspace.comingSoon)) {
+      setActiveWorkspace(`employee:${target.id}`);
       setSelectedEmployee(null);
     } else {
       toast('info', `${target?.name || '该员工'}工作台即将上线`);
@@ -435,11 +552,22 @@ export default function Team({ isConnected }: TeamProps) {
             key="xiaoke-workspace"
             onBack={() => setActiveWorkspace(null)}
           />
+        ) : runtimeEmployee ? (
+          <EmployeeWorkspaceRuntime
+            key={`employee-workspace-${runtimeEmployee.id}`}
+            employee={runtimeEmployee}
+            onBack={() => setActiveWorkspace(null)}
+            onEmployeeUpdate={handleUpdateEmployee}
+          />
         ) : showBuilder ? (
           <EmployeeBuilderV2
             key="builder"
             onBack={() => setShowBuilder(false)}
             onComplete={handleAddEmployee}
+            onNavigate={(nextTab, intent) => {
+              setShowBuilder(false);
+              onNav?.(nextTab, intent);
+            }}
           />
         ) : selectedEmployee ? (
           <EmployeeConfigPanel

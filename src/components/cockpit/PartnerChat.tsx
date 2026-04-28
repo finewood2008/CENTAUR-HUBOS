@@ -10,7 +10,7 @@ import type {
   TaskStatus,
   InputFile,
 } from '../../data/partner';
-import { TEAM_MEMBERS, DEFAULT_PARTNER } from '../../data/partner';
+import { DEFAULT_PARTNER } from '../../data/partner';
 import VoiceRecorder from './VoiceRecorder';
 
 // ── Props ──
@@ -19,12 +19,14 @@ interface PartnerChatProps {
   partner: PartnerProfile;
   onSendMessage: (text: string, files?: InputFile[], voiceBlob?: { blob: Blob; duration: number }) => void;
   onMemberClick?: (id: string) => void;
+  teamMembers?: TeamMember[];
   pendingQuickAction?: { id: number; text: string } | null;
   onPendingQuickActionApplied?: () => void;
 }
 
 export interface TeamBarProps {
   partner: PartnerProfile;
+  teamMembers: TeamMember[];
   onInsertMention: (name: string) => void;
   onMemberClick?: (id: string) => void;
 }
@@ -227,7 +229,17 @@ function AttachmentRenderer({ attachment, onAction }: { attachment: MessageAttac
 
 // ── Message bubble ──
 
-function MessageBubble({ msg, partner, onAction }: { msg: ChatMessage; partner: PartnerProfile; onAction?: (action: string) => void }) {
+function MessageBubble({
+  msg,
+  partner,
+  teamMembers,
+  onAction,
+}: {
+  msg: ChatMessage;
+  partner: PartnerProfile;
+  teamMembers: TeamMember[];
+  onAction?: (action: string) => void;
+}) {
   const { sender } = msg;
 
   // System message — centered
@@ -314,9 +326,9 @@ function MessageBubble({ msg, partner, onAction }: { msg: ChatMessage; partner: 
         <div className="max-w-[72%]">
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-[12px] font-semibold text-near-black">{sender.name}</span>
-            {/* Role tag from TEAM_MEMBERS */}
+            {/* Role tag from runtime team members */}
             {(() => {
-              const member = TEAM_MEMBERS.find((m) => m.id === sender.id);
+              const member = teamMembers.find((m) => m.id === sender.id);
               return member ? (
                 <span className="text-[10px] text-stone-gray bg-parchment rounded-full px-1.5 py-0.5">
                   {member.role}
@@ -358,6 +370,7 @@ function MentionPopup({
   onClose,
   partnerName,
   partnerAvatar,
+  teamMembers,
   highlightIndex,
 }: {
   filter: string;
@@ -365,6 +378,7 @@ function MentionPopup({
   onClose: () => void;
   partnerName: string;
   partnerAvatar: string;
+  teamMembers: TeamMember[];
   highlightIndex: number;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
@@ -379,7 +393,7 @@ function MentionPopup({
       isPartner: true,
     };
 
-    const teamItems: MentionItem[] = TEAM_MEMBERS
+    const teamItems: MentionItem[] = teamMembers
       .filter((m) => !m.locked)
       .map((m) => ({
         id: m.id,
@@ -398,7 +412,7 @@ function MentionPopup({
         item.name.toLowerCase().includes(lowerFilter) ||
         item.role.toLowerCase().includes(lowerFilter)
     );
-  }, [filter, partnerName, partnerAvatar]);
+  }, [filter, partnerName, partnerAvatar, teamMembers]);
 
   // Scroll highlighted item into view
   useEffect(() => {
@@ -444,6 +458,7 @@ function MentionPopup({
 
 export function TeamBar({
   partner,
+  teamMembers,
   onInsertMention,
   onMemberClick,
 }: TeamBarProps) {
@@ -466,7 +481,7 @@ export function TeamBar({
       <div className="w-px h-5 bg-border-cream shrink-0" />
 
       {/* Team members */}
-      {TEAM_MEMBERS.map((m) => (
+      {teamMembers.map((m) => (
         <button
           key={m.id}
           className="flex items-center gap-1.5 bg-parchment rounded-full px-2.5 py-1 shrink-0 hover:bg-warm-sand transition-colors group"
@@ -499,6 +514,7 @@ export default function PartnerChat({
   partner,
   onSendMessage,
   onMemberClick,
+  teamMembers = [],
   pendingQuickAction,
   onPendingQuickActionApplied,
 }: PartnerChatProps) {
@@ -517,14 +533,14 @@ export default function PartnerChat({
   // Compute filtered mention count (needed for arrow key wrap-around)
   const mentionItemCount = useMemo(() => {
     const partnerItem = { name: partner.name || '合伙人', role: '管家' };
-    const teamItems = TEAM_MEMBERS.filter((m) => !m.locked).map((m) => ({ name: m.name, role: m.role }));
+    const teamItems = teamMembers.filter((m) => !m.locked).map((m) => ({ name: m.name, role: m.role }));
     const all = [partnerItem, ...teamItems];
     if (!mentionFilter) return all.length;
     const lf = mentionFilter.toLowerCase();
     return all.filter(
       (item) => item.name.toLowerCase().includes(lf) || item.role.toLowerCase().includes(lf)
     ).length;
-  }, [mentionFilter, partner.name]);
+  }, [mentionFilter, partner.name, teamMembers]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -714,7 +730,7 @@ export default function PartnerChat({
         e.preventDefault();
         // Find the highlighted item and select it
         const partnerItem = { name: partner.name || '合伙人', role: '管家' };
-        const teamItems = TEAM_MEMBERS.filter((m) => !m.locked).map((m) => ({ name: m.name, role: m.role }));
+        const teamItems = teamMembers.filter((m) => !m.locked).map((m) => ({ name: m.name, role: m.role }));
         const all = [partnerItem, ...teamItems];
         const lf = mentionFilter.toLowerCase();
         const filtered = !mentionFilter
@@ -826,7 +842,13 @@ export default function PartnerChat({
           </div>
         ) : (
           messages.map((msg) => (
-            <MessageBubble key={msg.id} msg={msg} partner={partner} onAction={(action) => onSendMessage(action)} />
+            <MessageBubble
+              key={msg.id}
+              msg={msg}
+              partner={partner}
+              teamMembers={teamMembers}
+              onAction={(action) => onSendMessage(action)}
+            />
           ))
         )}
       </div>
@@ -886,6 +908,7 @@ export default function PartnerChat({
                 onClose={closeMention}
                 partnerName={partner.name || '合伙人'}
                 partnerAvatar={partner.avatar}
+                teamMembers={teamMembers}
                 highlightIndex={mentionHighlight}
               />
             )}

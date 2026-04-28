@@ -19,7 +19,7 @@ const KNOWLEDGE_REWRITE: Record<string, string> = {
   '/api/platform/knowledge/upload': '/knowledge/upload',
   '/api/platform/knowledge/search': '/knowledge/search',
   '/api/platform/knowledge/stats': '/knowledge/stats',
-  '/api/platform/knowledge/config': '/knowledge/stats', // fallback
+  '/api/platform/knowledge/config': '/knowledge/stats',
   '/api/platform/knowledge/config/update': '/knowledge/stats',
 };
 
@@ -76,7 +76,7 @@ function proxyToHubos(
   proxyToTarget(HUBOS_API, targetPath, req, res);
 }
 
-export default function apiMockPlugin(): Plugin {
+export default function apiProxyPlugin(): Plugin {
   return {
     name: 'vite-api-proxy',
     configureServer(server) {

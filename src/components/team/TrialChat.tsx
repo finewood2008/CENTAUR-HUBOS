@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, UserCheck, ArrowLeft, Sparkles } from 'lucide-react';
 import type { DigitalEmployee } from '../../types';
+import { getModelsModule } from '../../services/qeeclaw';
 
 interface Props {
   employee: DigitalEmployee;
@@ -15,25 +16,17 @@ interface TrialMessage {
   content: string;
 }
 
-// Mock responses based on employee role
-function getMockReply(employee: DigitalEmployee, userMsg: string, msgCount: number): string {
-  if (msgCount === 0) {
-    return `你好！我是即将入职的 ${employee.name}。由于当前为【预览试用模式】，真实模型推理服务尚未激活。\n请点击右上角「确认加入团队」进行部署后，前往工作台与我进行真实的交互测试。`;
-  }
-  return `(预览模式不支持多轮对话交互，请先确认加入团队)`;
-}
-
 export default function TrialChat({ employee, onBack, onConfirm }: Props) {
   const [messages, setMessages] = useState<TrialMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const msgCountRef = useRef(0);
 
-  // Send initial greeting
   useEffect(() => {
-    const greeting = getMockReply(employee, '', 0);
-    setMessages([{ role: 'ai', content: greeting }]);
+    setMessages([{
+      role: 'ai',
+      content: `你好，我是 ${employee.name}。当前试聊将直接调用本地模型 API。`,
+    }]);
   }, [employee]);
 
   useEffect(() => {
@@ -42,20 +35,35 @@ export default function TrialChat({ employee, onBack, onConfirm }: Props) {
     }
   }, [messages, loading]);
 
-  const send = useCallback(() => {
+  const send = useCallback(async () => {
     if (!input.trim() || loading) return;
     const userMsg = input.trim();
     setMessages((prev) => [...prev, { role: 'user', content: userMsg }]);
     setInput('');
     setLoading(true);
-    msgCountRef.current += 1;
-
-    // Simulate response delay
-    setTimeout(() => {
-      const reply = getMockReply(employee, userMsg, msgCountRef.current);
+    try {
+      const prompt = [
+        `你正在扮演 HubOS 数字员工「${employee.name}」。`,
+        `员工角色：${employee.role}`,
+        `定位：${employee.tagline || employee.introduction || '未设置'}`,
+        `能力：${employee.capabilities.join('、') || '未设置'}`,
+        `用户试聊消息：${userMsg}`,
+      ].join('\n');
+      const result = await getModelsModule().invoke({ prompt });
+      const reply = String(
+        typeof result === 'string'
+          ? result
+          : (result as unknown as Record<string, unknown>)?.text ||
+            (result as unknown as Record<string, unknown>)?.content ||
+            JSON.stringify(result)
+      );
       setMessages((prev) => [...prev, { role: 'ai', content: reply }]);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : '模型 API 调用失败';
+      setMessages((prev) => [...prev, { role: 'ai', content: `真实模型 API 暂不可用：${detail}` }]);
+    } finally {
       setLoading(false);
-    }, 800 + Math.random() * 600);
+    }
   }, [input, loading, employee]);
 
   return (

@@ -1,5 +1,5 @@
 // Hub OS - QeeClaw 数据加载 hooks
-// 策略：全部使用 SDK 真实数据，无 mock fallback
+// 策略：全部使用 SDK 真实数据，无本地静态业务数据
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   checkConnection,
@@ -9,7 +9,7 @@ import {
   getClientAsync,
 } from '../services/qeeclaw';
 import { DIGITAL_EMPLOYEES } from '../data/digital-employees';
-// mock 数据已移除，全部使用 SDK 真实数据
+// 本地静态业务数据已移除，全部使用 SDK 真实数据
 import type { Agent, Template, Alert, UsageStat, ActivityItem, DigitalEmployee } from '../types';
 import type {
   MyAgent, AgentTemplate,
@@ -715,6 +715,12 @@ export interface KnowledgeBase {
   total_size: number;
   agent_code: string | null;
   updated_time: string;
+  source_name?: string;
+  filename?: string;
+  chunk_count?: number;
+  total_chars?: number;
+  mime_type?: string | null;
+  status?: string;
 }
 
 export interface KnowledgeStats {
@@ -760,6 +766,12 @@ export function useKnowledgeData(isConnected: boolean) {
           total_size: Number(doc.total_size || doc.total_chars || 0),
           agent_code: (doc.agent_code as string) || null,
           updated_time: String(doc.updated_time || doc.created_at || new Date().toISOString()),
+          source_name: String(doc.source_name || doc.name || ''),
+          filename: String(doc.filename || doc.file_name || doc.source_name || doc.name || ''),
+          chunk_count: Number(doc.chunk_count || doc.file_count || 0),
+          total_chars: Number(doc.total_chars || doc.total_size || 0),
+          mime_type: (doc.mime_type || doc.content_type || null) as string | null,
+          status: String(doc.status || doc.index_status || 'indexed'),
         }));
       }
 

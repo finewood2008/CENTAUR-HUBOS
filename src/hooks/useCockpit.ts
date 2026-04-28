@@ -2,9 +2,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getClientAsync } from '../services/qeeclaw';
 import type { ChatMessage, ReportItem, InputFile, Task, ScheduledTask, PartnerProfile, MessageSender, TeamMember } from '../data/partner';
-import { DEFAULT_PARTNER, ALL_EMPLOYEES } from '../data/partner';
+import { DEFAULT_PARTNER } from '../data/partner';
 
 type QeeClawClient = Awaited<ReturnType<typeof getClientAsync>>;
+type WorkflowLike = {
+  id: string;
+  name?: string;
+  description?: string | null;
+  enabled?: boolean;
+  nodes?: unknown[];
+  edges?: unknown[];
+};
 
 interface CockpitData {
   partner: PartnerProfile;
@@ -21,7 +29,7 @@ function makeCockpitStatusMessages(isConnected: boolean): ChatMessage[] {
     return [{
       id: 'cockpit-offline',
       sender: { type: 'system' },
-      content: '当前未连接到本地合伙人运行时，驾驶舱只显示本地状态，不展示演示对话。',
+      content: '当前未连接到本地合伙人运行时，驾驶舱只显示本地状态。',
       time,
     }];
   }
@@ -31,6 +39,27 @@ function makeCockpitStatusMessages(isConnected: boolean): ChatMessage[] {
     content: '本地合伙人会话已就绪。先输入你希望如何称呼你的数字合伙人，再开始对话。',
     time,
   }];
+}
+
+function emitToast(type: 'success' | 'error' | 'info', message: string) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('hubos:toast', { detail: { type, message } }));
+}
+
+function workflowToScheduledTask(workflow: WorkflowLike): ScheduledTask {
+  return {
+    id: workflow.id,
+    title: workflow.name || workflow.id,
+    description: workflow.description || undefined,
+    schedule: {
+      type: 'cron',
+      time: '--:--',
+      cronExpr: '由工作流后端管理',
+    },
+    action: workflow.description || workflow.name || workflow.id,
+    enabled: workflow.enabled !== false,
+    createdAt: '',
+  };
 }
 
 export function useCockpit(isConnected: boolean) {
@@ -86,13 +115,18 @@ export function useCockpit(isConnected: boolean) {
   // 加载调度任务
   const loadSchedule = useCallback(async () => {
     try {
-      // TODO: 对接到具体的 workflow 接口
-      // const client = await getClientAsync();
-      // const res = await client.workflow.listScheduled();
-      setData(prev => ({ ...prev, scheduledTasks: [] }));
+      const client = await getClientAsync();
+      const workflows = await client.workflow.list();
+      setData(prev => ({
+        ...prev,
+        scheduledTasks: Array.isArray(workflows)
+          ? (workflows as WorkflowLike[]).map(workflowToScheduledTask)
+          : [],
+      }));
     } catch (e) {
       console.error('[Cockpit] 加载调度任务失败:', e);
       setData(prev => ({ ...prev, scheduledTasks: [] }));
+      emitToast('error', '加载工作流日程失败');
     }
   }, []);
 
@@ -100,10 +134,27 @@ export function useCockpit(isConnected: boolean) {
   const loadApprovals = useCallback(async () => {
     if (!isConnected) return;
     try {
-      // TODO: 从 approval 模块获取待审批项
-      // const remoteApprovals = await client.approval.list({ status: 'pending' });
-      
-      updateData({ tasks: [] });
+      const client = await getClientAsync();
+      const remoteApprovals = await client.approval.list({ scope: 'all', status: 'pending', pageSize: 20 });
+      updateData({
+        tasks: remoteApprovals.items.map((approval: {
+          approvalId: string;
+          title: string;
+          createdAt: string;
+          reason?: string;
+          payload?: Record<string, unknown>;
+        }) => ({
+          id: approval.approvalId,
+          title: approval.title,
+          assignee: 'leader',
+          assigneeName: String(approval.payload?.employeeId ?? '待审批'),
+          assigneeAvatar: '📋',
+          status: 'review',
+          progress: 0,
+          createdAt: approval.createdAt,
+          description: approval.reason,
+        })),
+      });
     } catch (err) {
       console.error('[Cockpit] 加载汇报/审批失败:', err);
       updateData({ tasks: [] });
@@ -112,40 +163,70 @@ export function useCockpit(isConnected: boolean) {
 
   // 审批任务操作
   const approveTask = useCallback((taskId: string) => {
-    setData(prev => ({
-      ...prev,
-      tasks: prev.tasks.map(t => (t.id === taskId ? { ...t, status: 'completed', progress: 100 } : t))
-    }));
     const task = data.tasks.find(t => t.id === taskId);
-    if (task) {
-      appendSystemMessage(`已批准：${task.assigneeName}的「${task.title}」`);
-    }
+    void getClientAsync()
+      .then((client) => client.approval.resolve(taskId, { approved: true }))
+      .then(() => {
+        setData(prev => ({
+          ...prev,
+          tasks: prev.tasks.map(t => (t.id === taskId ? { ...t, status: 'completed', progress: 100 } : t))
+        }));
+        if (task) appendSystemMessage(`已批准：${task.assigneeName}的「${task.title}」`);
+        emitToast('success', '审批已通过');
+      })
+      .catch((err) => {
+        console.error('[Cockpit] 审批通过失败:', err);
+        emitToast('error', `审批通过失败：${err instanceof Error ? err.message : '未知错误'}`);
+      });
   }, [data.tasks]);
 
   const rejectTask = useCallback((taskId: string) => {
-    setData(prev => ({
-      ...prev,
-      tasks: prev.tasks.map(t => (t.id === taskId ? { ...t, status: 'pending' } : t))
-    }));
     const task = data.tasks.find(t => t.id === taskId);
-    if (task) {
-      appendSystemMessage(`已驳回：${task.assigneeName}的「${task.title}」，已退回修改`);
-    }
+    void getClientAsync()
+      .then((client) => client.approval.resolve(taskId, { approved: false }))
+      .then(() => {
+        setData(prev => ({
+          ...prev,
+          tasks: prev.tasks.map(t => (t.id === taskId ? { ...t, status: 'pending' } : t))
+        }));
+        if (task) appendSystemMessage(`已驳回：${task.assigneeName}的「${task.title}」，已退回修改`);
+        emitToast('success', '审批已驳回');
+      })
+      .catch((err) => {
+        console.error('[Cockpit] 审批驳回失败:', err);
+        emitToast('error', `审批驳回失败：${err instanceof Error ? err.message : '未知错误'}`);
+      });
   }, [data.tasks]);
 
   // 修改预设调度操作
   const toggleSchedule = useCallback((id: string, enabled: boolean) => {
-    setData(prev => ({
-      ...prev,
-      scheduledTasks: prev.scheduledTasks.map(t => (t.id === id ? { ...t, enabled } : t))
-    }));
+    void getClientAsync()
+      .then(async (client) => {
+        const workflows = await client.workflow.list();
+        const workflow = (workflows as WorkflowLike[]).find((item) => item.id === id);
+        if (!workflow) throw new Error('未找到对应工作流');
+        await client.workflow.save({
+          id: workflow.id,
+          name: workflow.name || workflow.id,
+          description: workflow.description || null,
+          nodes: Array.isArray(workflow.nodes) ? workflow.nodes as any : [],
+          edges: Array.isArray(workflow.edges) ? workflow.edges as any : [],
+          enabled,
+        });
+        setData(prev => ({
+          ...prev,
+          scheduledTasks: prev.scheduledTasks.map(t => (t.id === id ? { ...t, enabled } : t))
+        }));
+        emitToast('success', enabled ? '日程已启用' : '日程已停用');
+      })
+      .catch((err) => {
+        emitToast('error', `更新日程失败：${err instanceof Error ? err.message : '未知错误'}`);
+      });
   }, []);
 
   const deleteSchedule = useCallback((id: string) => {
-    setData(prev => ({
-      ...prev,
-      scheduledTasks: prev.scheduledTasks.filter(t => t.id !== id)
-    }));
+    void id;
+    emitToast('info', '当前 SDK 尚未提供删除工作流接口，请在工作流管理端删除');
   }, []);
 
   const appendSystemMessage = (content: string) => {
@@ -229,6 +310,12 @@ export function useCockpit(isConnected: boolean) {
       return;
     }
 
+    if ((files && files.length > 0) || voiceBlob) {
+      appendSystemMessage('当前 SDK 尚未提供驾驶舱附件/语音上传接口，请先发送纯文本消息。');
+      emitToast('info', '附件和语音上传尚未接入 SDK');
+      return;
+    }
+
     // ── 普通消息态 ──
 
     // 1. 构建前台用户消息 UI
@@ -244,14 +331,6 @@ export function useCockpit(isConnected: boolean) {
       time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
     };
 
-    // (伪)文件附件渲染展示，未真实落盘
-    if (files && files.length > 0) {
-      userMsg.attachment = {
-        type: 'action-buttons', 
-        buttons: [{ label: `已包含 ${files.length} 个附件`, action: 'none' }]
-      };
-    }
-
     setData(prev => ({
       ...prev,
       messages: [...prev.messages, userMsg],
@@ -260,13 +339,6 @@ export function useCockpit(isConnected: boolean) {
     setSending(true);
 
     try {
-      // TODO: 向 SDK 上传 files 和 voiceBlob
-      // const fileIds = [];
-      // for (const file of files) {
-      //   const res = await client.file.upload(file.file);
-      //   fileIds.push(res.id);
-      // }
-
       // 创建 AI 消息占位符
       const aiMsgId = `ai-${Date.now()}`;
       const aiMsg: ChatMessage = {
@@ -281,42 +353,13 @@ export function useCockpit(isConnected: boolean) {
         messages: [...prev.messages, aiMsg],
       }));
 
-      // 直接调用云端平台 API（与微信 gateway 保持一致）
       try {
-        const apiUrl = 'https://paas.qeeshu.com/api/platform/models/invoke';
-        const apiKey = 'mJXR0OavZjP8-unrkrDUNw';
+        const client = await getClientAsync();
         const now = new Date();
         const currentDateContext = `当前系统时间是 ${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日 ${now.toLocaleDateString('zh-CN', { weekday: 'long' })}。回答涉及今天、当前日期、星期几、现在时间等问题时，必须以这个时间为准，不要使用训练数据中的过期日期。`;
         const prompt = `${currentDateContext}\n\n用户消息：${displayContent}`;
-
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            prompt,
-            // 不指定 model，让平台根据用户选择的模型自动处理
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-
-        const result = await response.json() as {
-          code?: number;
-          data?: { text?: string };
-          message?: string;
-        };
-
-        let replyText = '';
-        if (result.code === 0) {
-          replyText = result.data?.text || '抱歉，我无法处理您的消息。';
-        } else {
-          replyText = `抱歉，处理您的消息时出错了：${result.message || '未知错误'}`;
-        }
+        const result = await client.models.invoke({ prompt });
+        const replyText = result.text || '本地模型 API 未返回文本。';
 
         setData(prev => ({
           ...prev,

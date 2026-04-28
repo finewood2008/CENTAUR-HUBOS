@@ -1,5 +1,5 @@
 // Hub OS - 通讯中心（渠道接入管理 + 监控大盘）
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Radio, CheckCircle, XCircle, AlertCircle, MinusCircle, RefreshCw, Wifi, WifiOff, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { ChannelsData, ChannelItem } from '../../hooks/useQeeClaw';
@@ -11,8 +11,7 @@ import ChannelConfigPanel from './ChannelConfigPanel';
 const CHANNEL_META: Record<string, { icon: string; label: string; availability: 'supported' | 'planned' }> = {
   wechat_work: { icon: '💬', label: '企业微信', availability: 'supported' },
   feishu: { icon: '🐦', label: '飞书', availability: 'supported' },
-  wechat_personal_plugin: { icon: '📱', label: '微信个人号', availability: 'supported' },
-  wechat_personal_openclaw: { icon: '🔌', label: '微信个人号(插件)', availability: 'supported' },
+  wechat_personal_openclaw: { icon: '📱', label: '微信个人号', availability: 'supported' },
   telegram: { icon: '✈️', label: 'Telegram', availability: 'planned' },
   dingtalk: { icon: '🔵', label: '钉钉', availability: 'planned' },
   email: { icon: '📧', label: '邮件', availability: 'planned' },
@@ -27,9 +26,10 @@ interface ChannelsProps {
   channelsLoading: boolean;
   channelsError?: string | null;
   onRefresh?: () => void;
+  focusChannelKey?: string;
 }
 
-export default function Channels({ agents, channelsData, channelsLoading, channelsError, onRefresh }: ChannelsProps) {
+export default function Channels({ agents, channelsData, channelsLoading, channelsError, onRefresh, focusChannelKey }: ChannelsProps) {
   const [selectedChannelKey, setSelectedChannelKey] = useState<string | null>(null);
   const localBridgeAvailable = isChannelsLocalBridgeAvailable();
   const channelsBaseUrl = getChannelsBaseUrl();
@@ -38,6 +38,14 @@ export default function Channels({ agents, channelsData, channelsLoading, channe
   const hasApiData = channelsData !== null;
   const selectedChannel = channelsData?.items.find((item) => item.channelKey === selectedChannelKey) ?? null;
 
+  useEffect(() => {
+    if (!focusChannelKey || !channelsData?.items.length) return;
+    const matched = channelsData.items.find((item) => item.channelKey === focusChannelKey);
+    if (matched) {
+      setSelectedChannelKey(matched.channelKey);
+    }
+  }, [channelsData?.items, focusChannelKey]);
+
   const plannedChannels = useMemo(
     () => Object.entries(CHANNEL_META)
       .filter(([, meta]) => meta.availability === 'planned')
@@ -45,11 +53,11 @@ export default function Channels({ agents, channelsData, channelsLoading, channe
     [],
   );
 
-  // 从 agents 提取的渠道统计（fallback）
+  // 渠道 API 暂不可用时，仅使用真实 agents 字段计算概览
   const withChannel = agents.filter((a) => a.channel);
-  const fallbackActive = withChannel.filter((a) => a.channel?.status === 'active').length;
-  const fallbackError = withChannel.filter((a) => a.channel?.status === 'error').length;
-  const fallbackUnlinked = agents.length - withChannel.length;
+  const agentChannelActive = withChannel.filter((a) => a.channel?.status === 'active').length;
+  const agentChannelError = withChannel.filter((a) => a.channel?.status === 'error').length;
+  const agentChannelUnlinked = agents.length - withChannel.length;
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -92,9 +100,9 @@ export default function Channels({ agents, channelsData, channelsLoading, channe
       ) : (
         <div className="grid grid-cols-4 gap-4">
           <StatCard label="员工总数" value={agents.length} colorClass="text-near-black" />
-          <StatCard label="渠道在线" value={fallbackActive} colorClass="text-sage-green" icon={<CheckCircle size={14} />} />
-          <StatCard label="渠道异常" value={fallbackError} colorClass="text-terracotta" icon={<AlertCircle size={14} />} />
-          <StatCard label="未接入" value={fallbackUnlinked} colorClass="text-stone-gray" icon={<MinusCircle size={14} />} />
+          <StatCard label="渠道在线" value={agentChannelActive} colorClass="text-sage-green" icon={<CheckCircle size={14} />} />
+          <StatCard label="渠道异常" value={agentChannelError} colorClass="text-terracotta" icon={<AlertCircle size={14} />} />
+          <StatCard label="未接入" value={agentChannelUnlinked} colorClass="text-stone-gray" icon={<MinusCircle size={14} />} />
         </div>
       )}
 
@@ -186,7 +194,7 @@ export default function Channels({ agents, channelsData, channelsLoading, channe
                     className="inline-flex items-center gap-1 rounded-lg border border-border-warm px-2.5 py-1.5 text-[11px] font-medium text-olive-gray transition-colors hover:text-near-black"
                   >
                     <Settings size={12} />
-                    {ch.channelKey === 'wechat_personal_plugin' ? '配置 / 绑定' : '配置'}
+                    配置
                   </button>
                 </div>
               </motion.div>

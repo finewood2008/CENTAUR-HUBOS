@@ -13,29 +13,21 @@ interface ChatAreaProps {
 export default function ChatArea({ isConnected, agentId, agentName = 'Spark (火花)' }: ChatAreaProps) {
   const { messages, loading, sending, sendMessage } = useChatConversation(isConnected);
   const [input, setInput] = useState('');
-  const [localMessages, setLocalMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const hasSdkMessages = messages.length > 0;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, localMessages]);
+  }, [messages]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
     const content = input.trim();
     setInput('');
 
-    if (isConnected) {
-      await sendMessage(content, agentId);
-    } else {
-      setLocalMessages(prev => [
-        ...prev,
-        { role: 'user', content },
-        { role: 'ai', content: `[演示模式] 收到你的消息：「${content}」。连接 SDK 后可获得真实 AI 回复。` },
-      ]);
-    }
+    if (!isConnected) return;
+    await sendMessage(content, agentId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -75,38 +67,11 @@ export default function ChatArea({ isConnected, agentId, agentName = 'Spark (火
           <SdkMessageBubble key={msg.id} message={msg} />
         ))}
 
-        {/* Local/demo messages */}
-        {!hasSdkMessages && localMessages.length === 0 && !loading && (
-          <>
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-warm-sand flex items-center justify-center shrink-0">
-                <User className="w-4 h-4 text-stone-gray" />
-              </div>
-              <div className="bg-warm-sand rounded-2xl rounded-tl-sm p-4 text-sm text-near-black max-w-[80%]">
-                你好，{agentName}。我们需要准备下半年的品牌物料。
-              </div>
-            </div>
-            <div className="flex gap-4 flex-row-reverse">
-              <div className="w-8 h-8 rounded-full bg-terracotta/15 border border-terracotta/25 flex items-center justify-center shrink-0">
-                <Bot className="w-4 h-4 text-terracotta" />
-              </div>
-              <div className="bg-terracotta/10 border border-terracotta/15 rounded-2xl rounded-tr-sm p-4 text-sm text-near-black max-w-[80%]">
-                收到，老板。我已经准备好了。您想先看品牌海报还是重新梳理下产品定位手册？
-              </div>
-            </div>
-          </>
-        )}
-
-        {localMessages.map((msg, i) => (
-          <div key={i} className={`flex gap-4 ${msg.role === 'ai' ? 'flex-row-reverse' : ''}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-warm-sand' : 'bg-terracotta/15 border border-terracotta/25'}`}>
-              {msg.role === 'user' ? <User className="w-4 h-4 text-stone-gray" /> : <Bot className="w-4 h-4 text-terracotta" />}
-            </div>
-            <div className={`rounded-2xl p-4 text-sm text-near-black max-w-[80%] ${msg.role === 'user' ? 'bg-warm-sand rounded-tl-sm' : 'bg-terracotta/10 border border-terracotta/15 rounded-tr-sm'}`}>
-              {msg.content}
-            </div>
+        {!hasSdkMessages && !loading && (
+          <div className="rounded-2xl border border-dashed border-border-cream bg-parchment/50 p-4 text-sm text-stone-gray">
+            {isConnected ? '暂无真实对话记录。发送消息后会写入本地会话 API。' : '当前未连接本地运行时，无法发送或展示对话。'}
           </div>
-        ))}
+        )}
 
         {sending && (
           <div className="flex gap-4 flex-row-reverse">
@@ -131,12 +96,12 @@ export default function ChatArea({ isConnected, agentId, agentName = 'Spark (火
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="输入对话内容..."
-            disabled={sending}
+            disabled={sending || !isConnected}
             className="input-warm w-full rounded-xl py-3 pl-4 pr-12 text-sm focus:border-terracotta/50 transition-colors disabled:opacity-50"
           />
           <button
             onClick={handleSend}
-            disabled={sending || !input.trim()}
+            disabled={sending || !isConnected || !input.trim()}
             className="absolute right-2 p-2 bg-terracotta hover:bg-coral text-ivory rounded-lg transition-colors disabled:opacity-50"
           >
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

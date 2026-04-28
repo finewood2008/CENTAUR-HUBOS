@@ -14,36 +14,33 @@ export interface EmployeeSkill {
   source: string; // clawhub.ai 来源标记
   version: string;
   enabled: boolean;
-  // 调用统计(mock)
-  invocations?: number;
-  successRate?: number;
 }
 
 // ─── 火花 Spark ──────────────────────────────────
 const SPARK_SKILLS: EmployeeSkill[] = [
-  { id: 'spark-logo-design', name: 'spark-logo-design', category: 'creative', description: '品牌 Logo 设计工作流 — 温暖、有人情味的视觉语言', source: 'clawhub.ai/creative', version: 'v1.4', enabled: true, invocations: 32, successRate: 94 },
-  { id: 'baoyu-infographic', name: 'baoyu-infographic', category: 'creative', description: '21 种布局的专业信息图生成', source: 'clawhub.ai/creative', version: 'v2.1', enabled: true, invocations: 18, successRate: 89 },
-  { id: 'popular-web-designs', name: 'popular-web-designs', category: 'creative', description: '54 套生产级设计系统(从真实产品提取)', source: 'clawhub.ai/creative', version: 'v1.0', enabled: true, invocations: 12, successRate: 92 },
-  { id: 'awesome-design-systems', name: 'awesome-design-systems', category: 'creative', description: '58 个知名品牌 DESIGN.md 设计系统集合', source: 'clawhub.ai/creative', version: 'v1.0', enabled: true, invocations: 9, successRate: 96 },
-  { id: 'wechat-auto-writer', name: 'wechat-auto-writer', category: 'content', description: '自动撰写并发布文章到微信公众号草稿箱', source: 'clawhub.ai/content', version: 'v3.0', enabled: true, invocations: 47, successRate: 91 },
-  { id: 'email-design', name: 'email-design', category: 'design', description: '邮件营销设计 — 布局/标题/转化优化', source: 'clawhub.ai/sales', version: 'v1.2', enabled: true, invocations: 8, successRate: 87 },
+  { id: 'spark-logo-design', name: 'spark-logo-design', category: 'creative', description: '品牌 Logo 设计工作流 — 温暖、有人情味的视觉语言', source: 'clawhub.ai/creative', version: 'v1.4', enabled: true },
+  { id: 'baoyu-infographic', name: 'baoyu-infographic', category: 'creative', description: '21 种布局的专业信息图生成', source: 'clawhub.ai/creative', version: 'v2.1', enabled: true },
+  { id: 'popular-web-designs', name: 'popular-web-designs', category: 'creative', description: '54 套生产级设计系统(从真实产品提取)', source: 'clawhub.ai/creative', version: 'v1.0', enabled: true },
+  { id: 'awesome-design-systems', name: 'awesome-design-systems', category: 'creative', description: '58 个知名品牌 DESIGN.md 设计系统集合', source: 'clawhub.ai/creative', version: 'v1.0', enabled: true },
+  { id: 'wechat-auto-writer', name: 'wechat-auto-writer', category: 'content', description: '自动撰写并发布文章到微信公众号草稿箱', source: 'clawhub.ai/content', version: 'v3.0', enabled: true },
+  { id: 'email-design', name: 'email-design', category: 'design', description: '邮件营销设计 — 布局/标题/转化优化', source: 'clawhub.ai/sales', version: 'v1.2', enabled: true },
   { id: 'ascii-art', name: 'ascii-art', category: 'creative', description: 'ASCII 艺术生成(571 字体 + cowsay)', source: 'clawhub.ai/creative', version: 'v1.0', enabled: false },
-  { id: 'three-panel-ai-workspace', name: 'three-panel-ai-workspace', category: 'product', description: '三栏 AI 工作台(对话+画布+预览)', source: 'clawhub.ai/creative', version: 'v1.0', enabled: true, invocations: 15, successRate: 95 },
+  { id: 'three-panel-ai-workspace', name: 'three-panel-ai-workspace', category: 'product', description: '三栏 AI 工作台(对话+画布+预览)', source: 'clawhub.ai/creative', version: 'v1.0', enabled: true },
   { id: 'songwriting-and-ai-music', name: 'songwriting-and-ai-music', category: 'creative', description: '词曲创作 + Suno AI 音乐生成', source: 'clawhub.ai/creative', version: 'v1.0', enabled: false },
-  { id: 'presentation-builder', name: 'presentation-builder', category: 'productivity', description: '可编辑演示文稿构建', source: 'clawhub.ai/sales', version: 'v1.0', enabled: true, invocations: 6, successRate: 90 },
+  { id: 'presentation-builder', name: 'presentation-builder', category: 'productivity', description: '可编辑演示文稿构建', source: 'clawhub.ai/sales', version: 'v1.0', enabled: true },
 ];
 
 // ─── 小可 Xiaoke ──────────────────────────────────
 const XIAOKE_SKILLS: EmployeeSkill[] = [
-  { id: 'crm-automation', name: 'crm-automation', category: 'sales', description: 'HubSpot/Salesforce/Pipedrive 自动化', source: 'clawhub.ai/sales', version: 'v2.0', enabled: true, invocations: 89, successRate: 93 },
-  { id: 'sales-qualification', name: 'sales-qualification', category: 'sales', description: '销售线索资格评估(BANT/MEDDIC)', source: 'clawhub.ai/sales', version: 'v1.5', enabled: true, invocations: 124, successRate: 88 },
-  { id: 'enterprise-sales', name: 'enterprise-sales', category: 'sales', description: '企业大客户销售导航', source: 'clawhub.ai/sales', version: 'v1.0', enabled: true, invocations: 23, successRate: 85 },
-  { id: 'sales-enablement', name: 'sales-enablement', category: 'sales', description: '销售物料/Pitch deck 制作', source: 'clawhub.ai/sales', version: 'v1.2', enabled: true, invocations: 31, successRate: 91 },
-  { id: 'firecrawl', name: 'firecrawl', category: 'research', description: '网页抓取/搜索/爬取(官方 CLI)', source: 'clawhub.ai/research', version: 'v1.0', enabled: true, invocations: 156, successRate: 96 },
-  { id: 'feishu-lead-generation-webhook', name: 'feishu-lead-generation-webhook', category: 'web', description: '飞书 Lead Gen Webhook 集成', source: 'clawhub.ai/web', version: 'v1.0', enabled: true, invocations: 42, successRate: 94 },
+  { id: 'crm-automation', name: 'crm-automation', category: 'sales', description: 'HubSpot/Salesforce/Pipedrive 自动化', source: 'clawhub.ai/sales', version: 'v2.0', enabled: true },
+  { id: 'sales-qualification', name: 'sales-qualification', category: 'sales', description: '销售线索资格评估(BANT/MEDDIC)', source: 'clawhub.ai/sales', version: 'v1.5', enabled: true },
+  { id: 'enterprise-sales', name: 'enterprise-sales', category: 'sales', description: '企业大客户销售导航', source: 'clawhub.ai/sales', version: 'v1.0', enabled: true },
+  { id: 'sales-enablement', name: 'sales-enablement', category: 'sales', description: '销售物料/Pitch deck 制作', source: 'clawhub.ai/sales', version: 'v1.2', enabled: true },
+  { id: 'firecrawl', name: 'firecrawl', category: 'research', description: '网页抓取/搜索/爬取(官方 CLI)', source: 'clawhub.ai/research', version: 'v1.0', enabled: true },
+  { id: 'feishu-lead-generation-webhook', name: 'feishu-lead-generation-webhook', category: 'web', description: '飞书 Lead Gen Webhook 集成', source: 'clawhub.ai/web', version: 'v1.0', enabled: true },
   { id: 'stock-analysis', name: 'stock-analysis', category: 'finance', description: '股票/加密货币 Yahoo Finance 分析', source: 'clawhub.ai/finance', version: 'v1.0', enabled: false },
-  { id: 'xitter', name: 'xitter', category: 'social', description: 'X/Twitter 互动(发帖/监控)', source: 'clawhub.ai/social', version: 'v1.1', enabled: true, invocations: 18, successRate: 89 },
-  { id: 'webhook-subscriptions', name: 'webhook-subscriptions', category: 'devops', description: '事件驱动的 Webhook 订阅管理', source: 'clawhub.ai/devops', version: 'v1.0', enabled: true, invocations: 14, successRate: 92 },
+  { id: 'xitter', name: 'xitter', category: 'social', description: 'X/Twitter 互动(发帖/监控)', source: 'clawhub.ai/social', version: 'v1.1', enabled: true },
+  { id: 'webhook-subscriptions', name: 'webhook-subscriptions', category: 'devops', description: '事件驱动的 Webhook 订阅管理', source: 'clawhub.ai/devops', version: 'v1.0', enabled: true },
 ];
 
 // ─── 书熙 Shuxi (法务) ──────────────────────────────────

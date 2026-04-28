@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Crown, Lock, Edit2, Sparkles, Plus, X } from 'lucide-react';
-import { CENTAUR_LEVELS, ALL_EMPLOYEES, type TeamMember, type PartnerProfile, type CentaurIndex } from '../../data/partner';
+import { CENTAUR_LEVELS, type TeamMember, type PartnerProfile, type CentaurIndex } from '../../data/partner';
 import type { DigitalEmployeeId } from '../../types';
 
 interface TeamHeaderProps {
@@ -24,10 +24,6 @@ const STATUS_TEXT: Record<TeamMember['status'], string> = {
   online: '在线',
   working: '工作中',
   offline: '离线',
-};
-
-const CURRENT_TASKS: Record<string, string> = {
-  spark: '设计展会海报',
 };
 
 export default function TeamHeader({
@@ -83,9 +79,7 @@ export default function TeamHeader({
     ? visibleTeamMembers.filter((member) => member.status === 'online' || member.status === 'working').length
     : 0;
 
-  // Employees available to add (in ALL_EMPLOYEES but not in teamMembers)
-  const teamIds = new Set(visibleTeamMembers.map(m => m.id));
-  const availableToAdd = ALL_EMPLOYEES.filter(e => e.id !== 'leader' && !teamIds.has(e.id));
+  const availableToAdd: TeamMember[] = [];
 
   return (
     <div className="shrink-0 bg-white/70 backdrop-blur-sm border-b border-border-cream/30">
@@ -176,18 +170,13 @@ export default function TeamHeader({
               <span className="text-[10px] leading-tight text-charcoal-warm">
                 {m.name}
               </span>
-              {m.status === 'working' && CURRENT_TASKS[m.id] && (
-                <span className="text-[9px] text-amber-600/70 truncate max-w-[60px]">{CURRENT_TASKS[m.id]}</span>
-              )}
-              {m.status !== 'working' && (
-                <span className="text-[9px] text-stone-gray/50">{STATUS_TEXT[m.status]}</span>
-              )}
+              <span className="text-[9px] text-stone-gray/50">{STATUS_TEXT[m.status]}</span>
             </div>
           ))}
             </div>
 
           {/* ── Add Member Button (outside overflow container) ── */}
-          {availableToAdd.length > 0 && (
+          {onAddMember && availableToAdd.length > 0 && (
             <div className="relative shrink-0" ref={pickerRef}>
               <button
                 onClick={() => setShowPicker(p => !p)}

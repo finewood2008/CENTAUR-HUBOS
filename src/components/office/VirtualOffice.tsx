@@ -280,7 +280,7 @@ export default function VirtualOffice({ isConnected }: VirtualOfficeProps) {
             <div className="rounded-2xl border border-white/10 bg-[#16213e]/90 px-5 py-4 text-center shadow-xl">
               <div className="text-3xl mb-2">🤖</div>
               <div className="text-white/80 text-sm font-medium">当前没有可展示的已入职智体</div>
-              <div className="text-white/45 text-xs mt-1">办公室现在只展示 SDK 返回的真实 Agent，不再使用前端 mock 列表。</div>
+              <div className="text-white/45 text-xs mt-1">办公室现在只展示 SDK 返回的真实 Agent。</div>
             </div>
           </div>
         )}
