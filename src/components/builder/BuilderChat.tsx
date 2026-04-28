@@ -1,40 +1,19 @@
-// BuilderChat — 数字员工构建器 V2 左侧对话面板
-// Left panel: AI-guided conversation that drives canvas node configuration.
-// Uses Gemini via CF Worker proxy for intelligent responses.
-
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Send,
-  Bot,
-  Sparkles,
-  Loader2,
-} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Bot, Loader2, Send, Sparkles } from 'lucide-react';
+import type { BuilderProject } from '../../features/builder/types';
+import { startInterview, continueInterview } from '../../features/builder/interviewRules';
+import { getBuilderModule } from '../../services/qeeclaw';
 import type { CanvasNode } from './BuilderCanvas';
 
-/* ═══════════════════════════════════════════
-   Types
-   ═══════════════════════════════════════════ */
-
-export interface EmployeeSpecV2 {
-  name: string;
-  role: string;
-  description: string;
-  layers: {
-    identity: Record<string, unknown>;
-    capability: Record<string, unknown>;
-    workflow: Record<string, unknown>;
-  };
-  nodes: CanvasNode[];
-  createdAt: string;
-}
+export interface EmployeeSpecV2 extends BuilderProject {}
 
 export interface BuilderChatProps {
-  activeLayer: number;
+  project: BuilderProject | null;
   nodes: CanvasNode[];
-  onLayerChange: (layer: number) => void;
-  onNodeUpdate: (updatedNode: CanvasNode) => void;
-  onComplete: (spec: EmployeeSpecV2) => void;
+  onProjectChange: (project: BuilderProject) => void;
+  onNodesChange: (nodes: CanvasNode[]) => void;
+  onActiveLayerChange: (layer: number) => void;
 }
 
 interface ChatMessage {
@@ -44,262 +23,213 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-/* ═══════════════════════════════════════════
-   Gemini API helper
-   ═══════════════════════════════════════════ */
-
-const GEMINI_PROXY = 'https://spark-gemini-proxy.finewood2008.workers.dev/v1/chat/completions';
-
-const SYSTEM_PROMPT = `你是"数字员工构建助手"，正在帮用户通过自然语言对话构建一个 AI 数字员工。
-
-你需要引导用户逐层完成三层配置：
-- Layer 1 身份层：角色卡（名称、性格、说话方式）、知识库（领域知识）、记忆体系（长短期记忆策略）、行为准则（边界和限制）
-- Layer 2 能力层：能力套件（核心技能）、工具集成（可调用的外部工具/API）
-- Layer 3 工作流层：触发器（启动条件）、处理步骤（执行流程）、审核节点（人工审核点）、输出（最终产出形式）
-
-对话规则：
-1. 每次只聚焦当前层的一个节点，问具体问题
-2. 用户回答后，提取关键信息，确认理解无误
-3. 一个节点配置完毕后，输出 JSON 指令块来更新节点状态
-4. 所有节点配完后，生成最终的 EmployeeSpec
-
-当你确认一个节点配置完毕时，在回复末尾附上如下 JSON 块（用三个反引号包裹）：
-\`\`\`json
-{"action":"update_node","node_id":"xxx","status":"done","data":{"key":"value"}}
-\`\`\`
-
-当所有节点都完成后，输出：
-\`\`\`json
-{"action":"complete","spec":{...完整配置...}}
-\`\`\`
-
-当需要切换到下一层时：
-\`\`\`json
-{"action":"switch_layer","layer":2}
-\`\`\`
-
-保持简洁友好，每条回复不超过 150 字。不要在对话中显示 JSON 块的存在，让用户感觉是自然对话。`;
-
-async function callGemini(messages: { role: string; content: string }[]): Promise<string> {
-  try {
-    const resp = await fetch(GEMINI_PROXY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...messages,
-        ],
-        max_tokens: 800,
-        temperature: 0.7,
-      }),
-    });
-
-    if (!resp.ok) {
-      console.error('Gemini API error:', resp.status);
-      return '抱歉，AI 暂时无法响应，请稍后重试。';
-    }
-
-    const data = await resp.json();
-    return data.choices?.[0]?.message?.content ?? '未收到有效回复。';
-  } catch (err) {
-    console.error('Gemini call failed:', err);
-    return '网络异常，请检查连接后重试。';
-  }
+export function buildNodesFromProject(project: BuilderProject): CanvasNode[] {
+  const { blueprint } = project;
+  return [
+    {
+      id: 'role-goal',
+      layer: 1,
+      type: 'role-goal',
+      title: '岗位目标',
+      subtitle: blueprint.name,
+      icon: 'target',
+      status: 'done',
+      data: { 目标: blueprint.goal, 职责: blueprint.responsibilities.slice(0, 4) },
+    },
+    {
+      id: 'service-target',
+      layer: 1,
+      type: 'service-target',
+      title: '服务对象',
+      subtitle: '这个员工为谁工作',
+      icon: 'users',
+      status: 'done',
+      data: { 对象: blueprint.serviceTarget },
+    },
+    {
+      id: 'data-sources',
+      layer: 1,
+      type: 'data-source',
+      title: '数据来源',
+      subtitle: '员工读取哪些业务资料',
+      icon: 'database',
+      status: 'done',
+      data: { 来源: blueprint.inputSources.map((item) => item.label), 必填: blueprint.inputSources.filter((item) => item.required).map((item) => item.label) },
+    },
+    {
+      id: 'workflow',
+      layer: 2,
+      type: 'workflow',
+      title: '工作流程',
+      subtitle: '从触发到输出的业务步骤',
+      icon: 'workflow',
+      status: 'done',
+      data: { 步骤: blueprint.workflow.map((item) => item.label) },
+    },
+    {
+      id: 'tool-permissions',
+      layer: 2,
+      type: 'tool-permission',
+      title: '工具权限',
+      subtitle: '只授予必要能力',
+      icon: 'zap',
+      status: 'done',
+      data: { 工具: blueprint.toolPermissions.map((item) => item.label), 高风险: blueprint.toolPermissions.filter((item) => item.riskLevel === 'high').map((item) => item.label) },
+    },
+    {
+      id: 'approval',
+      layer: 2,
+      type: 'approval',
+      title: '人工确认',
+      subtitle: '高风险动作默认人工确认',
+      icon: 'shield',
+      status: 'done',
+      data: { 确认点: blueprint.approvalPolicies.map((item) => item.action) },
+    },
+    {
+      id: 'exceptions',
+      layer: 3,
+      type: 'exception',
+      title: '异常处理',
+      subtitle: '无法判断时不自动脑补',
+      icon: 'alert',
+      status: 'done',
+      data: { 异常: blueprint.exceptionPolicies.map((item) => item.condition) },
+    },
+    {
+      id: 'acceptance',
+      layer: 3,
+      type: 'acceptance',
+      title: '验收指标',
+      subtitle: '上线前用样本验证',
+      icon: 'check',
+      status: 'done',
+      data: { 指标: blueprint.acceptanceCriteria.map((item) => `${item.metric} ${item.target}`) },
+    },
+    {
+      id: 'launch',
+      layer: 3,
+      type: 'launch',
+      title: '上线清单',
+      subtitle: '测试通过后确认入职',
+      icon: 'flag',
+      status: project.status === 'ready_to_deploy' || project.status === 'deployed' ? 'done' : 'configuring',
+      data: { 清单: blueprint.launchChecklist.map((item) => `${item.status === 'passed' ? '已通过' : '待确认'} ${item.label}`) },
+    },
+  ];
 }
 
-/* ═══════════════════════════════════════════
-   Parse AI response for JSON commands
-   ═══════════════════════════════════════════ */
-
-interface AICommand {
-  action: 'update_node' | 'switch_layer' | 'complete';
-  node_id?: string;
-  status?: CanvasNode['status'];
-  data?: Record<string, unknown>;
-  layer?: number;
-  spec?: EmployeeSpecV2;
+function activeLayerFromStage(project: BuilderProject): number {
+  if (project.stage === 'idea' || project.stage === 'interview') return 1;
+  if (project.stage === 'blueprint') return 2;
+  return 3;
 }
-
-function parseCommands(text: string): { displayText: string; commands: AICommand[] } {
-  const commands: AICommand[] = [];
-  // Extract JSON blocks wrapped in ```json ... ```
-  const jsonBlockRegex = /```json\s*\n?([\s\S]*?)\n?\s*```/g;
-  let displayText = text;
-  let match;
-
-  while ((match = jsonBlockRegex.exec(text)) !== null) {
-    try {
-      const cmd = JSON.parse(match[1]) as AICommand;
-      if (cmd.action) {
-        commands.push(cmd);
-      }
-    } catch {
-      // Not valid JSON, ignore
-    }
-    displayText = displayText.replace(match[0], '');
-  }
-
-  return { displayText: displayText.trim(), commands };
-}
-
-/* ═══════════════════════════════════════════
-   Layer prompts
-   ═══════════════════════════════════════════ */
-
-const LAYER_PROMPTS: Record<number, string> = {
-  1: '让我们从身份层开始！请告诉我，你想创建一个什么样的数字员工？TA 叫什么名字，负责什么工作？',
-  2: '身份层配置完成！现在来配置能力层——这位数字员工需要哪些核心技能和外部工具？',
-  3: '能力层就绪！最后一步：定义工作流——什么情况下触发 TA 工作？处理流程是怎样的？',
-};
-
-/* ═══════════════════════════════════════════
-   BuilderChat (exported)
-   ═══════════════════════════════════════════ */
 
 export default function BuilderChat({
-  activeLayer,
-  nodes,
-  onLayerChange,
-  onNodeUpdate,
-  onComplete,
+  project,
+  onProjectChange,
+  onNodesChange,
+  onActiveLayerChange,
 }: BuilderChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      content: '欢迎来到数字员工构建工作台！我将引导你一步步完成三层配置。\n\n' + LAYER_PROMPTS[1],
+      content: '你好，我是岗位共创 Builder。请直接描述你想创建的数字员工，例如：帮我每月催客户交资料，发送前需要会计确认。',
       timestamp: new Date(),
     },
   ]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-scroll to bottom
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  // Process AI commands
-  const processCommands = useCallback(
-    (commands: AICommand[]) => {
-      for (const cmd of commands) {
-        switch (cmd.action) {
-          case 'update_node': {
-            if (cmd.node_id) {
-              const existingNode = nodes.find((n) => n.id === cmd.node_id);
-              if (existingNode) {
-                onNodeUpdate({
-                  ...existingNode,
-                  status: (cmd.status as CanvasNode['status']) ?? 'done',
-                  data: { ...(existingNode.data ?? {}), ...(cmd.data ?? {}) },
-                });
-              }
-            }
-            break;
-          }
-          case 'switch_layer': {
-            if (cmd.layer && cmd.layer >= 1 && cmd.layer <= 3) {
-              onLayerChange(cmd.layer);
-            }
-            break;
-          }
-          case 'complete': {
-            if (cmd.spec) {
-              onComplete(cmd.spec);
-            }
-            break;
-          }
-        }
-      }
-    },
-    [nodes, onNodeUpdate, onLayerChange, onComplete],
-  );
+  const applyProject = useCallback((nextProject: BuilderProject) => {
+    onProjectChange(nextProject);
+    onNodesChange(buildNodesFromProject(nextProject));
+    onActiveLayerChange(activeLayerFromStage(nextProject));
+  }, [onActiveLayerChange, onNodesChange, onProjectChange]);
 
-  const handleSend = useCallback(async () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = useCallback(async (presetText?: string) => {
+    const text = (presetText ?? input).trim();
+    if (!text || loading) return;
 
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: input.trim(),
-      timestamp: new Date(),
-    };
-
+    const userMsg: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: text, timestamp: new Date() };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
-    setIsLoading(true);
-
-    // Build message history for context
-    const history = [...messages, userMsg].map((m) => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: m.content,
-    }));
-
-    // Add context about current state
-    const layerNames = { 1: '身份层', 2: '能力层', 3: '工作流层' };
-    const stateContext = `[系统上下文] 当前激活层: Layer ${activeLayer} (${layerNames[activeLayer as 1|2|3]})。节点状态: ${nodes
-      .map((n) => `${n.id}(${n.status})`)
-      .join(', ')}`;
-    history.push({ role: 'user', content: stateContext });
+    setLoading(true);
 
     try {
-      const response = await callGemini(history);
-      const { displayText, commands } = parseCommands(response);
+      // Call real LLM API via builder.chat
+      const builderModule = getBuilderModule();
+      const response = await builderModule.chat({
+        projectId: project?.id,
+        message: text,
+        context: {
+          project: project, // Pass current project state for context
+          model: 'glm-4.6',
+          temperature: 0.7,
+        },
+      });
 
-      const botMsg: ChatMessage = {
-        id: `bot-${Date.now()}`,
-        role: 'assistant',
-        content: displayText || response,
-        timestamp: new Date(),
-      };
+      // Update project with LLM response
+      applyProject(response.project);
 
-      setMessages((prev) => [...prev, botMsg]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: response.assistant_message,
+          timestamp: new Date(),
+        },
+      ]);
+    } catch (error) {
+      console.error('[BuilderChat] LLM call failed:', error);
 
-      // Process any commands from AI
-      if (commands.length > 0) {
-        processCommands(commands);
-      }
-    } catch {
-      const errorMsg: ChatMessage = {
-        id: `err-${Date.now()}`,
-        role: 'assistant',
-        content: '抱歉，出了点问题。请再试一次。',
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      // Fallback to local rules if API fails
+      const result = project ? continueInterview(project, text) : startInterview(text);
+      applyProject(result.project);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: result.assistantText + '\n\n（注：当前使用本地规则引擎，LLM 服务暂不可用）',
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [input, isLoading, messages, activeLayer, nodes, processCommands]);
+  }, [applyProject, input, loading, project]);
+
+  const quickStarts = ['创建客户催收员，帮会计每月催客户交资料', '创建资料整理员，自动识别和归档客户资料', '创建老板日报员，每天汇总异常和进度'];
 
   return (
-    <div className="flex h-full w-80 flex-col border-r border-border-cream bg-ivory">
-      {/* Header */}
-      <div className="flex items-center gap-2 border-b border-border-cream px-4 py-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-terracotta/10 text-terracotta">
-          <Bot size={18} strokeWidth={1.8} />
-        </span>
-        <div>
-          <p className="font-serif text-sm font-semibold text-near-black">构建助手</p>
-          <p className="text-[11px] text-stone-gray">Builder Assistant</p>
+    <div className="flex h-full w-[344px] flex-col border-r border-border-cream bg-ivory">
+      <div className="border-b border-border-cream px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-terracotta/10 text-terracotta">
+            <Bot size={18} strokeWidth={1.8} />
+          </span>
+          <div>
+            <p className="font-serif text-sm font-semibold text-near-black">岗位共创 Builder</p>
+            <p className="text-[11px] text-stone-gray">用业务语言设计可上岗数字员工</p>
+          </div>
         </div>
-        <span className="ml-auto flex h-2 w-2 rounded-full bg-success-green animate-pulse" />
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 space-y-3">
+      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-3 py-4">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25 }}
               className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'assistant' && (
@@ -307,60 +237,55 @@ export default function BuilderChat({
                   <Sparkles size={13} />
                 </span>
               )}
-              <div
-                className={`max-w-[85%] rounded-[var(--radius-generous)] px-3 py-2 text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-terracotta/10 text-near-black'
-                    : 'bg-warm-sand/50 text-charcoal-warm'
-                }`}
-              >
+              <div className={`max-w-[86%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed ${msg.role === 'user' ? 'bg-terracotta/10 text-near-black' : 'bg-warm-sand/50 text-charcoal-warm'}`}>
                 {msg.content}
               </div>
             </motion.div>
           ))}
-
-          {/* Loading indicator */}
-          {isLoading && (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex gap-2 justify-start"
-            >
+          {loading && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2">
               <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-terracotta/10 text-terracotta">
                 <Sparkles size={13} />
               </span>
-              <div className="flex items-center gap-1.5 rounded-[var(--radius-generous)] bg-warm-sand/50 px-3 py-2 text-sm text-stone-gray">
+              <div className="flex items-center gap-1.5 rounded-2xl bg-warm-sand/50 px-3 py-2 text-sm text-stone-gray">
                 <Loader2 size={14} className="animate-spin" />
-                思考中...
+                正在整理岗位蓝图...
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Input */}
+      {!project && (
+        <div className="space-y-2 border-t border-border-cream px-3 py-3">
+          {quickStarts.map((item) => (
+            <button
+              key={item}
+              onClick={() => handleSend(item)}
+              className="w-full rounded-xl border border-border-warm bg-parchment px-3 py-2 text-left text-xs text-olive-gray transition-colors hover:border-terracotta/30 hover:text-terracotta"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="border-t border-border-cream px-3 py-3">
-        <div className="flex items-center gap-2 rounded-[var(--radius-generous)] border border-border-warm bg-parchment px-3 py-2">
+        <div className="flex items-center gap-2 rounded-2xl border border-border-warm bg-parchment px-3 py-2">
           <input
-            type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder={isLoading ? '等待回复...' : '描述你的需求...'}
-            disabled={isLoading}
-            className="flex-1 bg-transparent text-sm text-near-black outline-none placeholder:text-stone-gray/60 disabled:opacity-50"
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && !event.shiftKey && handleSend()}
+            disabled={loading}
+            placeholder={project ? '补充业务规则或确认默认方案...' : '描述你想创建的数字员工...'}
+            className="min-w-0 flex-1 bg-transparent text-sm text-near-black outline-none placeholder:text-stone-gray/60 disabled:opacity-50"
           />
           <button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            onClick={() => handleSend()}
+            disabled={!input.trim() || loading}
             className="flex h-7 w-7 items-center justify-center rounded-full bg-terracotta text-white transition-opacity hover:opacity-90 disabled:opacity-30"
           >
-            {isLoading ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Send size={14} strokeWidth={2} />
-            )}
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={2} />}
           </button>
         </div>
       </div>
