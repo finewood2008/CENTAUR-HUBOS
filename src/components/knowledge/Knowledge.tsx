@@ -58,6 +58,11 @@ function resolveUploadFilename(sourceName: string, file: File): string {
   return `${cleanSource}${getFileExtension(file.name) || '.txt'}`;
 }
 
+function deriveSourceNameFromFile(file: File): string {
+  const ext = getFileExtension(file.name);
+  return ext ? file.name.slice(0, -ext.length) : file.name;
+}
+
 function getKbIcon(name: string): string {
   if (name.includes('品牌') || name.includes('设计')) return '🎨';
   if (name.includes('员工') || name.includes('档案') || name.includes('人事')) return '👥';
@@ -202,7 +207,7 @@ export default function Knowledge({
       return;
     }
 
-    const finalSource = (targetSource || sourceName || uploadFile?.name || '未命名知识库').trim();
+    const finalSource = (targetSource || sourceName || (uploadFile ? deriveSourceNameFromFile(uploadFile) : '') || '未命名知识库').trim();
     if (!finalSource) {
       toast('error', '请输入知识源名称');
       return;
@@ -528,7 +533,12 @@ export default function Knowledge({
           if (!uploading) setShowUpload(false);
         }}
         onSourceNameChange={setSourceName}
-        onFileChange={setUploadFile}
+        onFileChange={(file) => {
+          setUploadFile(file);
+          if (file && uploadMode === 'create' && !sourceName.trim()) {
+            setSourceName(deriveSourceNameFromFile(file));
+          }
+        }}
         onTextChange={setUploadText}
         onSubmit={handleIngest}
       />
@@ -636,7 +646,8 @@ function UploadDialog({
   onTextChange: (value: string) => void;
   onSubmit: () => void;
 }) {
-  const canSubmit = Boolean((uploadFile || uploadText.trim()) && (targetSource || sourceName.trim()));
+  const hasSourceName = Boolean(targetSource || sourceName.trim() || uploadFile);
+  const canSubmit = Boolean((uploadFile || uploadText.trim()) && hasSourceName);
 
   return (
     <AnimatePresence>
@@ -674,7 +685,7 @@ function UploadDialog({
                   value={targetSource || sourceName}
                   onChange={(event) => onSourceNameChange(event.target.value)}
                   disabled={mode === 'append'}
-                  placeholder="例如：品牌手册、销售话术、产品 FAQ"
+                  placeholder="例如：品牌手册、销售话术、产品 FAQ；留空则使用文件名"
                   className="w-full rounded-lg border border-border-warm bg-parchment px-3 py-2 text-sm text-near-black outline-none placeholder:text-stone-gray focus:border-terracotta/35 disabled:opacity-70"
                 />
               </label>

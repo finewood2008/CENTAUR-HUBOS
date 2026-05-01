@@ -8,6 +8,7 @@ import {
   getChannelsLocalOnlyError,
   getClientAsync,
 } from '../services/qeeclaw';
+import { extractModelText } from '../lib/model-response';
 import { DIGITAL_EMPLOYEES } from '../data/digital-employees';
 // 本地静态业务数据已移除，全部使用 SDK 真实数据
 import type { Agent, Template, Alert, UsageStat, ActivityItem, DigitalEmployee } from '../types';
@@ -1076,9 +1077,10 @@ export function useChatConversation(isConnected: boolean) {
       setMessages(prev => [...prev, userMsg]);
 
       const aiResult = await client.models.invoke({ prompt: content });
+      const aiText = extractModelText(aiResult);
       const aiMsg = await client.conversations.sendMessage({
         teamId: 1,
-        content: aiResult.text,
+        content: aiText || '本地模型 API 未返回文本。',
         agentId,
         direction: 'agent_to_user',
       });

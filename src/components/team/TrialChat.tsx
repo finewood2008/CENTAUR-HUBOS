@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Send, UserCheck, ArrowLeft, Sparkles } from 'lucide-react';
 import type { DigitalEmployee } from '../../types';
 import { getModelsModule } from '../../services/qeeclaw';
+import { extractModelText } from '../../lib/model-response';
 
 interface Props {
   employee: DigitalEmployee;
@@ -50,13 +51,7 @@ export default function TrialChat({ employee, onBack, onConfirm }: Props) {
         `用户试聊消息：${userMsg}`,
       ].join('\n');
       const result = await getModelsModule().invoke({ prompt });
-      const reply = String(
-        typeof result === 'string'
-          ? result
-          : (result as unknown as Record<string, unknown>)?.text ||
-            (result as unknown as Record<string, unknown>)?.content ||
-            JSON.stringify(result)
-      );
+      const reply = extractModelText(result) || '本地模型 API 未返回文本。';
       setMessages((prev) => [...prev, { role: 'ai', content: reply }]);
     } catch (err) {
       const detail = err instanceof Error ? err.message : '模型 API 调用失败';

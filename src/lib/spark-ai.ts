@@ -1,6 +1,7 @@
 // spark-ai.ts — Hub OS 统一模型调用适配层
 // 所有员工工作台都通过 QeeClaw SDK 进入平台模型路由、计费和审计链路。
 import { getClientAsync } from '../services/qeeclaw';
+import { extractModelText } from './model-response';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -18,27 +19,6 @@ function formatPrompt(messages: ChatMessage[]): string {
       return `${label}：${message.content}`;
     })
     .join('\n\n');
-}
-
-function extractModelText(result: unknown): string {
-  if (typeof result === 'string') return result;
-  if (!result || typeof result !== 'object') return '';
-
-  const record = result as Record<string, unknown>;
-  const candidates = [
-    record.text,
-    record.content,
-    record.output,
-    record.message,
-  ];
-
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string' && candidate.trim()) {
-      return candidate;
-    }
-  }
-
-  return '';
 }
 
 // ── 前端分块输出（非流式 API + 逐块推送）──────────

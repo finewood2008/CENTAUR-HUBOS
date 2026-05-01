@@ -1,6 +1,7 @@
 // Hub OS - Cockpit 数据加载与会话管理
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getClientAsync } from '../services/qeeclaw';
+import { extractModelText } from '../lib/model-response';
 import type { ChatMessage, ReportItem, InputFile, Task, ScheduledTask, PartnerProfile, MessageSender, TeamMember } from '../data/partner';
 import { DEFAULT_PARTNER } from '../data/partner';
 
@@ -46,6 +47,91 @@ function emitToast(type: 'success' | 'error' | 'info', message: string) {
   window.dispatchEvent(new CustomEvent('hubos:toast', { detail: { type, message } }));
 }
 
+function isDirectedTaskMessage(text: string): boolean {
+  return /(^|\s)@[\u4e00-\u9fa5A-Za-z0-9_-]+/.test(text.trim());
+}
+
+function extractFirstMentionName(text: string): string | null {
+  const match = text.match(/(^|\s)@([\u4e00-\u9fa5A-Za-z0-9_-]+)/);
+  return match?.[2] ?? null;
+}
+
+function normalizeMentionName(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+function resolveReplySender(text: string, teamMembers: TeamMember[], fallbackSender?: MessageSender): MessageSender {
+  const mentionName = extractFirstMentionName(text);
+  if (!mentionName) {
+    if (fallbackSender?.type === 'employee' || fallbackSender?.type === 'partner') {
+      return fallbackSender;
+    }
+    return { type: 'partner' };
+  }
+
+  const mentionToken = normalizeMentionName(mentionName);
+  const matched = teamMembers.find((member) => {
+    const candidates = [
+      member.name,
+      member.role,
+      `${member.name}助手`,
+      member.name.replace(/助手$/, ''),
+    ].map(normalizeMentionName);
+    return candidates.some((candidate) => candidate && (
+      mentionToken === candidate ||
+      mentionToken.includes(candidate) ||
+      candidate.includes(mentionToken)
+    ));
+  });
+
+  if (matched) {
+    return {
+      type: 'employee',
+      id: matched.id,
+      name: matched.name,
+      avatar: matched.avatar,
+      color: matched.color,
+    };
+  }
+
+  return {
+    type: 'employee',
+    id: mentionName,
+    name: mentionName,
+    avatar: '🤖',
+    color: 'border-l-indigo-400',
+  };
+}
+
+function getLastAssistantSender(messages: ChatMessage[]): MessageSender | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const sender = messages[index].sender;
+    if (sender.type === 'employee' || sender.type === 'partner') {
+      return sender;
+    }
+  }
+  return undefined;
+}
+
+function senderLabel(sender: MessageSender, partner: PartnerProfile): string {
+  if (sender.type === 'user') return '用户';
+  if (sender.type === 'system') return '系统';
+  if (sender.type === 'partner') return partner.name || '合伙人';
+  return sender.name;
+}
+
+function buildConversationContext(messages: ChatMessage[], partner: PartnerProfile): string {
+  const recentMessages = messages
+    .filter(message => message.sender.type !== 'system' && message.content.trim().length > 0)
+    .slice(-8);
+
+  if (recentMessages.length === 0) return '';
+
+  return recentMessages
+    .map(message => `${senderLabel(message.sender, partner)}：${message.content.trim()}`)
+    .join('\n');
+}
+
 function workflowToScheduledTask(workflow: WorkflowLike): ScheduledTask {
   return {
     id: workflow.id,
@@ -62,7 +148,7 @@ function workflowToScheduledTask(workflow: WorkflowLike): ScheduledTask {
   };
 }
 
-export function useCockpit(isConnected: boolean) {
+export function useCockpit(isConnected: boolean, teamMembers: TeamMember[] = []) {
   const [data, setData] = useState<CockpitData>({
     partner: { ...DEFAULT_PARTNER, name: '', isConfigured: false },
     messages: makeCockpitStatusMessages(isConnected),
@@ -286,28 +372,35 @@ export function useCockpit(isConnected: boolean) {
 
     // ── 处理入职态 (Onboarding) ──
     if (!data.partner.isConfigured) {
-      const partnerName = text.trim() || '合伙人';
-      const userMsg: ChatMessage = {
-         id: `user-${Date.now()}`,
-         sender: { type: 'user' },
-         content: partnerName,
-         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setData(prev => ({
-        ...prev,
-        partner: { ...prev.partner, name: partnerName, isConfigured: true },
-        messages: [...prev.messages, userMsg]
-      }));
+      if (isDirectedTaskMessage(text)) {
+        setData(prev => ({
+          ...prev,
+          partner: { ...prev.partner, name: prev.partner.name || '合伙人', isConfigured: true },
+        }));
+      } else {
+        const partnerName = text.trim() || '合伙人';
+        const userMsg: ChatMessage = {
+          id: `user-${Date.now()}`,
+          sender: { type: 'user' },
+          content: partnerName,
+          time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setData(prev => ({
+          ...prev,
+          partner: { ...prev.partner, name: partnerName, isConfigured: true },
+          messages: [...prev.messages, userMsg]
+        }));
 
-      appendSystemMessage(`好的，你的主管名字设为「${partnerName}」`);
+        appendSystemMessage(`好的，你的主管名字设为「${partnerName}」`);
 
-      // 渲染早报
-      setTimeout(async () => {
-        const client = await getClientAsync();
-        const briefing = await generateMorningBriefing(client);
-        setData(prev => ({ ...prev, messages: [...prev.messages, ...briefing] }));
-      }, 800);
-      return;
+        // 渲染早报
+        setTimeout(async () => {
+          const client = await getClientAsync();
+          const briefing = await generateMorningBriefing(client);
+          setData(prev => ({ ...prev, messages: [...prev.messages, ...briefing] }));
+        }, 800);
+        return;
+      }
     }
 
     if ((files && files.length > 0) || voiceBlob) {
@@ -341,9 +434,14 @@ export function useCockpit(isConnected: boolean) {
     try {
       // 创建 AI 消息占位符
       const aiMsgId = `ai-${Date.now()}`;
+      const replySender = resolveReplySender(
+        displayContent,
+        teamMembers,
+        getLastAssistantSender(data.messages)
+      );
       const aiMsg: ChatMessage = {
         id: aiMsgId,
-        sender: { type: 'partner' },
+        sender: replySender,
         content: '',
         time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       };
@@ -357,9 +455,23 @@ export function useCockpit(isConnected: boolean) {
         const client = await getClientAsync();
         const now = new Date();
         const currentDateContext = `当前系统时间是 ${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日 ${now.toLocaleDateString('zh-CN', { weekday: 'long' })}。回答涉及今天、当前日期、星期几、现在时间等问题时，必须以这个时间为准，不要使用训练数据中的过期日期。`;
-        const prompt = `${currentDateContext}\n\n用户消息：${displayContent}`;
+        const interactionPolicy = [
+          '你正在 HubOS 团队聊天里与用户实时对话，可以通过回复继续追问用户。',
+          '当用户的任务缺少关键细节时，先用自然、简短的方式提出 2-4 个澄清问题，并给出可直接选择的建议选项；不要说“无法通过交互式提问”。',
+          '对写诗、写文章、写方案、做设计、生成报告等开放式创作任务，如果用户只给了宽泛目标，优先询问风格、用途、篇幅、受众或必须包含的要点。',
+          '如果用户已经给足关键约束，直接完成任务。',
+        ].join('\n');
+        const activeRole = senderLabel(replySender, data.partner);
+        const conversationContext = buildConversationContext([...data.messages, userMsg], data.partner);
+        const prompt = [
+          currentDateContext,
+          interactionPolicy,
+          `当前回复身份：${activeRole}。如果用户是在回答你上一轮的澄清问题，必须沿用上一轮任务上下文继续完成，不要把用户的补充信息当成一个全新的独立任务。`,
+          conversationContext ? `最近对话：\n${conversationContext}` : '',
+          `用户最新消息：${displayContent}`,
+        ].filter(Boolean).join('\n\n');
         const result = await client.models.invoke({ prompt });
-        const replyText = result.text || '本地模型 API 未返回文本。';
+        const replyText = extractModelText(result) || '本地模型 API 未返回文本。';
 
         setData(prev => ({
           ...prev,
@@ -396,7 +508,7 @@ export function useCockpit(isConnected: boolean) {
     } finally {
       setSending(false);
     }
-  }, [isConnected, data.sessionId, sending, data.partner.isConfigured]);
+  }, [isConnected, data.sessionId, data.messages, data.partner, sending, teamMembers]);
 
   useEffect(() => {
     initializeSession();

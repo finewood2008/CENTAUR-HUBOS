@@ -17,7 +17,6 @@ const HUBOS_API = process.env.VITE_HUBOS_API_URL || 'http://127.0.0.1:3456';
 const KNOWLEDGE_REWRITE: Record<string, string> = {
   '/api/platform/knowledge/list': '/knowledge/list',
   '/api/platform/knowledge/upload': '/knowledge/upload',
-  '/api/platform/knowledge/search': '/knowledge/search',
   '/api/platform/knowledge/stats': '/knowledge/stats',
   '/api/platform/knowledge/config': '/knowledge/stats',
   '/api/platform/knowledge/config/update': '/knowledge/stats',

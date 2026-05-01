@@ -12,6 +12,7 @@ WORKSPACE_HERMES_AGENT_DIR_DEFAULT="$PROJECT_ROOT/vendor/hermes-agent"
 WORKSPACE_HUD_DIR_DEFAULT="$PROJECT_ROOT/vendor/hermes-hudui"
 BRIDGE_PORT_DEFAULT=21747
 BRIDGE_FALLBACK_PORT=21748
+HUD_PORT_DEFAULT=8134
 BRIDGE_URL_DEFAULT="http://127.0.0.1:21747"
 HUBOS_API_DEFAULT="http://127.0.0.1:3456"
 PIDFILE_DIR="/tmp/qeeshu-hubos"
@@ -31,15 +32,46 @@ https://127.0.0.1:*|https://localhost:*|https://0.0.0.0:*|https://[::1]:*|https:
 
 check_url_ok() { curl -fsS "$1" > /dev/null 2>&1; }
 
+wait_url_ok() {
+    local url="$1" attempts="${2:-20}" delay="${3:-0.5}"
+    local i
+    for ((i=0; i<attempts; i++)); do
+        if check_url_ok "$url"; then
+            return 0
+        fi
+        sleep "$delay"
+    done
+    return 1
+}
+
+check_platform_models_invoke_route() {
+    local bridge_url="$1" status
+    status="$(curl -sS -o /dev/null -w "%{http_code}" \
+        -X POST "$bridge_url/api/platform/models/invoke" \
+        -H 'Content-Type: application/json' \
+        -d '{}' 2>/dev/null || true)"
+    [ "$status" = "400" ]
+}
+
 check_workspace_bridge_ready() {
     local bridge_url="$1"
     check_url_ok "$bridge_url/health" \
-        && check_url_ok "$bridge_url/api/platform/channels/bindings/validate?team_id=999999&channel_key=wechat_personal_plugin"
+        && check_url_ok "$bridge_url/api/platform/channels/bindings/validate?team_id=999999&channel_key=wechat_personal_plugin" \
+        && check_platform_models_invoke_route "$bridge_url"
 }
 
 describe_pid() { ps -p "$1" -o command= 2>/dev/null || true; }
 pid_cwd() { lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n 1; }
 process_env_contains() { ps eww -p "$1" | grep -F "$2" > /dev/null 2>&1; }
+
+ensure_bridge_python_import() {
+    local module="$1" package="$2"
+    if "$QEECLAW_HERMES_BRIDGE_PYTHON" -c "import ${module}" >/dev/null 2>&1; then
+        return 0
+    fi
+    echo "📦 bridge Python 缺少 ${module}，正在安装 ${package}..."
+    "$QEECLAW_HERMES_BRIDGE_PYTHON" -m pip install --quiet "$package"
+}
 
 frontend_process_matches_bridge_env() {
     local pid="$1"
@@ -79,15 +111,91 @@ else: print(v)
 ' "$1"
 }
 
+resolve_bridge_python() {
+    if [ -n "${QEECLAW_HERMES_BRIDGE_PYTHON:-}" ]; then
+        echo "$QEECLAW_HERMES_BRIDGE_PYTHON"
+        return
+    fi
+
+    local candidate
+    for candidate in \
+        "$WORKSPACE_BRIDGE_DIR/.venv/bin/python3" \
+        "$PROJECT_ROOT/.venv/bin/python3" \
+        "$PROJECT_ROOT"/qeeclaw-server/release/*/.venv/bin/python3
+    do
+        if [ -x "$candidate" ]; then
+            echo "$candidate"
+            return
+        fi
+    done
+
+    command -v python3
+}
+
 is_workspace_bridge_process() {
-    local pid="$1" command="$2" cwd="$(pid_cwd "$pid")"
+    local pid="$1" command="$2" cwd
+    cwd="$(pid_cwd "$pid")"
     case "$command" in
         *"/qeeclaw-sdk/packages/hermes-bridge/bridge_server.py"*) return 0 ;;
     esac
     [ "$cwd" = "$WORKSPACE_BRIDGE_DIR" ]
 }
 
+is_workspace_hud_process() {
+    local pid="$1" command="$2" cwd
+    cwd="$(pid_cwd "$pid")"
+    case "$command" in
+        *"backend.main"*|*"hermes-hudui"*) ;;
+        *) return 1 ;;
+    esac
+    [ "$cwd" = "$QEECLAW_HUD_DIR" ] || [ "$cwd" = "$QEECLAW_HUD_DIR/backend" ]
+}
+
 pid_alive() { [ -n "$1" ] && kill -0 "$1" 2>/dev/null; }
+
+wait_pid_exit() {
+    local pid="$1" attempts="${2:-20}"
+    local i
+    for ((i=0; i<attempts; i++)); do
+        if ! pid_alive "$pid"; then
+            return 0
+        fi
+        sleep 0.2
+    done
+    ! pid_alive "$pid"
+}
+
+stop_pid() {
+    local pid="$1" label="$2"
+    if ! pid_alive "$pid"; then
+        return 0
+    fi
+    kill "$pid" 2>/dev/null || true
+    if ! wait_pid_exit "$pid" 20; then
+        kill -9 "$pid" 2>/dev/null || true
+        wait_pid_exit "$pid" 10 || true
+    fi
+    if pid_alive "$pid"; then
+        echo "⚠️  $label 停止失败 (PID: $pid)"
+        return 1
+    fi
+    echo "✅ $label 已停止 (PID: $pid)"
+}
+
+stop_bridge_children() {
+    local bridge_pid="$1"
+    [ -n "$bridge_pid" ] || return 0
+    local child_pids
+    child_pids="$(ps -Ao pid,ppid,command | awk -v ppid="$bridge_pid" '$2 == ppid {print $1}' || true)"
+    [ -n "$child_pids" ] || return 0
+    while IFS= read -r child_pid; do
+        [ -n "$child_pid" ] || continue
+        local child_cmd="$(describe_pid "$child_pid")"
+        if is_workspace_hud_process "$child_pid" "$child_cmd"; then
+            stop_pid "$child_pid" "HUD 子进程"
+        fi
+    done <<< "$child_pids"
+}
 
 save_pid() { echo "$2" > "$PIDFILE_DIR/$1.pid"; }
 
@@ -97,17 +205,44 @@ read_pid() {
 }
 
 clear_pid() { rm -f "$PIDFILE_DIR/$1.pid"; }
+
+start_detached() {
+    local log_file="$1"
+    shift
+    python3 - "$log_file" "$@" <<'PY'
+import subprocess
+import sys
+
+log_path = sys.argv[1]
+cmd = sys.argv[2:]
+with open(log_path, "ab", buffering=0) as log:
+    proc = subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+        close_fds=True,
+    )
+print(proc.pid)
+PY
+}
+
 init_env() {
     export VITE_BRIDGE_URL="${VITE_BRIDGE_URL:-$BRIDGE_URL_DEFAULT}"
     export VITE_CHANNELS_BRIDGE_URL="${VITE_CHANNELS_BRIDGE_URL:-$BRIDGE_URL_DEFAULT}"
     export VITE_HUBOS_API_URL="${VITE_HUBOS_API_URL:-$HUBOS_API_DEFAULT}"
     export QEECLAW_HERMES_AGENT_DIR="${QEECLAW_HERMES_AGENT_DIR:-$WORKSPACE_HERMES_AGENT_DIR_DEFAULT}"
     export QEECLAW_HUD_DIR="${QEECLAW_HUD_DIR:-$WORKSPACE_HUD_DIR_DEFAULT}"
+    export QEECLAW_HUD_PORT="${QEECLAW_HUD_PORT:-$HUD_PORT_DEFAULT}"
+    export QEECLAW_HERMES_BRIDGE_PYTHON="$(resolve_bridge_python)"
 }
 
 check_deps() {
     command -v python3 &>/dev/null || { echo "❌ 未找到 python3"; exit 1; }
     command -v node &>/dev/null || { echo "❌ 未找到 node"; exit 1; }
+    [ -x "$QEECLAW_HERMES_BRIDGE_PYTHON" ] || { echo "❌ bridge Python 不可执行: $QEECLAW_HERMES_BRIDGE_PYTHON"; exit 1; }
+    ensure_bridge_python_import "pypdf" "pypdf>=5.0.0"
 
     if ! is_local_url "$VITE_BRIDGE_URL"; then
         echo "❌ VITE_BRIDGE_URL 必须指向本地: $VITE_BRIDGE_URL"; exit 1
@@ -129,16 +264,17 @@ start_workspace_bridge() {
     local bridge_url="$1" bridge_port="$2"
     local bridge_log="/tmp/bridge_server_${bridge_port}.log"
 
-    QEECLAW_HERMES_BRIDGE_PORT="$bridge_port" \
+    echo "   ℹ️  bridge Python: $QEECLAW_HERMES_BRIDGE_PYTHON"
+    local pid
+    pid="$(QEECLAW_HERMES_BRIDGE_PORT="$bridge_port" \
     QEECLAW_HERMES_AGENT_DIR="$QEECLAW_HERMES_AGENT_DIR" \
     QEECLAW_HUD_DIR="$QEECLAW_HUD_DIR" \
-    python3 "$WORKSPACE_BRIDGE_SCRIPT" > "$bridge_log" 2>&1 &
-    local pid=$!
+    QEECLAW_HUD_PORT="$QEECLAW_HUD_PORT" \
+    TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}" \
+    start_detached "$bridge_log" "$QEECLAW_HERMES_BRIDGE_PYTHON" "$WORKSPACE_BRIDGE_SCRIPT")"
     save_pid bridge "$pid"
     echo "   ✅ workspace hermes-bridge 已启动 (PID: $pid, URL: $bridge_url)"
-    sleep 2
-
-    if check_url_ok "$bridge_url/health"; then
+    if wait_url_ok "$bridge_url/health" 30 1 && check_workspace_bridge_ready "$bridge_url"; then
         echo "   ✅ workspace hermes-bridge 健康检查通过"
     else
         echo "   ❌ workspace hermes-bridge 启动失败，查看日志: $bridge_log"
@@ -227,8 +363,15 @@ cmd_start() {
                     export VITE_CHANNELS_BRIDGE_URL="$fallback_url"
                     bridge_target_url="$fallback_url"
                     bridge_fallback_active="true"
-                    echo "   ↪️  切换到备用端口: $fallback_url"
-                    save_pid bridge "$fb_pid"
+                    if check_workspace_bridge_ready "$fallback_url"; then
+                        echo "   ↪️  切换到备用端口: $fallback_url"
+                        save_pid bridge "$fb_pid"
+                    else
+                        echo "   ↪️  备用端口存在不健康 workspace hermes-bridge，正在重启: $fallback_url"
+                        stop_bridge_children "$fb_pid"
+                        stop_pid "$fb_pid" "备用端口 hermes-bridge"
+                        start_workspace_bridge "$fallback_url" "$BRIDGE_FALLBACK_PORT"
+                    fi
                 else
                     echo "   ❌ 默认端口和备用端口均被占用"; exit 1
                 fi
@@ -254,9 +397,10 @@ cmd_start() {
         echo "   ⚠️  端口 3456 已被占用，跳过启动"
         save_pid hubos "$hubos_pid"
     else
-        node server/index.cjs > /tmp/hubos_api.log 2>&1 &
-        save_pid hubos $!
-        echo "   ✅ HubOS API 已启动 (PID: $!)"
+        local hubos_pid
+        hubos_pid="$(start_detached /tmp/hubos_api.log node server/index.cjs)"
+        save_pid hubos "$hubos_pid"
+        echo "   ✅ HubOS API 已启动 (PID: $hubos_pid)"
         sleep 2
         if curl -s http://127.0.0.1:3456/api/hubos/health > /dev/null 2>&1; then
             echo "   ✅ HubOS API 健康检查通过"
@@ -284,7 +428,20 @@ cmd_start() {
         echo "访问地址: http://localhost:5173/CENTAUR-HUBOS/"
     else
         echo "   启动中..."
-        npm run dev
+        local fe_pid
+        fe_pid="$(start_detached /tmp/qeeshu_hubos_frontend.log npm run dev)"
+        save_pid frontend "$fe_pid"
+        echo "   ✅ 前端开发服务器已启动 (PID: $fe_pid)"
+        if wait_url_ok "http://localhost:5173/CENTAUR-HUBOS/" 20 0.5; then
+            if lsof -Pi :5173 -sTCP:LISTEN -t >/dev/null 2>&1; then
+                save_pid frontend "$(lsof -Pi :5173 -sTCP:LISTEN -t | head -n 1)"
+            fi
+            echo "   ✅ 前端 dev server 健康检查通过"
+            echo ""
+            echo "访问地址: http://localhost:5173/CENTAUR-HUBOS/"
+        else
+            echo "   ❌ 前端 dev server 启动失败，查看日志: /tmp/qeeshu_hubos_frontend.log"; exit 1
+        fi
     fi
 }
 
@@ -293,6 +450,8 @@ cmd_stop() {
     echo "  qeeshu-hubos 停止"
     echo "=========================================="
     echo ""
+
+    init_env
 
     local services=(frontend hubos bridge)
     local labels=("前端开发服务器" "HubOS API" "hermes-bridge")
@@ -303,11 +462,14 @@ cmd_stop() {
         local pid="$(read_pid "$name")"
 
         if pid_alive "$pid"; then
-            kill "$pid" 2>/dev/null && echo "✅ $label 已停止 (PID: $pid)" || echo "⚠️  $label 停止失败 (PID: $pid)"
+            if [ "$name" = "bridge" ]; then
+                stop_bridge_children "$pid"
+            fi
+            stop_pid "$pid" "$label"
             clear_pid "$name"
         elif [ "$port" -gt 0 ] && lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
             pid="$(lsof -Pi :$port -sTCP:LISTEN -t | head -n 1)"
-            kill "$pid" 2>/dev/null && echo "✅ $label 已停止 (PID: $pid, 端口: $port)" || echo "⚠️  $label 停止失败"
+            stop_pid "$pid" "$label"
             clear_pid "$name"
         else
             echo "ℹ️  $label 未运行"
@@ -321,10 +483,23 @@ cmd_stop() {
             local pid="$(lsof -Pi :$port -sTCP:LISTEN -t | head -n 1)"
             local cmd="$(describe_pid "$pid")"
             if is_workspace_bridge_process "$pid" "$cmd"; then
-                kill "$pid" 2>/dev/null && echo "✅ 额外 bridge 进程已停止 (PID: $pid, 端口: $port)"
+                stop_bridge_children "$pid"
+                stop_pid "$pid" "额外 bridge 进程"
             fi
         fi
     done
+
+    # HUD 是 bridge_server.py 拉起的子进程；旧版本 bridge 收到 SIGTERM 时不会清理它。
+    # restart 前显式清理 workspace HUD，避免 8134 残留导致新 bridge 启动失败。
+    if lsof -Pi :"$QEECLAW_HUD_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+        local hud_pid="$(lsof -Pi :"$QEECLAW_HUD_PORT" -sTCP:LISTEN -t | head -n 1)"
+        local hud_cmd="$(describe_pid "$hud_pid")"
+        if is_workspace_hud_process "$hud_pid" "$hud_cmd"; then
+            stop_pid "$hud_pid" "HUD Dashboard"
+        else
+            echo "ℹ️  HUD 端口 $QEECLAW_HUD_PORT 被非 workspace 进程占用: PID=$hud_pid"
+        fi
+    fi
 }
 
 cmd_restart() {
@@ -381,6 +556,19 @@ cmd_status() {
         echo "✅ 前端 dev server 运行中  PID=$pid  端口=5173"
     else
         echo "⏹  前端 dev server 未运行"
+    fi
+
+    # HUD
+    if lsof -Pi :"$QEECLAW_HUD_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+        local pid="$(lsof -Pi :"$QEECLAW_HUD_PORT" -sTCP:LISTEN -t | head -n 1)"
+        local cmd="$(describe_pid "$pid")"
+        if is_workspace_hud_process "$pid" "$cmd"; then
+            echo "✅ HUD Dashboard  运行中  PID=$pid  端口=$QEECLAW_HUD_PORT"
+        else
+            echo "ℹ️  HUD 端口 $QEECLAW_HUD_PORT 被非 workspace 进程占用: PID=$pid"
+        fi
+    else
+        echo "⏹  HUD Dashboard  未运行"
     fi
 }
 

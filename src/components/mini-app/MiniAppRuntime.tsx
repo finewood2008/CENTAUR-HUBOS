@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { MiniAppSchema, PanelConfig } from '../../types/mini-app';
 import WidgetRenderer from './WidgetRenderer';
 import { getModelsModule } from '../../services/qeeclaw';
+import { extractModelText } from '../../lib/model-response';
 
 interface Props {
   schema: MiniAppSchema;
@@ -58,13 +59,10 @@ ${history}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
-      const reply = typeof result === 'string' ? result
-        : (result as unknown as Record<string, unknown>)?.content
-        || (result as unknown as Record<string, unknown>)?.text
-        || JSON.stringify(result);
+      const reply = extractModelText(result) || '本地模型 API 未返回文本。';
 
       // 尝试从回复中提取数据更新指令
-      const parsed = tryParseDataUpdate(String(reply));
+      const parsed = tryParseDataUpdate(reply);
       if (parsed.dataUpdates) {
         setDataStore((prev) => ({ ...prev, ...parsed.dataUpdates }));
       }

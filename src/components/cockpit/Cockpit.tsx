@@ -17,20 +17,6 @@ interface CockpitProps {
 export default function Cockpit({ onNav }: CockpitProps) {
   const { connected } = useConnection();
   const { data: agentManagementData } = useAgentManagement(connected);
-  const {
-    data,
-    loading,
-    sending,
-    sendMessage,
-    loadApprovals,
-    loadSchedule,
-    handlePartnerNameChange,
-    approveTask,
-    rejectTask,
-    toggleSchedule,
-    deleteSchedule
-  } = useCockpit(connected);
-
   const runtimeTeamMembers: TeamMember[] = agentManagementData.agents.map((agent) => {
     return {
       id: agent.id,
@@ -44,6 +30,19 @@ export default function Cockpit({ onNav }: CockpitProps) {
   });
 
   const teamMembers = connected ? runtimeTeamMembers : [];
+  const {
+    data,
+    loading,
+    sending,
+    sendMessage,
+    loadApprovals,
+    loadSchedule,
+    handlePartnerNameChange,
+    approveTask,
+    rejectTask,
+    toggleSchedule,
+    deleteSchedule
+  } = useCockpit(connected, teamMembers);
 
   // ── Derived ──
   const reviewTasks = data.tasks.filter((t: Task) => t.status === 'review');

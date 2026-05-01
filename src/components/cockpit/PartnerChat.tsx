@@ -229,6 +229,19 @@ function AttachmentRenderer({ attachment, onAction }: { attachment: MessageAttac
 
 // ── Message bubble ──
 
+function ThinkingIndicator() {
+  return (
+    <div className="flex items-center gap-2 text-[13px] text-stone-gray">
+      <span>正在思考中</span>
+      <span className="flex items-center gap-1" aria-hidden="true">
+        <span className="h-1.5 w-1.5 rounded-full bg-stone-gray/70 animate-bounce [animation-delay:-0.2s]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-stone-gray/70 animate-bounce [animation-delay:-0.1s]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-stone-gray/70 animate-bounce" />
+      </span>
+    </div>
+  );
+}
+
 function MessageBubble({
   msg,
   partner,
@@ -241,6 +254,7 @@ function MessageBubble({
   onAction?: (action: string) => void;
 }) {
   const { sender } = msg;
+  const hasContent = msg.content.trim().length > 0;
 
   // System message — centered
   if (sender.type === 'system') {
@@ -300,7 +314,11 @@ function MessageBubble({
             <Star size={11} className="text-amber-400 fill-amber-400" />
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl rounded-tl-md px-3.5 py-2.5 border border-border-cream/50">
-            <p className="text-[13px] text-charcoal-warm leading-relaxed">{msg.content}</p>
+            {hasContent ? (
+              <p className="text-[13px] text-charcoal-warm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+            ) : (
+              <ThinkingIndicator />
+            )}
             {msg.attachment && <AttachmentRenderer attachment={msg.attachment} onAction={onAction} />}
           </div>
           {msg.time && (
@@ -339,7 +357,11 @@ function MessageBubble({
           <div
             className={`border-l-[3px] ${sender.color} bg-white/50 backdrop-blur-sm rounded-r-xl px-3.5 py-2.5`}
           >
-            <p className="text-[13px] text-charcoal-warm leading-relaxed">{msg.content}</p>
+            {hasContent ? (
+              <p className="text-[13px] text-charcoal-warm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+            ) : (
+              <ThinkingIndicator />
+            )}
             {msg.attachment && <AttachmentRenderer attachment={msg.attachment} onAction={onAction} />}
           </div>
           {msg.time && (

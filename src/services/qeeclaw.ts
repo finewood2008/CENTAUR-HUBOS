@@ -31,6 +31,7 @@ const isDev = import.meta.env.DEV;
 const BASE_URL = import.meta.env.VITE_BRIDGE_URL || window.location.origin;
 const CHANNELS_ENV_URL = import.meta.env.VITE_CHANNELS_BRIDGE_URL || import.meta.env.VITE_BRIDGE_URL || '';
 const CHANNELS_LOCAL_ONLY_ERROR = '通讯渠道仅允许连接本地 hermes-bridge。请在本机启动 bridge，并通过本地地址访问前端，或设置 VITE_CHANNELS_BRIDGE_URL 指向本地 bridge。';
+const DEFAULT_REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_QEECLAW_REQUEST_TIMEOUT_MS || 300_000);
 
 function isLocalUrl(urlString: string): boolean {
   try {
@@ -84,7 +85,7 @@ export async function getClientAsync(): Promise<QeeClawCoreSDK> {
   if (!_clientPromise) {
     _clientPromise = (async () => {
       if (!_client) {
-        _client = createQeeClawClient({ baseUrl: BASE_URL }) as QeeClawCoreSDK;
+        _client = createQeeClawClient({ baseUrl: BASE_URL, timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS }) as QeeClawCoreSDK;
         console.log('[QeeClaw SDK] 客户端已创建 (真实)');
       }
 
@@ -119,7 +120,7 @@ export async function getChannelsClientAsync(): Promise<QeeClawCoreSDK> {
   if (!_channelsClientPromise) {
     _channelsClientPromise = (async () => {
       if (!_channelsClient) {
-        _channelsClient = createQeeClawClient({ baseUrl: CHANNELS_BASE_URL }) as QeeClawCoreSDK;
+        _channelsClient = createQeeClawClient({ baseUrl: CHANNELS_BASE_URL, timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS }) as QeeClawCoreSDK;
         console.log('[QeeClaw SDK] Channels client 已创建 (local bridge only)');
       }
 
@@ -134,7 +135,7 @@ export async function getChannelsClientAsync(): Promise<QeeClawCoreSDK> {
 export function getClient(): QeeClawCoreSDK {
   if (!_client) {
     console.trace('[QeeClaw SDK] getClient() 被同步调用，调用栈：');
-    _client = createQeeClawClient({ baseUrl: BASE_URL }) as QeeClawCoreSDK;
+    _client = createQeeClawClient({ baseUrl: BASE_URL, timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS }) as QeeClawCoreSDK;
     console.log('[QeeClaw SDK] 客户端已创建 (真实)');
   }
   return _client;
@@ -179,7 +180,7 @@ export function getChannelsModule() {
     throw new Error(CHANNELS_LOCAL_ONLY_ERROR);
   }
   if (!_channelsClient) {
-    _channelsClient = createQeeClawClient({ baseUrl: CHANNELS_BASE_URL }) as QeeClawCoreSDK;
+    _channelsClient = createQeeClawClient({ baseUrl: CHANNELS_BASE_URL, timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS }) as QeeClawCoreSDK;
   }
   return _channelsClient.channels;
 }

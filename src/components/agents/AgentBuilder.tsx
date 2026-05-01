@@ -7,6 +7,7 @@ import {
   Copy, Check, Layers, MessageSquare,
 } from 'lucide-react';
 import { getModelsModule } from '../../services/qeeclaw';
+import { extractModelText } from '../../lib/model-response';
 import type { ChatMessage } from '../../types';
 import type { MiniAppSchema } from '../../types/mini-app';
 import MiniAppRuntime from '../mini-app/MiniAppRuntime';
@@ -113,14 +114,9 @@ export default function AgentBuilder({ isConnected }: Props) {
       const prompt = `${ARCHITECT_SYSTEM}\n\n--- 对话历史 ---\n${history}\n\n架构师：`;
 
       const result = await getModelsModule().invoke({ prompt });
-      const reply =
-        typeof result === 'string'
-          ? result
-          : (result as unknown as Record<string, unknown>)?.content ||
-            (result as unknown as Record<string, unknown>)?.text ||
-            JSON.stringify(result);
+      const reply = extractModelText(result) || '本地模型 API 未返回文本。';
 
-      const { displayText, schema } = extractSchema(String(reply));
+      const { displayText, schema } = extractSchema(reply);
       if (schema) setLatestSchema(schema);
       setMessages((prev) => [...prev, { role: 'ai', content: displayText, schema }]);
     } catch (err) {
