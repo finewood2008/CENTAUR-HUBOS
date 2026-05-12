@@ -157,14 +157,15 @@ HERMES_HOME=~/.qeeclaw_hermes
 
 # Local knowledge vector store. The embedding model must be packaged locally;
 # runtime will not download models or call cloud embedding APIs.
-QEECLAW_KB_VECTOR_BACKEND=lancedb
-QEECLAW_KB_EMBEDDING_MODEL=BAAI/bge-base-zh-v1.5
-QEECLAW_KB_EMBEDDING_ENGINE=auto
+QEECLAW_KB_VECTOR_BACKEND=chromadb
+QEECLAW_KB_EMBEDDING_MODEL=Qwen3-Embedding-0.6B-Q4_0
+QEECLAW_KB_EMBEDDING_ENGINE=llama-server
+QEECLAW_KB_EMBEDDING_API_URL=http://127.0.0.1:8080/embedding
 QEECLAW_KB_EMBEDDING_DEVICE=cpu
-QEECLAW_KB_EMBEDDING_DIMENSION=768
+QEECLAW_KB_EMBEDDING_DIMENSION=1024
 # Default layout auto-discovers these from sibling qeeclaw-server:
 # QEECLAW_KB_DIR=qeeclaw-server/release/<standalone>/data/knowledge
-# QEECLAW_KB_EMBEDDING_MODEL_DIR=qeeclaw-server/release/<standalone>/models/bge-base-zh-v1.5
+# QEECLAW_KB_EMBEDDING_MODEL_FILE=qeeclaw-server/release/<standalone>/models/Qwen3-Embedding-0.6B-Q4_0.gguf
 
 # LLM runtime. Fill these on the customer machine or seed auth.json under HERMES_HOME.
 # DeepSeek:

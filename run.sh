@@ -162,21 +162,21 @@ resolve_hud_dir_default() {
     echo "$PROJECT_ROOT/vendor/hermes-hudui"
 }
 
-resolve_kb_model_dir_default() {
+resolve_kb_model_file_default() {
     local candidate
     for candidate in \
-        "$WORKSPACE_BRIDGE_DIR/models/bge-base-zh-v1.5" \
-        "$WORKSPACE_BRIDGE_DIR/vendor/models/bge-base-zh-v1.5" \
-        "$PROJECT_ROOT/qeeclaw-server/models/bge-base-zh-v1.5" \
-        "$PROJECT_ROOT/data/models/Xenova/bge-base-zh-v1.5" \
-        "$PROJECT_ROOT/data/models/bge-base-zh-v1.5"
+        "$WORKSPACE_BRIDGE_DIR/models/Qwen3-Embedding-0.6B-Q4_0.gguf" \
+        "$WORKSPACE_BRIDGE_DIR/vendor/models/Qwen3-Embedding-0.6B-Q4_0.gguf" \
+        "$PROJECT_ROOT/qeeclaw-server/models/Qwen3-Embedding-0.6B-Q4_0.gguf" \
+        "$PROJECT_ROOT/data/riscv-embedding/Qwen3-Embedding-0.6B-Q4_0.gguf" \
+        "$PROJECT_ROOT/data/models/Qwen3-Embedding-0.6B-Q4_0.gguf"
     do
-        if [ -f "$candidate/config.json" ]; then
+        if [ -f "$candidate" ]; then
             echo "$candidate"
             return
         fi
     done
-    echo "$WORKSPACE_BRIDGE_DIR/models/bge-base-zh-v1.5"
+    echo "$WORKSPACE_BRIDGE_DIR/models/Qwen3-Embedding-0.6B-Q4_0.gguf"
 }
 
 resolve_kb_dir_default() {
@@ -364,7 +364,7 @@ init_env() {
     WORKSPACE_BRIDGE_SCRIPT="$WORKSPACE_BRIDGE_DIR/bridge_server.py"
     WORKSPACE_HERMES_AGENT_DIR_DEFAULT="$(resolve_agent_dir_default)"
     WORKSPACE_HUD_DIR_DEFAULT="$(resolve_hud_dir_default)"
-    WORKSPACE_KB_MODEL_DIR_DEFAULT="$(resolve_kb_model_dir_default)"
+    WORKSPACE_KB_MODEL_FILE_DEFAULT="$(resolve_kb_model_file_default)"
     WORKSPACE_KB_DIR_DEFAULT="$(resolve_kb_dir_default)"
 
     export QEECLAW_HERMES_BRIDGE_PORT="${QEECLAW_HERMES_BRIDGE_PORT:-$BRIDGE_PORT_DEFAULT}"
@@ -375,13 +375,14 @@ init_env() {
     export QEECLAW_HERMES_AGENT_DIR="$(resolve_bundle_path "${QEECLAW_HERMES_AGENT_DIR:-$WORKSPACE_HERMES_AGENT_DIR_DEFAULT}")"
     export QEECLAW_HUD_DIR="$(resolve_bundle_path "${QEECLAW_HUD_DIR:-$WORKSPACE_HUD_DIR_DEFAULT}")"
     export QEECLAW_HUD_PORT="${QEECLAW_HUD_PORT:-$HUD_PORT_DEFAULT}"
-    export QEECLAW_KB_VECTOR_BACKEND="${QEECLAW_KB_VECTOR_BACKEND:-lancedb}"
+    export QEECLAW_KB_VECTOR_BACKEND="${QEECLAW_KB_VECTOR_BACKEND:-chromadb}"
     export QEECLAW_KB_DIR="$(resolve_bundle_path "${QEECLAW_KB_DIR:-$WORKSPACE_KB_DIR_DEFAULT}")"
-    export QEECLAW_KB_EMBEDDING_MODEL="${QEECLAW_KB_EMBEDDING_MODEL:-BAAI/bge-base-zh-v1.5}"
-    export QEECLAW_KB_EMBEDDING_ENGINE="${QEECLAW_KB_EMBEDDING_ENGINE:-auto}"
-    export QEECLAW_KB_EMBEDDING_MODEL_DIR="$(resolve_bundle_path "${QEECLAW_KB_EMBEDDING_MODEL_DIR:-$WORKSPACE_KB_MODEL_DIR_DEFAULT}")"
+    export QEECLAW_KB_EMBEDDING_MODEL="${QEECLAW_KB_EMBEDDING_MODEL:-Qwen3-Embedding-0.6B-Q4_0}"
+    export QEECLAW_KB_EMBEDDING_ENGINE="${QEECLAW_KB_EMBEDDING_ENGINE:-llama-server}"
+    export QEECLAW_KB_EMBEDDING_MODEL_FILE="$(resolve_bundle_path "${QEECLAW_KB_EMBEDDING_MODEL_FILE:-$WORKSPACE_KB_MODEL_FILE_DEFAULT}")"
+    export QEECLAW_KB_EMBEDDING_API_URL="${QEECLAW_KB_EMBEDDING_API_URL:-http://127.0.0.1:8080/embedding}"
     export QEECLAW_KB_EMBEDDING_DEVICE="${QEECLAW_KB_EMBEDDING_DEVICE:-cpu}"
-    export QEECLAW_KB_EMBEDDING_DIMENSION="${QEECLAW_KB_EMBEDDING_DIMENSION:-768}"
+    export QEECLAW_KB_EMBEDDING_DIMENSION="${QEECLAW_KB_EMBEDDING_DIMENSION:-1024}"
     export QEECLAW_KB_TOP_K="${QEECLAW_KB_TOP_K:-5}"
     export QEECLAW_KB_CHUNK_SIZE="${QEECLAW_KB_CHUNK_SIZE:-512}"
     export QEECLAW_KB_CHUNK_OVERLAP="${QEECLAW_KB_CHUNK_OVERLAP:-64}"
@@ -399,10 +400,8 @@ check_deps() {
     ensure_bridge_python_import "openai" "openai>=2.21.0,<3"
     ensure_bridge_python_import "aiohttp" "aiohttp>=3.9.0"
     ensure_bridge_python_import "cryptography" "cryptography>=42.0.0"
-    ensure_bridge_python_import "lancedb" "lancedb>=0.18.0"
+    ensure_bridge_python_import "chromadb" "chromadb==1.0.7"
     ensure_bridge_python_import "numpy" "numpy>=1.26.0"
-    ensure_bridge_python_import "onnxruntime" "onnxruntime>=1.18.0"
-    ensure_bridge_python_import "tokenizers" "tokenizers>=0.15.0"
 
     if ! is_local_url "$VITE_BRIDGE_URL"; then
         echo "❌ VITE_BRIDGE_URL 必须指向本地: $VITE_BRIDGE_URL"; exit 1
@@ -413,17 +412,13 @@ check_deps() {
     if [ ! -d "$QEECLAW_HERMES_AGENT_DIR" ]; then
         echo "❌ 未找到 hermes-agent 目录: $QEECLAW_HERMES_AGENT_DIR"; exit 1
     fi
-    if [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_DIR/config.json" ]; then
-        echo "❌ 未找到本地知识库 embedding 模型: $QEECLAW_KB_EMBEDDING_MODEL_DIR"
-        echo "   qeeclaw-server standalone 包应包含 models/bge-base-zh-v1.5。请重新打包 qeeclaw-server。"
+    if [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_FILE" ]; then
+        echo "❌ 未找到本地知识库 embedding 模型: $QEECLAW_KB_EMBEDDING_MODEL_FILE"
+        echo "   qeeclaw-server standalone 包应包含 models/Qwen3-Embedding-0.6B-Q4_0.gguf。请重新打包 qeeclaw-server。"
         exit 1
     fi
-    if [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_DIR/onnx/model_quantized.onnx" ] \
-        && [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_DIR/onnx/model.onnx" ] \
-        && [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_DIR/model_quantized.onnx" ] \
-        && [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_DIR/model.onnx" ]; then
-        echo "❌ 本地知识库 embedding 模型缺少 ONNX 文件: $QEECLAW_KB_EMBEDDING_MODEL_DIR"
-        echo "   需要 bge-base-zh-v1.5/onnx/model_quantized.onnx 或 model.onnx。请重新打包 qeeclaw-server。"
+    if [ "$(dd if="$QEECLAW_KB_EMBEDDING_MODEL_FILE" bs=4 count=1 2>/dev/null)" != "GGUF" ]; then
+        echo "❌ 本地知识库 embedding 模型不是有效 GGUF 文件: $QEECLAW_KB_EMBEDDING_MODEL_FILE"
         exit 1
     fi
     if [ "$HUBOS_FRONTEND_MODE" = "static" ]; then
@@ -455,7 +450,8 @@ start_workspace_bridge() {
         QEECLAW_KB_DIR="$QEECLAW_KB_DIR" \
         QEECLAW_KB_EMBEDDING_MODEL="$QEECLAW_KB_EMBEDDING_MODEL" \
         QEECLAW_KB_EMBEDDING_ENGINE="$QEECLAW_KB_EMBEDDING_ENGINE" \
-        QEECLAW_KB_EMBEDDING_MODEL_DIR="$QEECLAW_KB_EMBEDDING_MODEL_DIR" \
+        QEECLAW_KB_EMBEDDING_MODEL_FILE="$QEECLAW_KB_EMBEDDING_MODEL_FILE" \
+        QEECLAW_KB_EMBEDDING_API_URL="$QEECLAW_KB_EMBEDDING_API_URL" \
         QEECLAW_KB_EMBEDDING_DEVICE="$QEECLAW_KB_EMBEDDING_DEVICE" \
         QEECLAW_KB_EMBEDDING_DIMENSION="$QEECLAW_KB_EMBEDDING_DIMENSION" \
         QEECLAW_KB_TOP_K="$QEECLAW_KB_TOP_K" \
