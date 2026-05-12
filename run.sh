@@ -6,13 +6,15 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-WORKSPACE_BRIDGE_DIR="$PROJECT_ROOT/qeeclaw-sdk/packages/hermes-bridge"
+WORKSPACE_BRIDGE_DIR_DEFAULT="$PROJECT_ROOT/qeeclaw-sdk/packages/hermes-bridge"
+WORKSPACE_BRIDGE_DIR="$WORKSPACE_BRIDGE_DIR_DEFAULT"
 WORKSPACE_BRIDGE_SCRIPT="$WORKSPACE_BRIDGE_DIR/bridge_server.py"
-WORKSPACE_HERMES_AGENT_DIR_DEFAULT="$PROJECT_ROOT/vendor/hermes-agent"
-WORKSPACE_HUD_DIR_DEFAULT="$PROJECT_ROOT/vendor/hermes-hudui"
+WORKSPACE_HERMES_AGENT_DIR_DEFAULT=""
+WORKSPACE_HUD_DIR_DEFAULT=""
 BRIDGE_PORT_DEFAULT=21747
 BRIDGE_FALLBACK_PORT=21748
 HUD_PORT_DEFAULT=8134
+FRONTEND_PORT_DEFAULT=5173
 BRIDGE_URL_DEFAULT="http://127.0.0.1:21747"
 HUBOS_API_DEFAULT="http://127.0.0.1:3456"
 PIDFILE_DIR="/tmp/qeeshu-hubos"
@@ -64,13 +66,136 @@ describe_pid() { ps -p "$1" -o command= 2>/dev/null || true; }
 pid_cwd() { lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -n 1; }
 process_env_contains() { ps eww -p "$1" | grep -F "$2" > /dev/null 2>&1; }
 
+trim() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "$value"
+}
+
+load_env_file() {
+    local env_file="$1" line key value
+    [ -f "$env_file" ] || return 0
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="$(trim "$line")"
+        case "$line" in
+            ""|\#*) continue ;;
+            export\ *) line="$(trim "${line#export }")" ;;
+        esac
+        key="${line%%=*}"
+        value="${line#*=}"
+        key="$(trim "$key")"
+        value="$(trim "$value")"
+        case "$key" in
+            ""|*[!A-Za-z0-9_]*) continue ;;
+        esac
+        case "$value" in
+            \"*\") value="${value#\"}"; value="${value%\"}" ;;
+            \'*\') value="${value#\'}"; value="${value%\'}" ;;
+        esac
+        export "$key=$value"
+    done < "$env_file"
+}
+
+resolve_bundle_path() {
+    local value="$1"
+    [ -n "$value" ] || return 0
+    case "$value" in
+        /*) printf '%s\n' "$value" ;;
+        "~") printf '%s\n' "$HOME" ;;
+        "~/"*) printf '%s/%s\n' "$HOME" "${value#~/}" ;;
+        *) printf '%s/%s\n' "$PROJECT_ROOT" "$value" ;;
+    esac
+}
+
+resolve_node_binary() {
+    local configured="${HUBOS_NODE_BIN:-}" candidate
+    if [ -n "$configured" ]; then
+        resolve_bundle_path "$configured"
+        return
+    fi
+    for candidate in \
+        "$PROJECT_ROOT/runtime/node/bin/node" \
+        "$SCRIPT_DIR/runtime/node/bin/node"
+    do
+        if [ -x "$candidate" ]; then
+            echo "$candidate"
+            return
+        fi
+    done
+    command -v node || true
+}
+
+resolve_bridge_dir() {
+    local configured="${QEECLAW_HERMES_BRIDGE_DIR:-}" candidate
+    if [ -n "$configured" ]; then
+        resolve_bundle_path "$configured"
+        return
+    fi
+
+    for candidate in \
+        "$PROJECT_ROOT"/qeeclaw-server/release/*-standalone \
+        "$PROJECT_ROOT"/qeeclaw-server/release/* \
+        "$PROJECT_ROOT"/qeeclaw-server \
+        "$WORKSPACE_BRIDGE_DIR_DEFAULT"
+    do
+        if [ -f "$candidate/bridge_server.py" ]; then
+            echo "$candidate"
+            return
+        fi
+    done
+}
+
+resolve_agent_dir_default() {
+    if [ -d "$WORKSPACE_BRIDGE_DIR/vendor/hermes-agent" ]; then
+        echo "$WORKSPACE_BRIDGE_DIR/vendor/hermes-agent"
+        return
+    fi
+    echo "$PROJECT_ROOT/vendor/hermes-agent"
+}
+
+resolve_hud_dir_default() {
+    if [ -d "$WORKSPACE_BRIDGE_DIR/vendor/hermes-hudui" ]; then
+        echo "$WORKSPACE_BRIDGE_DIR/vendor/hermes-hudui"
+        return
+    fi
+    echo "$PROJECT_ROOT/vendor/hermes-hudui"
+}
+
+resolve_kb_model_dir_default() {
+    local candidate
+    for candidate in \
+        "$WORKSPACE_BRIDGE_DIR/models/bge-base-zh-v1.5" \
+        "$WORKSPACE_BRIDGE_DIR/vendor/models/bge-base-zh-v1.5" \
+        "$PROJECT_ROOT/qeeclaw-server/models/bge-base-zh-v1.5" \
+        "$PROJECT_ROOT/data/models/Xenova/bge-base-zh-v1.5" \
+        "$PROJECT_ROOT/data/models/bge-base-zh-v1.5"
+    do
+        if [ -f "$candidate/config.json" ]; then
+            echo "$candidate"
+            return
+        fi
+    done
+    echo "$WORKSPACE_BRIDGE_DIR/models/bge-base-zh-v1.5"
+}
+
+resolve_kb_dir_default() {
+    echo "$WORKSPACE_BRIDGE_DIR/data/knowledge"
+}
+
 ensure_bridge_python_import() {
     local module="$1" package="$2"
     if "$QEECLAW_HERMES_BRIDGE_PYTHON" -c "import ${module}" >/dev/null 2>&1; then
         return 0
     fi
-    echo "📦 bridge Python 缺少 ${module}，正在安装 ${package}..."
-    "$QEECLAW_HERMES_BRIDGE_PYTHON" -m pip install --quiet "$package"
+    if [ "${HUBOS_ALLOW_PIP_INSTALL:-0}" = "1" ]; then
+        echo "📦 bridge Python 缺少 ${module}，正在安装 ${package}..."
+        "$QEECLAW_HERMES_BRIDGE_PYTHON" -m pip install --quiet "$package"
+        return
+    fi
+    echo "❌ bridge Python 缺少 ${module}。生产环境不会在客户机执行 pip install。"
+    echo "   请重新打包含有 ${package} 的 runtime，或在开发机设置 HUBOS_ALLOW_PIP_INSTALL=1 后再启动。"
+    exit 1
 }
 
 frontend_process_matches_bridge_env() {
@@ -80,48 +205,57 @@ frontend_process_matches_bridge_env() {
 }
 
 url_port() {
-    python3 -c '
-from urllib.parse import urlparse; import sys
-url = urlparse(sys.argv[1])
-print(url.port or (443 if url.scheme == "https" else 80))
+    "$HUBOS_NODE_BIN" -e '
+const u = new URL(process.argv[1]);
+console.log(u.port || (u.protocol === "https:" ? "443" : "80"));
 ' "$1"
 }
 
 replace_url_port() {
-    python3 -c '
-from urllib.parse import urlparse, urlunparse; import sys
-url = urlparse(sys.argv[1]); port = int(sys.argv[2])
-h = url.hostname or "127.0.0.1"
-if ":" in h and not h.startswith("["): h = f"[{h}]"
-nl = h if port in (80,443) else f"{h}:{port}"
-print(urlunparse((url.scheme, nl, url.path, url.params, url.query, url.fragment)))
+    "$HUBOS_NODE_BIN" -e '
+const u = new URL(process.argv[1]);
+u.port = process.argv[2];
+console.log(u.toString().replace(/\/$/, ""));
 ' "$1" "$2"
 }
 
 json_read() {
-    python3 -c '
-import json, sys
-path = sys.argv[1].split(".")
-v = json.load(sys.stdin)
-for p in path:
-    v = v[int(p)] if isinstance(v, list) else v[p]
-if v is None: print("")
-elif isinstance(v, bool): print("true" if v else "false")
-else: print(v)
+    "$HUBOS_NODE_BIN" -e '
+let data = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", chunk => data += chunk);
+process.stdin.on("end", () => {
+  let value = JSON.parse(data);
+  for (const key of process.argv[1].split(".")) {
+    value = Array.isArray(value) ? value[Number(key)] : value[key];
+  }
+  if (value === null || value === undefined) console.log("");
+  else if (typeof value === "boolean") console.log(value ? "true" : "false");
+  else console.log(value);
+});
 ' "$1"
 }
 
 resolve_bridge_python() {
-    if [ -n "${QEECLAW_HERMES_BRIDGE_PYTHON:-}" ]; then
-        echo "$QEECLAW_HERMES_BRIDGE_PYTHON"
+    local configured="${QEECLAW_HERMES_BRIDGE_PYTHON:-}"
+    if [ -n "$configured" ]; then
+        resolve_bundle_path "$configured"
         return
     fi
 
     local candidate
     for candidate in \
+        "$PROJECT_ROOT/runtime/python-venv/bin/python3" \
+        "$PROJECT_ROOT/runtime/python/bin/python3" \
+        "$PROJECT_ROOT/qeeclaw-server/runtime/python/bin/python3" \
+        "$PROJECT_ROOT/qeeclaw-server/standalone/python/bin/python3" \
+        "$PROJECT_ROOT"/qeeclaw-server/release/*-standalone/.venv/bin/python3 \
+        "$PROJECT_ROOT"/qeeclaw-server/release/*-standalone/python/bin/python3 \
+        "$PROJECT_ROOT"/qeeclaw-server/release/*/runtime/python/bin/python3 \
+        "$PROJECT_ROOT"/qeeclaw-server/release/*/python/bin/python3 \
+        "$PROJECT_ROOT"/qeeclaw-server/release/*/.venv/bin/python3 \
         "$WORKSPACE_BRIDGE_DIR/.venv/bin/python3" \
-        "$PROJECT_ROOT/.venv/bin/python3" \
-        "$PROJECT_ROOT"/qeeclaw-server/release/*/.venv/bin/python3
+        "$PROJECT_ROOT/.venv/bin/python3"
     do
         if [ -x "$candidate" ]; then
             echo "$candidate"
@@ -129,7 +263,9 @@ resolve_bridge_python() {
         fi
     done
 
-    command -v python3
+    if [ "${HUBOS_ALLOW_SYSTEM_PYTHON:-0}" = "1" ]; then
+        command -v python3 || true
+    fi
 }
 
 is_workspace_bridge_process() {
@@ -152,6 +288,10 @@ is_workspace_hud_process() {
 }
 
 pid_alive() { [ -n "$1" ] && kill -0 "$1" 2>/dev/null; }
+
+bridge_ports() {
+    printf '%s\n' "$QEECLAW_HERMES_BRIDGE_PORT" "$BRIDGE_PORT_DEFAULT" "$BRIDGE_FALLBACK_PORT" | awk 'NF && !seen[$0]++'
+}
 
 wait_pid_exit() {
     local pid="$1" attempts="${2:-20}"
@@ -209,40 +349,60 @@ clear_pid() { rm -f "$PIDFILE_DIR/$1.pid"; }
 start_detached() {
     local log_file="$1"
     shift
-    python3 - "$log_file" "$@" <<'PY'
-import subprocess
-import sys
-
-log_path = sys.argv[1]
-cmd = sys.argv[2:]
-with open(log_path, "ab", buffering=0) as log:
-    proc = subprocess.Popen(
-        cmd,
-        stdin=subprocess.DEVNULL,
-        stdout=log,
-        stderr=subprocess.STDOUT,
-        start_new_session=True,
-        close_fds=True,
-    )
-print(proc.pid)
-PY
+    nohup "$@" > "$log_file" 2>&1 < /dev/null &
+    echo $!
 }
 
 init_env() {
-    export VITE_BRIDGE_URL="${VITE_BRIDGE_URL:-$BRIDGE_URL_DEFAULT}"
-    export VITE_CHANNELS_BRIDGE_URL="${VITE_CHANNELS_BRIDGE_URL:-$BRIDGE_URL_DEFAULT}"
-    export VITE_HUBOS_API_URL="${VITE_HUBOS_API_URL:-$HUBOS_API_DEFAULT}"
-    export QEECLAW_HERMES_AGENT_DIR="${QEECLAW_HERMES_AGENT_DIR:-$WORKSPACE_HERMES_AGENT_DIR_DEFAULT}"
-    export QEECLAW_HUD_DIR="${QEECLAW_HUD_DIR:-$WORKSPACE_HUD_DIR_DEFAULT}"
+    load_env_file "$SCRIPT_DIR/.env"
+
+    export HUBOS_NODE_BIN="$(resolve_node_binary)"
+    [ -n "$HUBOS_NODE_BIN" ] && export PATH="$(dirname "$HUBOS_NODE_BIN"):$PATH"
+
+    WORKSPACE_BRIDGE_DIR="$(resolve_bridge_dir)"
+    [ -n "$WORKSPACE_BRIDGE_DIR" ] || { echo "❌ 未找到 bridge_server.py。请将 qeeclaw-server 与 qeeshu-hubos 放在同一目录下。"; exit 1; }
+    WORKSPACE_BRIDGE_SCRIPT="$WORKSPACE_BRIDGE_DIR/bridge_server.py"
+    WORKSPACE_HERMES_AGENT_DIR_DEFAULT="$(resolve_agent_dir_default)"
+    WORKSPACE_HUD_DIR_DEFAULT="$(resolve_hud_dir_default)"
+    WORKSPACE_KB_MODEL_DIR_DEFAULT="$(resolve_kb_model_dir_default)"
+    WORKSPACE_KB_DIR_DEFAULT="$(resolve_kb_dir_default)"
+
+    export QEECLAW_HERMES_BRIDGE_PORT="${QEECLAW_HERMES_BRIDGE_PORT:-$BRIDGE_PORT_DEFAULT}"
+    export HUBOS_API_PORT="${HUBOS_API_PORT:-3456}"
+    export VITE_BRIDGE_URL="${VITE_BRIDGE_URL:-http://127.0.0.1:$QEECLAW_HERMES_BRIDGE_PORT}"
+    export VITE_CHANNELS_BRIDGE_URL="${VITE_CHANNELS_BRIDGE_URL:-$VITE_BRIDGE_URL}"
+    export VITE_HUBOS_API_URL="${VITE_HUBOS_API_URL:-http://127.0.0.1:$HUBOS_API_PORT}"
+    export QEECLAW_HERMES_AGENT_DIR="$(resolve_bundle_path "${QEECLAW_HERMES_AGENT_DIR:-$WORKSPACE_HERMES_AGENT_DIR_DEFAULT}")"
+    export QEECLAW_HUD_DIR="$(resolve_bundle_path "${QEECLAW_HUD_DIR:-$WORKSPACE_HUD_DIR_DEFAULT}")"
     export QEECLAW_HUD_PORT="${QEECLAW_HUD_PORT:-$HUD_PORT_DEFAULT}"
+    export QEECLAW_KB_VECTOR_BACKEND="${QEECLAW_KB_VECTOR_BACKEND:-lancedb}"
+    export QEECLAW_KB_DIR="$(resolve_bundle_path "${QEECLAW_KB_DIR:-$WORKSPACE_KB_DIR_DEFAULT}")"
+    export QEECLAW_KB_EMBEDDING_MODEL="${QEECLAW_KB_EMBEDDING_MODEL:-BAAI/bge-base-zh-v1.5}"
+    export QEECLAW_KB_EMBEDDING_ENGINE="${QEECLAW_KB_EMBEDDING_ENGINE:-auto}"
+    export QEECLAW_KB_EMBEDDING_MODEL_DIR="$(resolve_bundle_path "${QEECLAW_KB_EMBEDDING_MODEL_DIR:-$WORKSPACE_KB_MODEL_DIR_DEFAULT}")"
+    export QEECLAW_KB_EMBEDDING_DEVICE="${QEECLAW_KB_EMBEDDING_DEVICE:-cpu}"
+    export QEECLAW_KB_EMBEDDING_DIMENSION="${QEECLAW_KB_EMBEDDING_DIMENSION:-768}"
+    export QEECLAW_KB_TOP_K="${QEECLAW_KB_TOP_K:-5}"
+    export QEECLAW_KB_CHUNK_SIZE="${QEECLAW_KB_CHUNK_SIZE:-512}"
+    export QEECLAW_KB_CHUNK_OVERLAP="${QEECLAW_KB_CHUNK_OVERLAP:-64}"
+    export HUBOS_FRONTEND_PORT="${HUBOS_FRONTEND_PORT:-$FRONTEND_PORT_DEFAULT}"
+    export HUBOS_FRONTEND_MODE="${HUBOS_FRONTEND_MODE:-dev}"
+    export HERMES_HOME="$(resolve_bundle_path "${HERMES_HOME:-~/.qeeclaw_hermes}")"
     export QEECLAW_HERMES_BRIDGE_PYTHON="$(resolve_bridge_python)"
 }
 
 check_deps() {
-    command -v python3 &>/dev/null || { echo "❌ 未找到 python3"; exit 1; }
-    command -v node &>/dev/null || { echo "❌ 未找到 node"; exit 1; }
+    [ -x "$HUBOS_NODE_BIN" ] || { echo "❌ 未找到 node，请打包 runtime/node 或安装 Node.js"; exit 1; }
     [ -x "$QEECLAW_HERMES_BRIDGE_PYTHON" ] || { echo "❌ bridge Python 不可执行: $QEECLAW_HERMES_BRIDGE_PYTHON"; exit 1; }
     ensure_bridge_python_import "pypdf" "pypdf>=5.0.0"
+    ensure_bridge_python_import "yaml" "pyyaml>=6.0"
+    ensure_bridge_python_import "openai" "openai>=2.21.0,<3"
+    ensure_bridge_python_import "aiohttp" "aiohttp>=3.9.0"
+    ensure_bridge_python_import "cryptography" "cryptography>=42.0.0"
+    ensure_bridge_python_import "lancedb" "lancedb>=0.18.0"
+    ensure_bridge_python_import "numpy" "numpy>=1.26.0"
+    ensure_bridge_python_import "onnxruntime" "onnxruntime>=1.18.0"
+    ensure_bridge_python_import "tokenizers" "tokenizers>=0.15.0"
 
     if ! is_local_url "$VITE_BRIDGE_URL"; then
         echo "❌ VITE_BRIDGE_URL 必须指向本地: $VITE_BRIDGE_URL"; exit 1
@@ -253,7 +413,26 @@ check_deps() {
     if [ ! -d "$QEECLAW_HERMES_AGENT_DIR" ]; then
         echo "❌ 未找到 hermes-agent 目录: $QEECLAW_HERMES_AGENT_DIR"; exit 1
     fi
-    if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
+    if [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_DIR/config.json" ]; then
+        echo "❌ 未找到本地知识库 embedding 模型: $QEECLAW_KB_EMBEDDING_MODEL_DIR"
+        echo "   qeeclaw-server standalone 包应包含 models/bge-base-zh-v1.5。请重新打包 qeeclaw-server。"
+        exit 1
+    fi
+    if [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_DIR/onnx/model_quantized.onnx" ] \
+        && [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_DIR/onnx/model.onnx" ] \
+        && [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_DIR/model_quantized.onnx" ] \
+        && [ ! -f "$QEECLAW_KB_EMBEDDING_MODEL_DIR/model.onnx" ]; then
+        echo "❌ 本地知识库 embedding 模型缺少 ONNX 文件: $QEECLAW_KB_EMBEDDING_MODEL_DIR"
+        echo "   需要 bge-base-zh-v1.5/onnx/model_quantized.onnx 或 model.onnx。请重新打包 qeeclaw-server。"
+        exit 1
+    fi
+    if [ "$HUBOS_FRONTEND_MODE" = "static" ]; then
+        [ -f "$SCRIPT_DIR/dist/index.html" ] || { echo "❌ 静态前端不存在: $SCRIPT_DIR/dist/index.html"; exit 1; }
+    elif [ ! -d "$SCRIPT_DIR/node_modules" ]; then
+        if [ "${HUBOS_ALLOW_NPM_INSTALL:-1}" != "1" ]; then
+            echo "❌ 未找到 node_modules，且 HUBOS_ALLOW_NPM_INSTALL=0。请重新打包含 node_modules 的 runtime。"
+            exit 1
+        fi
         echo "📦 首次运行，安装依赖..."
         (cd "$SCRIPT_DIR" && npm install)
         echo ""
@@ -266,12 +445,24 @@ start_workspace_bridge() {
 
     echo "   ℹ️  bridge Python: $QEECLAW_HERMES_BRIDGE_PYTHON"
     local pid
-    pid="$(QEECLAW_HERMES_BRIDGE_PORT="$bridge_port" \
-    QEECLAW_HERMES_AGENT_DIR="$QEECLAW_HERMES_AGENT_DIR" \
-    QEECLAW_HUD_DIR="$QEECLAW_HUD_DIR" \
-    QEECLAW_HUD_PORT="$QEECLAW_HUD_PORT" \
-    TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}" \
-    start_detached "$bridge_log" "$QEECLAW_HERMES_BRIDGE_PYTHON" "$WORKSPACE_BRIDGE_SCRIPT")"
+    pid="$(start_detached "$bridge_log" env \
+        QEECLAW_HERMES_BRIDGE_PORT="$bridge_port" \
+        QEECLAW_HERMES_AGENT_DIR="$QEECLAW_HERMES_AGENT_DIR" \
+        QEECLAW_HUD_DIR="$QEECLAW_HUD_DIR" \
+        QEECLAW_HUD_PORT="$QEECLAW_HUD_PORT" \
+        HERMES_HOME="$HERMES_HOME" \
+        QEECLAW_KB_VECTOR_BACKEND="$QEECLAW_KB_VECTOR_BACKEND" \
+        QEECLAW_KB_DIR="$QEECLAW_KB_DIR" \
+        QEECLAW_KB_EMBEDDING_MODEL="$QEECLAW_KB_EMBEDDING_MODEL" \
+        QEECLAW_KB_EMBEDDING_ENGINE="$QEECLAW_KB_EMBEDDING_ENGINE" \
+        QEECLAW_KB_EMBEDDING_MODEL_DIR="$QEECLAW_KB_EMBEDDING_MODEL_DIR" \
+        QEECLAW_KB_EMBEDDING_DEVICE="$QEECLAW_KB_EMBEDDING_DEVICE" \
+        QEECLAW_KB_EMBEDDING_DIMENSION="$QEECLAW_KB_EMBEDDING_DIMENSION" \
+        QEECLAW_KB_TOP_K="$QEECLAW_KB_TOP_K" \
+        QEECLAW_KB_CHUNK_SIZE="$QEECLAW_KB_CHUNK_SIZE" \
+        QEECLAW_KB_CHUNK_OVERLAP="$QEECLAW_KB_CHUNK_OVERLAP" \
+        TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}" \
+        "$QEECLAW_HERMES_BRIDGE_PYTHON" "$WORKSPACE_BRIDGE_SCRIPT")"
     save_pid bridge "$pid"
     echo "   ✅ workspace hermes-bridge 已启动 (PID: $pid, URL: $bridge_url)"
     if wait_url_ok "$bridge_url/health" 30 1 && check_workspace_bridge_ready "$bridge_url"; then
@@ -390,19 +581,23 @@ cmd_start() {
 
     verify_channels
     # 启动 HubOS API
-    echo "🚀 启动 HubOS 产品后端 (3456)..."
+    echo "🚀 启动 HubOS 产品后端 ($HUBOS_API_PORT)..."
     cd "$SCRIPT_DIR"
-    if lsof -Pi :3456 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        local hubos_pid="$(lsof -Pi :3456 -sTCP:LISTEN -t | head -n 1)"
-        echo "   ⚠️  端口 3456 已被占用，跳过启动"
+    if lsof -Pi :"$HUBOS_API_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+        local hubos_pid="$(lsof -Pi :"$HUBOS_API_PORT" -sTCP:LISTEN -t | head -n 1)"
+        echo "   ⚠️  端口 $HUBOS_API_PORT 已被占用，跳过启动"
         save_pid hubos "$hubos_pid"
     else
         local hubos_pid
-        hubos_pid="$(start_detached /tmp/hubos_api.log node server/index.cjs)"
+        hubos_pid="$(start_detached /tmp/hubos_api.log env \
+            HUBOS_SERVE_STATIC="$([ "$HUBOS_FRONTEND_MODE" = "static" ] && echo 1 || echo 0)" \
+            HUBOS_API_PORT="$HUBOS_API_PORT" \
+            HUBOS_FRONTEND_MODE="$HUBOS_FRONTEND_MODE" \
+            "$HUBOS_NODE_BIN" server/index.cjs)"
         save_pid hubos "$hubos_pid"
         echo "   ✅ HubOS API 已启动 (PID: $hubos_pid)"
         sleep 2
-        if curl -s http://127.0.0.1:3456/api/hubos/health > /dev/null 2>&1; then
+        if curl -s "http://127.0.0.1:$HUBOS_API_PORT/api/hubos/health" > /dev/null 2>&1; then
             echo "   ✅ HubOS API 健康检查通过"
         else
             echo "   ❌ HubOS API 启动失败，查看日志: /tmp/hubos_api.log"; exit 1
@@ -410,12 +605,18 @@ cmd_start() {
     fi
     echo ""
 
+    if [ "$HUBOS_FRONTEND_MODE" = "static" ]; then
+        echo "🚀 前端静态资源由 HubOS 产品后端提供"
+        echo "访问地址: http://127.0.0.1:$HUBOS_API_PORT/CENTAUR-HUBOS/"
+        return 0
+    fi
+
     # 启动前端
-    echo "🚀 启动前端开发服务器 (5173)..."
+    echo "🚀 启动前端开发服务器 ($HUBOS_FRONTEND_PORT)..."
     cd "$SCRIPT_DIR"
-    if lsof -Pi :5173 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        local fe_pid="$(lsof -Pi :5173 -sTCP:LISTEN -t | head -n 1)"
-        echo "   ⚠️  端口 5173 已被占用"
+    if lsof -Pi :"$HUBOS_FRONTEND_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+        local fe_pid="$(lsof -Pi :"$HUBOS_FRONTEND_PORT" -sTCP:LISTEN -t | head -n 1)"
+        echo "   ⚠️  端口 $HUBOS_FRONTEND_PORT 已被占用"
         save_pid frontend "$fe_pid"
         if [ "$bridge_fallback_active" = "true" ]; then
             if frontend_process_matches_bridge_env "$fe_pid"; then
@@ -425,20 +626,20 @@ cmd_start() {
             fi
         fi
         echo ""
-        echo "访问地址: http://localhost:5173/CENTAUR-HUBOS/"
+        echo "访问地址: http://localhost:$HUBOS_FRONTEND_PORT/CENTAUR-HUBOS/"
     else
         echo "   启动中..."
         local fe_pid
-        fe_pid="$(start_detached /tmp/qeeshu_hubos_frontend.log npm run dev)"
+        fe_pid="$(start_detached /tmp/qeeshu_hubos_frontend.log npm run dev -- --host 127.0.0.1 --port "$HUBOS_FRONTEND_PORT")"
         save_pid frontend "$fe_pid"
         echo "   ✅ 前端开发服务器已启动 (PID: $fe_pid)"
-        if wait_url_ok "http://localhost:5173/CENTAUR-HUBOS/" 20 0.5; then
-            if lsof -Pi :5173 -sTCP:LISTEN -t >/dev/null 2>&1; then
-                save_pid frontend "$(lsof -Pi :5173 -sTCP:LISTEN -t | head -n 1)"
+        if wait_url_ok "http://localhost:$HUBOS_FRONTEND_PORT/CENTAUR-HUBOS/" 20 0.5; then
+            if lsof -Pi :"$HUBOS_FRONTEND_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+                save_pid frontend "$(lsof -Pi :"$HUBOS_FRONTEND_PORT" -sTCP:LISTEN -t | head -n 1)"
             fi
             echo "   ✅ 前端 dev server 健康检查通过"
             echo ""
-            echo "访问地址: http://localhost:5173/CENTAUR-HUBOS/"
+            echo "访问地址: http://localhost:$HUBOS_FRONTEND_PORT/CENTAUR-HUBOS/"
         else
             echo "   ❌ 前端 dev server 启动失败，查看日志: /tmp/qeeshu_hubos_frontend.log"; exit 1
         fi
@@ -455,7 +656,7 @@ cmd_stop() {
 
     local services=(frontend hubos bridge)
     local labels=("前端开发服务器" "HubOS API" "hermes-bridge")
-    local ports=(5173 3456 0)
+    local ports=("$HUBOS_FRONTEND_PORT" "$HUBOS_API_PORT" 0)
 
     for i in "${!services[@]}"; do
         local name="${services[$i]}" label="${labels[$i]}" port="${ports[$i]}"
@@ -478,7 +679,7 @@ cmd_stop() {
     done
 
     # bridge 可能在默认或 fallback 端口
-    for port in $BRIDGE_PORT_DEFAULT $BRIDGE_FALLBACK_PORT; do
+    for port in $(bridge_ports); do
         if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
             local pid="$(lsof -Pi :$port -sTCP:LISTEN -t | head -n 1)"
             local cmd="$(describe_pid "$pid")"
@@ -519,7 +720,7 @@ cmd_status() {
 
     # bridge
     local bridge_running=false
-    for port in $BRIDGE_PORT_DEFAULT $BRIDGE_FALLBACK_PORT; do
+    for port in $(bridge_ports); do
         if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
             local pid="$(lsof -Pi :$port -sTCP:LISTEN -t | head -n 1)"
             local cmd="$(describe_pid "$pid")"
@@ -539,21 +740,27 @@ cmd_status() {
     $bridge_running || echo "⏹  hermes-bridge  未运行"
 
     # hubos
-    if lsof -Pi :3456 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        local pid="$(lsof -Pi :3456 -sTCP:LISTEN -t | head -n 1)"
-        if curl -s http://127.0.0.1:3456/api/hubos/health > /dev/null 2>&1; then
-            echo "✅ HubOS API      运行中  PID=$pid  端口=3456  健康"
+    if lsof -Pi :"$HUBOS_API_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+        local pid="$(lsof -Pi :"$HUBOS_API_PORT" -sTCP:LISTEN -t | head -n 1)"
+        if curl -s "http://127.0.0.1:$HUBOS_API_PORT/api/hubos/health" > /dev/null 2>&1; then
+            echo "✅ HubOS API      运行中  PID=$pid  端口=$HUBOS_API_PORT  健康"
         else
-            echo "⚠️  HubOS API      运行中  PID=$pid  端口=3456  不健康"
+            echo "⚠️  HubOS API      运行中  PID=$pid  端口=$HUBOS_API_PORT  不健康"
         fi
     else
         echo "⏹  HubOS API      未运行"
     fi
 
     # frontend
-    if lsof -Pi :5173 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        local pid="$(lsof -Pi :5173 -sTCP:LISTEN -t | head -n 1)"
-        echo "✅ 前端 dev server 运行中  PID=$pid  端口=5173"
+    if [ "$HUBOS_FRONTEND_MODE" = "static" ]; then
+        if [ -f "$SCRIPT_DIR/dist/index.html" ]; then
+            echo "✅ 前端静态资源  可用  路径=$SCRIPT_DIR/dist"
+        else
+            echo "⚠️  前端静态资源  缺失  路径=$SCRIPT_DIR/dist"
+        fi
+    elif lsof -Pi :"$HUBOS_FRONTEND_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
+        local pid="$(lsof -Pi :"$HUBOS_FRONTEND_PORT" -sTCP:LISTEN -t | head -n 1)"
+        echo "✅ 前端 dev server 运行中  PID=$pid  端口=$HUBOS_FRONTEND_PORT"
     else
         echo "⏹  前端 dev server 未运行"
     fi

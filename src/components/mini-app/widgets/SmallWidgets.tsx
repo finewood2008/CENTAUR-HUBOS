@@ -69,7 +69,7 @@ export function Progress({ config }: { config: ProgressWidget }) {
       {config.label && (
         <div className="flex justify-between text-xs mb-1.5">
           <span className="text-gray-400">{config.label}</span>
-          {config.showPercent !== false && (
+          {config.showPercent === true && (
             <span className="text-gray-500">{config.value}%</span>
           )}
         </div>
