@@ -168,8 +168,8 @@ resolve_kb_model_file_default() {
         "$WORKSPACE_BRIDGE_DIR/models/Qwen3-Embedding-0.6B-Q4_0.gguf" \
         "$WORKSPACE_BRIDGE_DIR/vendor/models/Qwen3-Embedding-0.6B-Q4_0.gguf" \
         "$PROJECT_ROOT/qeeclaw-server/models/Qwen3-Embedding-0.6B-Q4_0.gguf" \
-        "$PROJECT_ROOT/data/riscv-embedding/Qwen3-Embedding-0.6B-Q4_0.gguf" \
-        "$PROJECT_ROOT/data/models/Qwen3-Embedding-0.6B-Q4_0.gguf"
+        "$PROJECT_ROOT/data/models/Qwen3-Embedding-0.6B-Q4_0.gguf" \
+        "$PROJECT_ROOT/data/riscv-embedding/Qwen3-Embedding-0.6B-Q4_0.gguf"
     do
         if [ -f "$candidate" ]; then
             echo "$candidate"
@@ -377,10 +377,10 @@ init_env() {
     export QEECLAW_HUD_PORT="${QEECLAW_HUD_PORT:-$HUD_PORT_DEFAULT}"
     export QEECLAW_KB_VECTOR_BACKEND="${QEECLAW_KB_VECTOR_BACKEND:-chromadb}"
     export QEECLAW_KB_DIR="$(resolve_bundle_path "${QEECLAW_KB_DIR:-$WORKSPACE_KB_DIR_DEFAULT}")"
-    export QEECLAW_KB_EMBEDDING_MODEL="${QEECLAW_KB_EMBEDDING_MODEL:-Qwen3-Embedding-0.6B-Q4_0}"
-    export QEECLAW_KB_EMBEDDING_ENGINE="${QEECLAW_KB_EMBEDDING_ENGINE:-llama-server}"
+    export QEECLAW_KB_EMBEDDING_MODEL="${QEECLAW_KB_EMBEDDING_MODEL:-qwen3-embedding-0.6b-q4_0}"
+    export QEECLAW_KB_EMBEDDING_ENGINE="${QEECLAW_KB_EMBEDDING_ENGINE:-openai-compatible}"
     export QEECLAW_KB_EMBEDDING_MODEL_FILE="$(resolve_bundle_path "${QEECLAW_KB_EMBEDDING_MODEL_FILE:-$WORKSPACE_KB_MODEL_FILE_DEFAULT}")"
-    export QEECLAW_KB_EMBEDDING_API_URL="${QEECLAW_KB_EMBEDDING_API_URL:-http://127.0.0.1:8080/embedding}"
+    export QEECLAW_KB_EMBEDDING_API_URL="${QEECLAW_KB_EMBEDDING_API_URL:-http://127.0.0.1:8091/v1/embeddings}"
     export QEECLAW_KB_EMBEDDING_DEVICE="${QEECLAW_KB_EMBEDDING_DEVICE:-cpu}"
     export QEECLAW_KB_EMBEDDING_DIMENSION="${QEECLAW_KB_EMBEDDING_DIMENSION:-1024}"
     export QEECLAW_KB_TOP_K="${QEECLAW_KB_TOP_K:-5}"
