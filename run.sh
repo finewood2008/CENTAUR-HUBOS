@@ -9,10 +9,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 WORKSPACE_BRIDGE_DIR="$PROJECT_ROOT/qeeclaw-sdk/packages/hermes-bridge"
 WORKSPACE_BRIDGE_SCRIPT="$WORKSPACE_BRIDGE_DIR/bridge_server.py"
 WORKSPACE_HERMES_AGENT_DIR_DEFAULT="$PROJECT_ROOT/vendor/hermes-agent"
-WORKSPACE_HUD_DIR_DEFAULT="$PROJECT_ROOT/vendor/hermes-hudui"
 BRIDGE_PORT_DEFAULT=21747
 BRIDGE_FALLBACK_PORT=21748
-HUD_PORT_DEFAULT=8134
 BRIDGE_URL_DEFAULT="http://127.0.0.1:21747"
 HUBOS_API_DEFAULT="http://127.0.0.1:3456"
 PIDFILE_DIR="/tmp/qeeshu-hubos"
@@ -141,16 +139,6 @@ is_workspace_bridge_process() {
     [ "$cwd" = "$WORKSPACE_BRIDGE_DIR" ]
 }
 
-is_workspace_hud_process() {
-    local pid="$1" command="$2" cwd
-    cwd="$(pid_cwd "$pid")"
-    case "$command" in
-        *"backend.main"*|*"hermes-hudui"*) ;;
-        *) return 1 ;;
-    esac
-    [ "$cwd" = "$QEECLAW_HUD_DIR" ] || [ "$cwd" = "$QEECLAW_HUD_DIR/backend" ]
-}
-
 pid_alive() { [ -n "$1" ] && kill -0 "$1" 2>/dev/null; }
 
 wait_pid_exit() {
@@ -233,8 +221,6 @@ init_env() {
     export VITE_CHANNELS_BRIDGE_URL="${VITE_CHANNELS_BRIDGE_URL:-$BRIDGE_URL_DEFAULT}"
     export VITE_HUBOS_API_URL="${VITE_HUBOS_API_URL:-$HUBOS_API_DEFAULT}"
     export QEECLAW_HERMES_AGENT_DIR="${QEECLAW_HERMES_AGENT_DIR:-$WORKSPACE_HERMES_AGENT_DIR_DEFAULT}"
-    export QEECLAW_HUD_DIR="${QEECLAW_HUD_DIR:-$WORKSPACE_HUD_DIR_DEFAULT}"
-    export QEECLAW_HUD_PORT="${QEECLAW_HUD_PORT:-$HUD_PORT_DEFAULT}"
     export QEECLAW_HERMES_BRIDGE_PYTHON="$(resolve_bridge_python)"
 }
 
@@ -268,8 +254,6 @@ start_workspace_bridge() {
     local pid
     pid="$(QEECLAW_HERMES_BRIDGE_PORT="$bridge_port" \
     QEECLAW_HERMES_AGENT_DIR="$QEECLAW_HERMES_AGENT_DIR" \
-    QEECLAW_HUD_DIR="$QEECLAW_HUD_DIR" \
-    QEECLAW_HUD_PORT="$QEECLAW_HUD_PORT" \
     TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}" \
     start_detached "$bridge_log" "$QEECLAW_HERMES_BRIDGE_PYTHON" "$WORKSPACE_BRIDGE_SCRIPT")"
     save_pid bridge "$pid"
@@ -489,17 +473,6 @@ cmd_stop() {
         fi
     done
 
-    # HUD 是 bridge_server.py 拉起的子进程；旧版本 bridge 收到 SIGTERM 时不会清理它。
-    # restart 前显式清理 workspace HUD，避免 8134 残留导致新 bridge 启动失败。
-    if lsof -Pi :"$QEECLAW_HUD_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
-        local hud_pid="$(lsof -Pi :"$QEECLAW_HUD_PORT" -sTCP:LISTEN -t | head -n 1)"
-        local hud_cmd="$(describe_pid "$hud_pid")"
-        if is_workspace_hud_process "$hud_pid" "$hud_cmd"; then
-            stop_pid "$hud_pid" "HUD Dashboard"
-        else
-            echo "ℹ️  HUD 端口 $QEECLAW_HUD_PORT 被非 workspace 进程占用: PID=$hud_pid"
-        fi
-    fi
 }
 
 cmd_restart() {
@@ -558,18 +531,6 @@ cmd_status() {
         echo "⏹  前端 dev server 未运行"
     fi
 
-    # HUD
-    if lsof -Pi :"$QEECLAW_HUD_PORT" -sTCP:LISTEN -t >/dev/null 2>&1; then
-        local pid="$(lsof -Pi :"$QEECLAW_HUD_PORT" -sTCP:LISTEN -t | head -n 1)"
-        local cmd="$(describe_pid "$pid")"
-        if is_workspace_hud_process "$pid" "$cmd"; then
-            echo "✅ HUD Dashboard  运行中  PID=$pid  端口=$QEECLAW_HUD_PORT"
-        else
-            echo "ℹ️  HUD 端口 $QEECLAW_HUD_PORT 被非 workspace 进程占用: PID=$pid"
-        fi
-    else
-        echo "⏹  HUD Dashboard  未运行"
-    fi
 }
 
 # ── 入口 ──────────────────────────────────

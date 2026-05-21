@@ -16,7 +16,6 @@ fi
 # 设置环境变量
 export QEECLAW_HERMES_BRIDGE_PORT=21747
 export QEECLAW_HERMES_AGENT_DIR="/Users/longxiping/Public/workspace/qs/ai/qs-nexus-aos/vendor/hermes-agent"
-export QEECLAW_HUD_DIR="/Users/longxiping/Public/workspace/qs/ai/qs-nexus-aos/vendor/hermes-hudui"
 
 # 启动 bridge
 cd "$BRIDGE_DIR"
